@@ -16,6 +16,7 @@ export type PreviewEventCallback = (event: {
   url?: string;
   backend_port?: number;
   backend_url?: string;
+  project_path?: string;
 }) => void;
 
 export class DevServerManager {
@@ -45,8 +46,41 @@ export class DevServerManager {
     const key = path.resolve(projectPath);
     return this.activeServers.get(key)?.info ?? null;
   }
+  private getOccupiedPorts(): Set<number> {
+    const ports = new Set<number>();
+    for (const server of this.activeServers.values()) {
+      ports.add(server.info.port);
+    }
+    return ports;
+  }
 
-  async startDevServer(projectPath: string, preferredPort: number = 3000): Promise<DevServerInfo | null> {
+  private async isPortAvailable(port: number): Promise<boolean> {
+    try {
+      const server = Bun.listen({
+        port,
+        hostname: "127.0.0.1",
+        socket: {
+          data() {},
+        },
+      });
+      server.stop(true);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async findAvailablePort(startPort: number = 3000, maxPort: number = 3050): Promise<number> {
+    const occupied = this.getOccupiedPorts();
+    for (let p = startPort; p <= maxPort; p++) {
+      if (!occupied.has(p) && (await this.isPortAvailable(p))) {
+        return p;
+      }
+    }
+    return startPort;
+  }
+
+  async startDevServer(projectPath: string, preferredPort?: number): Promise<DevServerInfo | null> {
     const resolvedPath = path.resolve(projectPath);
     const existing = this.activeServers.get(resolvedPath);
     if (existing) {
@@ -56,6 +90,7 @@ export class DevServerManager {
         url: existing.info.url,
         backend_port: existing.info.backend_port,
         backend_url: existing.info.backend_url,
+        project_path: resolvedPath,
       });
       return existing.info;
     }
@@ -65,10 +100,16 @@ export class DevServerManager {
       return null;
     }
 
-    console.log(`[DevServerManager] Starting dev server for ${resolvedPath} on port ${preferredPort}...`);
+    const occupied = this.getOccupiedPorts();
+    let targetPort: number;
+    if (preferredPort && !occupied.has(preferredPort) && (await this.isPortAvailable(preferredPort))) {
+      targetPort = preferredPort;
+    } else {
+      targetPort = await this.findAvailablePort(3000);
+    }
+    const backendPort = 5001 + (targetPort - 3000);
 
-    let targetPort = preferredPort;
-    const backendPort = 5001;
+    console.log(`[DevServerManager] Starting dev server for ${resolvedPath} on port ${targetPort}...`);
 
     // Launch Vite using bun
     const proc = Bun.spawn(["bun", "run", "dev:frontend"], {
@@ -120,6 +161,7 @@ export class DevServerManager {
               url: info.url,
               backend_port: info.backend_port,
               backend_url: info.backend_url,
+              project_path: resolvedPath,
             });
             break;
           }
@@ -138,6 +180,7 @@ export class DevServerManager {
           url: info.url,
           backend_port: info.backend_port,
           backend_url: info.backend_url,
+          project_path: resolvedPath,
         });
       }
     }, 1500);

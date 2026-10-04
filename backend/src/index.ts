@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import { ProjectManager } from "./project-manager";
 import { ModelsService, detectHardware } from "./models-service";
 import { DevServerManager } from "./dev-server";
@@ -133,6 +134,10 @@ const _server = Bun.serve<WsData>({
     if (url.pathname.startsWith("/api/projects/") && req.method === "DELETE") {
       const projectName = decodeURIComponent(url.pathname.replace("/api/projects/", ""));
       try {
+        const project = await projectManager.getProject(projectName).catch(() => null);
+        if (project) {
+          devServerManager.stopDevServer(project.path);
+        }
         await projectManager.deleteProject(projectName);
         return Response.json({ status: "deleted" }, { headers: CORS_HEADERS });
       } catch (err) {
@@ -193,11 +198,17 @@ const _server = Bun.serve<WsData>({
         }
       };
 
-      const bridge = new SessionBridge(send, modelsService);
+      const bridge = new SessionBridge(send, modelsService, devServerManager);
       ws.data.bridge = bridge;
 
-      // Forward dev server events to frontend
+      // Forward dev server events to frontend only for this connection's project
       const unsubscribe = devServerManager.onEvent(event => {
+        if (event.project_path && ws.data.activeProjectName) {
+          const eventProject = path.basename(event.project_path);
+          if (eventProject !== ws.data.activeProjectName) {
+            return;
+          }
+        }
         send(event);
       });
       ws.data.unsubscribeDevServer = unsubscribe;

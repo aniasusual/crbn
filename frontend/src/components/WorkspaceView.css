@@ -1,20 +1,12 @@
 .workspace-container {
   display: flex;
   flex-direction: column;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
   background: var(--lk-bg);
   overflow: hidden;
-}
-
-.workspace-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  background: var(--lk-bg-elevated);
-  border-bottom: 1px solid var(--lk-border);
-  flex-shrink: 0;
 }
 
 .workspace-header__back {

@@ -1,11 +1,14 @@
+import * as path from "node:path";
 import {
   createAgentSession,
   SessionManager,
+  AgentRegistry,
   type AgentSession,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
 import { ChatHistoryManager } from "./chat-history";
 import type { ModelsService } from "./models-service";
+import type { DevServerManager } from "./dev-server";
 export type WebSocketSender = (message: Record<string, unknown>) => void;
 
 export class SessionBridge {
@@ -22,8 +25,8 @@ export class SessionBridge {
   constructor(
     private readonly send: WebSocketSender,
     private readonly modelsService?: ModelsService,
+    private readonly devServerManager?: DevServerManager,
   ) {}
-
   getActiveModel(): string {
     return this.activeModel;
   }
@@ -84,6 +87,16 @@ export class SessionBridge {
         const modelRegistry = this.modelsService ? await this.modelsService.getRegistry() : undefined;
 
         const sessionManager = await SessionManager.continueRecent(projectPath);
+        const devServer = this.devServerManager?.getServerInfo(projectPath);
+        const previewPort = devServer?.port ?? 3000;
+        const previewUrl = devServer?.url ?? `http://127.0.0.1:${previewPort}`;
+        const appendSystemPrompt = [
+          `# Managed Development Server & Live Preview Environment`,
+          `- A managed Vite dev server is ALREADY active for this project at ${previewUrl}.`,
+          `- Automatic Hot Module Replacement (HMR) is active: writing or editing files in src/ immediately updates the live preview iframe.`,
+          `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server).`,
+          `- DO NOT alter port settings in vite.config.js or package.json.`,
+        ].join("\n");
 
         const { session, setToolUIContext } = await createAgentSession({
           cwd: projectPath,
@@ -92,6 +105,9 @@ export class SessionBridge {
           authStorage,
           modelRegistry,
           interactivePrompts: true,
+          appendSystemPrompt,
+          agentRegistry: new AgentRegistry(),
+          agentId: `agent_${path.basename(projectPath)}`,
         });
         this.session = session;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));

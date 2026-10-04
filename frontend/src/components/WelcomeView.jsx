@@ -10,8 +10,9 @@ import './WelcomeView.css';
 export default function WelcomeView({
   onSubmit,
   onOpenProject,
-  isExiting,
-  isTransitioning,
+  onDeleteProject,
+  isExiting = false,
+  isTransitioning = false,
   hardwareInfo,
   models = [],
   selectedModel,
@@ -53,6 +54,7 @@ export default function WelcomeView({
     if (!window.confirm(`Delete project "${name}"?`)) return;
     try {
       await fetch(`${API_BASE_URL}/api/projects/${name}`, { method: 'DELETE' });
+      onDeleteProject?.(name);
       fetchProjects();
     } catch (err) {
       console.error('Failed to delete project', err);

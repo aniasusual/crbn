@@ -1,0 +1,193 @@
+/* Tab Bar — Notion/macOS Desktop Window Tabs with Unified Header */
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #121214;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  height: 38px;
+  user-select: none;
+  overflow: hidden;
+  flex-shrink: 0;
+  padding: 0 10px 0 6px;
+}
+
+.tab-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+.tab-bar__right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+/* Scrollable container for project tabs */
+.tab-bar__tabs-scroll {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 100%;
+  scrollbar-width: none;
+  padding: 3px 0;
+}
+
+.tab-bar__tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual Tab */
+.tab-bar__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-weight: 450;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  max-width: 200px;
+  min-width: 80px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.tab-bar__tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.tab-bar__tab--active {
+  background: #1c1c1f;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Home Tab */
+.tab-bar__tab--home {
+  min-width: auto;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.tab-bar__tab-icon {
+  color: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tab-bar__tab--active .tab-bar__tab-icon {
+  color: #a1a1aa;
+}
+
+.tab-bar__tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* Status Indicator Dot */
+.tab-bar__tab-status {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tab-bar__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tab-bar__status-dot--generating {
+  background-color: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  animation: tab-pulse 1.4s infinite ease-in-out;
+}
+
+.tab-bar__status-dot--awaiting {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  animation: tab-pulse 1.4s infinite ease-in-out;
+}
+
+@keyframes tab-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+/* Close Button */
+.tab-bar__tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.35);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.1s ease;
+  flex-shrink: 0;
+  opacity: 0;
+}
+
+.tab-bar__tab:hover .tab-bar__tab-close,
+.tab-bar__tab--active .tab-bar__tab-close {
+  opacity: 1;
+}
+
+.tab-bar__tab-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* New Tab (+) Button */
+.tab-bar__new-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.tab-bar__new-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}

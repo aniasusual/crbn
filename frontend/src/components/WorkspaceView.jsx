@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import ChatPanel from './ChatPanel';
 import PreviewPanel from './PreviewPanel';
 import ModelSelector from './ModelSelector';
-import ContextGauge from './ContextGauge';
 import './WorkspaceView.css';
 
 export default function WorkspaceView({
@@ -15,8 +14,8 @@ export default function WorkspaceView({
   previewData,
   lastChangeTimestamp,
   onStopPreview,
-  onGoBack,
-  projectName,
+  _onGoBack,
+  _projectName,
   pendingApproval,
   onApproveCommand,
   onDenyCommand,
@@ -86,16 +85,6 @@ export default function WorkspaceView({
 
   return (
     <div className="workspace-container">
-      <div className="workspace-header">
-        <button className="workspace-header__back" onClick={onGoBack}>
-          ← Back to Projects
-        </button>
-        <div className="workspace-header__title">{projectName || 'Workspace'}</div>
-        <div className="workspace-header__right">
-          <ContextGauge telemetry={contextTelemetry} placement="bottom" />
-        </div>
-      </div>
-
       <div className="workspace">
         <div className="workspace__left" ref={leftPanelRef} style={{ width: '400px' }}>
           <ChatPanel

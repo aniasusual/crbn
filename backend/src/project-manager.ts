@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-
+import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index";
 export interface ProjectInfo {
   name: string;
   path: string;
@@ -208,6 +208,12 @@ export class ProjectManager {
     if (fsSync.existsSync(projectDir)) {
       await fs.rm(projectDir, { recursive: true, force: true });
     }
+    try {
+      const sessionDir = SessionManager.getDefaultSessionDir(projectDir);
+      if (fsSync.existsSync(sessionDir)) {
+        await fs.rm(sessionDir, { recursive: true, force: true });
+      }
+    } catch {}
   }
 
   async openInFinder(name: string): Promise<void> {
