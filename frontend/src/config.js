@@ -1,5 +1,5 @@
 /**
- * Centralized Application Configuration for Lowkey Frontend.
+ * Centralized Application Configuration for soluchan Frontend.
  * Reads environment variables defined with VITE_ prefix.
  */
 

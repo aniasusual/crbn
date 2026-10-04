@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import ModelSelector from './ModelSelector';
+import AttachmentRibbon from './AttachmentRibbon';
+import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './WelcomeView.css';
-
 /**
  * WelcomeView — Minimalist Notion-style Landing Page.
  * Pure typography, quiet monochrome controls, and crisp hierarchy.
@@ -18,12 +19,29 @@ export default function WelcomeView({
   selectedModel,
   onSelectModel,
   onRefreshModels,
+  prompt: controlledPrompt,
+  onPromptChange,
 }) {
-  const [prompt, setPrompt] = useState('');
+  const [localPrompt, setLocalPrompt] = useState('');
+  const prompt = controlledPrompt !== undefined ? controlledPrompt : localPrompt;
+  const setPrompt = onPromptChange || setLocalPrompt;
   const [isNaming, setIsNaming] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [isGeneratingName, setIsGeneratingName] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const {
+    attachments,
+    isDragging,
+    fileInputRef,
+    openFilePicker,
+    removeAttachment,
+    clearAttachments,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handlePaste,
+    addFiles,
+  } = useMediaAttachments();
 
   const [projects, setProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
@@ -96,7 +114,14 @@ export default function WelcomeView({
   const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (!projectName.trim()) return;
-    onSubmit(prompt, projectName.trim());
+    const images = attachments
+      .filter((a) => a.type === 'image')
+      .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
+    const files = attachments
+      .filter((a) => a.type === 'file')
+      .map((a) => ({ name: a.name, content: a.content, size: a.size }));
+    onSubmit(prompt, projectName.trim(), { images, files });
+    clearAttachments();
   };
 
   const exiting = isExiting || isTransitioning;
@@ -108,11 +133,38 @@ export default function WelcomeView({
           <>
             <h1 className="notion-welcome__title">What do you want to build?</h1>
             <p className="notion-welcome__subtitle">
-              Describe your web application and Lowkey will build and run it locally.
+              Describe your web application and soluchan will build and run it locally.
             </p>
 
-            <form className="notion-welcome__form" onSubmit={handleInitialSubmit}>
-              <div className="notion-welcome__input-wrapper">
+            <form
+              className="notion-welcome__form"
+              onSubmit={handleInitialSubmit}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onPaste={handlePaste}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                  if (e.target.files) addFiles(Array.from(e.target.files));
+                }}
+              />
+
+              {/* Attachment preview directly ABOVE the input box */}
+              <div style={{ padding: '0 4px' }}>
+                <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
+              </div>
+
+              <div
+                className={`notion-welcome__input-wrapper ${
+                  isDragging ? 'notion-welcome__input-wrapper--dragging' : ''
+                }`}
+              >
                 <textarea
                   className="notion-welcome__input"
                   placeholder="A Kanban board with drag-and-drop, tags, and local storage..."
@@ -129,6 +181,17 @@ export default function WelcomeView({
                 />
                 <div className="notion-welcome__actions">
                   <div className="notion-welcome__actions-left">
+                    <button
+                      type="button"
+                      className="notion-welcome__attach-btn"
+                      onClick={openFilePicker}
+                      title="Attach media or files"
+                      aria-label="Attach files"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                      </svg>
+                    </button>
                     <button
                       type="button"
                       className="notion-welcome__model-pill"
@@ -160,7 +223,11 @@ export default function WelcomeView({
 
                   <div className="notion-welcome__actions-right">
                     <span className="notion-welcome__shortcut-hint">Enter to build</span>
-                    <button type="submit" className="notion-welcome__submit-btn" disabled={!prompt.trim()}>
+                    <button
+                      type="submit"
+                      className="notion-welcome__submit-btn"
+                      disabled={!prompt.trim() && attachments.length === 0}
+                    >
                       Start building
                     </button>
                   </div>

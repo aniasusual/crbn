@@ -9,7 +9,7 @@ import './index.css';
 export default function App() {
   const [tabs, setTabs] = useState(() => {
     try {
-      const saved = localStorage.getItem('lowkey_open_tabs');
+      const saved = localStorage.getItem('soluchan_open_tabs');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -18,7 +18,7 @@ export default function App() {
 
   const [activeTabId, setActiveTabId] = useState(() => {
     try {
-      return localStorage.getItem('lowkey_active_tab_id') || null;
+      return localStorage.getItem('soluchan_active_tab_id') || null;
     } catch {
       return null;
     }
@@ -26,7 +26,7 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState(() => {
     try {
-      const savedTabs = localStorage.getItem('lowkey_open_tabs');
+      const savedTabs = localStorage.getItem('soluchan_open_tabs');
       const parsed = savedTabs ? JSON.parse(savedTabs) : [];
       return parsed.length > 0 ? 'workspace' : 'welcome';
     } catch {
@@ -38,14 +38,17 @@ export default function App() {
   const [hardwareInfo, setHardwareInfo] = useState(null);
   const [models, setModels] = useState([]);
   const [globalDefaultModel, setGlobalDefaultModel] = useState(() => {
-    return localStorage.getItem('lowkey_selected_model') || 'gemini-3.8-flash';
+    return localStorage.getItem('soluchan_selected_model') || 'gemini-3.8-flash';
   });
+  const [welcomePrompt, setWelcomePrompt] = useState('');
 
   // Map of tabId -> WebSocket connection
   const socketsRef = useRef(new Map());
   // Map of tabId -> pending initial prompt string
   const pendingPromptsRef = useRef(new Map());
   const handleSendMessageRef = useRef(null);
+  const connectTabSocketRef = useRef(null);
+
   // Save open tabs list to localStorage whenever it changes
   useEffect(() => {
     try {
@@ -54,7 +57,7 @@ export default function App() {
         projectName: t.projectName,
         model: t.model,
       }));
-      localStorage.setItem('lowkey_open_tabs', JSON.stringify(serialized));
+      localStorage.setItem('soluchan_open_tabs', JSON.stringify(serialized));
     } catch (e) {
       console.error('Failed to persist open tabs:', e);
     }
@@ -64,9 +67,9 @@ export default function App() {
   useEffect(() => {
     try {
       if (activeTabId) {
-        localStorage.setItem('lowkey_active_tab_id', activeTabId);
+        localStorage.setItem('soluchan_active_tab_id', activeTabId);
       } else {
-        localStorage.removeItem('lowkey_active_tab_id');
+        localStorage.removeItem('soluchan_active_tab_id');
       }
     } catch (e) {
       console.error('Failed to persist active tab id:', e);
@@ -84,7 +87,7 @@ export default function App() {
 
         // Validate or set default selected model
         if (data.models && data.models.length > 0) {
-          const savedModel = localStorage.getItem('lowkey_selected_model');
+          const savedModel = localStorage.getItem('soluchan_selected_model');
           const matching = data.models.find(
             (m) =>
               (m.id === savedModel || m.canonical_id === savedModel) &&
@@ -93,7 +96,7 @@ export default function App() {
           if (matching) {
             const targetId = matching.canonical_id || matching.id;
             setGlobalDefaultModel(targetId);
-            localStorage.setItem('lowkey_selected_model', targetId);
+            localStorage.setItem('soluchan_selected_model', targetId);
           } else {
             const defaultModel =
               data.models.find(
@@ -108,7 +111,7 @@ export default function App() {
             if (defaultModel) {
               const targetId = defaultModel.canonical_id || defaultModel.id;
               setGlobalDefaultModel(targetId);
-              localStorage.setItem('lowkey_selected_model', targetId);
+              localStorage.setItem('soluchan_selected_model', targetId);
             }
           }
         }
@@ -131,7 +134,7 @@ export default function App() {
 
   // Connects a dedicated WebSocket for a specific tab
   const connectTabSocket = useCallback(
-    (tabId, projectName, modelName, initialPrompt) => {
+    (tabId, projectName, modelName, initialPrompt, initialAttachments) => {
       // Close existing socket for this tab if any
       const oldWs = socketsRef.current.get(tabId);
       if (oldWs) {
@@ -140,8 +143,8 @@ export default function App() {
         } catch {}
       }
 
-      if (initialPrompt) {
-        pendingPromptsRef.current.set(tabId, initialPrompt);
+      if (initialPrompt || (initialAttachments && (initialAttachments.images?.length > 0 || initialAttachments.files?.length > 0))) {
+        pendingPromptsRef.current.set(tabId, { prompt: initialPrompt || '', attachments: initialAttachments });
       }
 
       const ws = new WebSocket(WS_BASE_URL);
@@ -235,12 +238,15 @@ export default function App() {
             }));
 
             // If an initial prompt was queued for this tab, dispatch it now
-            const pendingPrompt = pendingPromptsRef.current.get(tabId);
-            if (pendingPrompt) {
+            const pending = pendingPromptsRef.current.get(tabId);
+            if (pending) {
               pendingPromptsRef.current.delete(tabId);
+              const promptText = typeof pending === 'string' ? pending : pending.prompt;
+              const attachments = typeof pending === 'object' ? pending.attachments : undefined;
+
               updateTab(tabId, (t) => {
                 const alreadyHasPrompt = t.messages.some(
-                  (m) => (m.role === 'user' || m.type === 'user') && m.content === pendingPrompt
+                  (m) => (m.role === 'user' || m.type === 'user') && m.content === promptText
                 );
                 return {
                   agentStatus: 'generating',
@@ -248,14 +254,22 @@ export default function App() {
                     ? t.messages
                     : [
                         ...t.messages,
-                        { role: 'user', content: pendingPrompt, timestamp: new Date().toISOString() },
+                        {
+                          role: 'user',
+                          content: promptText,
+                          images: attachments?.images,
+                          files: attachments?.files,
+                          timestamp: new Date().toISOString(),
+                        },
                       ],
                 };
               });
               ws.send(
                 JSON.stringify({
                   action: 'prompt',
-                  prompt: pendingPrompt,
+                  prompt: promptText,
+                  images: attachments?.images,
+                  files: attachments?.files,
                   model: modelName,
                 })
               );
@@ -486,20 +500,22 @@ export default function App() {
     },
     [updateTab]
   );
+  connectTabSocketRef.current = connectTabSocket;
 
   // Rehydrate open tabs on initial load
   useEffect(() => {
     fetchModelsAndHardware();
 
     try {
-      const savedTabs = localStorage.getItem('lowkey_open_tabs');
+      const savedTabs = localStorage.getItem('soluchan_open_tabs');
       const parsedTabs = savedTabs ? JSON.parse(savedTabs) : [];
       if (Array.isArray(parsedTabs) && parsedTabs.length > 0) {
         const initialized = parsedTabs.map((t) => ({
           id: t.id,
           projectName: t.projectName,
           project: { name: t.projectName },
-          model: t.model || globalDefaultModel,
+          model: t.model || localStorage.getItem('soluchan_selected_model') || 'gemini-3.8-flash',
+          inputText: '',
           messages: [],
           agentStatus: null,
           previewData: null,
@@ -514,10 +530,10 @@ export default function App() {
 
         // Connect sockets for all saved tabs
         for (const t of initialized) {
-          connectTabSocket(t.id, t.projectName, t.model);
+          connectTabSocketRef.current?.(t.id, t.projectName, t.model);
         }
 
-        const savedActiveId = localStorage.getItem('lowkey_active_tab_id');
+        const savedActiveId = localStorage.getItem('soluchan_active_tab_id');
         const activeExists = initialized.some((t) => t.id === savedActiveId);
         setActiveTabId(activeExists ? savedActiveId : initialized[0].id);
         setCurrentView('workspace');
@@ -535,11 +551,11 @@ export default function App() {
       }
       activeSockets.clear();
     };
-  }, [connectTabSocket, globalDefaultModel]);
+  }, []);
 
   // Handle Opening a Project (from Welcome screen or Finder)
   const handleOpenProject = useCallback(
-    (projectInfo, initialPrompt) => {
+    (projectInfo, initialPrompt, initialAttachments) => {
       const projectName = projectInfo.name;
       const tabId = `tab_${projectName}`;
       const chosenModel = projectInfo.model || globalDefaultModel;
@@ -549,14 +565,22 @@ export default function App() {
       if (existingTab) {
         setActiveTabId(existingTab.id);
         setCurrentView('workspace');
-        if (initialPrompt) {
-          handleSendMessageRef.current?.(initialPrompt);
+        if (initialPrompt || initialAttachments) {
+          handleSendMessageRef.current?.(initialPrompt, initialAttachments);
         }
         return;
       }
 
-      const initialMessages = initialPrompt
-        ? [{ role: 'user', content: initialPrompt, timestamp: new Date().toISOString() }]
+      const initialMessages = (initialPrompt || initialAttachments)
+        ? [
+            {
+              role: 'user',
+              content: initialPrompt || '',
+              images: initialAttachments?.images,
+              files: initialAttachments?.files,
+              timestamp: new Date().toISOString(),
+            },
+          ]
         : [];
 
       // Create new tab
@@ -565,6 +589,7 @@ export default function App() {
         projectName,
         project: projectInfo,
         model: chosenModel,
+        inputText: '',
         messages: initialMessages,
         agentStatus: initialPrompt ? 'generating' : null,
         previewData: projectInfo.port
@@ -582,14 +607,14 @@ export default function App() {
       setCurrentView('workspace');
 
       // Establish dedicated WebSocket connection for this tab
-      connectTabSocket(tabId, projectName, chosenModel, initialPrompt);
+      connectTabSocket(tabId, projectName, chosenModel, initialPrompt, initialAttachments);
     },
     [tabs, globalDefaultModel, connectTabSocket]
   );
 
   // Handle Creating a New Project from Welcome Screen
   const handleCreateProject = useCallback(
-    async (prompt, projectName) => {
+    async (prompt, projectName, attachments) => {
       try {
         setIsTransitioning(true);
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
@@ -602,7 +627,8 @@ export default function App() {
           }),
         });
         const data = await response.json();
-        handleOpenProject(data, prompt);
+        setWelcomePrompt('');
+        handleOpenProject(data, prompt, attachments);
         setIsTransitioning(false);
       } catch (err) {
         console.error('Failed to create project:', err);
@@ -658,42 +684,41 @@ export default function App() {
 
   // Active Tab Action Handlers
   const handleSendMessage = useCallback(
-    (prompt) => {
-      if (!prompt || !activeTabId) return;
+    (prompt, attachments) => {
+      if ((!prompt && (!attachments || (!attachments.images?.length && !attachments.files?.length))) || !activeTabId) return;
       const ws = socketsRef.current.get(activeTabId);
       const tab = tabs.find((t) => t.id === activeTabId);
       if (!ws || !tab) return;
+
+      const images = attachments?.images ?? [];
+      const files = attachments?.files ?? [];
 
       updateTab(activeTabId, (t) => ({
         agentStatus: 'generating',
         messages: [
           ...t.messages,
-          { role: 'user', content: prompt, timestamp: new Date().toISOString() },
+          {
+            role: 'user',
+            content: prompt,
+            images: images.length > 0 ? images : undefined,
+            files: files.length > 0 ? files : undefined,
+            timestamp: new Date().toISOString(),
+          },
         ],
       }));
 
+      const payload = JSON.stringify({
+        action: 'prompt',
+        prompt,
+        images: images.length > 0 ? images : undefined,
+        files: files.length > 0 ? files : undefined,
+        model: tab.model,
+      });
+
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            action: 'prompt',
-            prompt,
-            model: tab.model,
-          })
-        );
+        ws.send(payload);
       } else if (ws.readyState === WebSocket.CONNECTING) {
-        ws.addEventListener(
-          'open',
-          () => {
-            ws.send(
-              JSON.stringify({
-                action: 'prompt',
-                prompt,
-                model: tab.model,
-              })
-            );
-          },
-          { once: true }
-        );
+        ws.addEventListener('open', () => ws.send(payload), { once: true });
       }
     },
     [activeTabId, tabs, updateTab]
@@ -716,12 +741,12 @@ export default function App() {
     (modelId) => {
       if (!activeTabId) {
         setGlobalDefaultModel(modelId);
-        localStorage.setItem('lowkey_selected_model', modelId);
+        localStorage.setItem('soluchan_selected_model', modelId);
         return;
       }
       updateTab(activeTabId, { model: modelId });
       setGlobalDefaultModel(modelId);
-      localStorage.setItem('lowkey_selected_model', modelId);
+      localStorage.setItem('soluchan_selected_model', modelId);
 
       const ws = socketsRef.current.get(activeTabId);
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -801,9 +826,11 @@ export default function App() {
           selectedModel={globalDefaultModel}
           onSelectModel={(mId) => {
             setGlobalDefaultModel(mId);
-            localStorage.setItem('lowkey_selected_model', mId);
+            localStorage.setItem('soluchan_selected_model', mId);
           }}
           onRefreshModels={fetchModelsAndHardware}
+          prompt={welcomePrompt}
+          onPromptChange={setWelcomePrompt}
         />
       )}
 
@@ -835,6 +862,8 @@ export default function App() {
           todoState={activeTab.todoState}
           checkpointTimeline={activeTab.checkpointTimeline}
           onRewindToStep={null}
+          input={activeTab.inputText || ''}
+          onInputChange={(val) => updateTab(activeTab.id, { inputText: val })}
         />
       )}
     </div>

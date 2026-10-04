@@ -442,14 +442,52 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
   const renderBubble = () => {
     // User message
     if (message.role === 'user' || message.type === 'user') {
+      const hasImages = Array.isArray(message.images) && message.images.length > 0;
+      const hasFiles = Array.isArray(message.files) && message.files.length > 0;
+
       return (
         <div className="chat-msg chat-msg--user">
           <div className="chat-msg__box chat-msg__box--user">
-            <div className="chat-msg__content">{message.content}</div>
+            {hasImages && (
+              <div className="chat-msg__user-images">
+                {message.images.map((img, idx) => {
+                  const src =
+                    img.dataUrl ||
+                    (img.data ? `data:${img.mimeType || 'image/png'};base64,${img.data}` : '');
+                  return (
+                    <img
+                      key={idx}
+                      src={src}
+                      alt={img.name || `Image attachment ${idx + 1}`}
+                      className="chat-msg__user-img"
+                      onClick={() => {
+                        if (src) window.open(src, '_blank');
+                      }}
+                      title="Click to view full image"
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {hasFiles && (
+              <div className="chat-msg__user-files">
+                {message.files.map((file, idx) => (
+                  <div key={idx} className="chat-msg__user-file-chip" title={file.name}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    <span>{file.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {message.content && <div className="chat-msg__content">{message.content}</div>}
           </div>
           <MessageFooter
             timestamp={message.timestamp}
-            contentToCopy={message.content}
             debug={message.debug}
             onOpenDebug={openDebug}
             stepId={message.step_id}

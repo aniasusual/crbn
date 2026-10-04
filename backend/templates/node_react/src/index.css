@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   Lowkey Production Design System & Living Token Foundation
+   soluchan Production Design System & Living Token Foundation
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -295,7 +295,7 @@ h1, h2, h3, h4, h5, h6 {
    Temporary Preview Welcome Screen Styles (Can be removed or ignored when building)
    ========================================================================== */
 
-.crbn-canvas {
+.soluchan-canvas {
   width: 100%;
   min-height: 100vh;
   display: flex;
@@ -304,17 +304,17 @@ h1, h2, h3, h4, h5, h6 {
   padding: 2rem 1.5rem;
 }
 
-.crbn-hero {
+.soluchan-hero {
   width: 100%;
   max-width: 600px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  animation: crbn-appear 0.7s var(--ease-out-expo) both;
+  animation: soluchan-appear 0.7s var(--ease-out-expo) both;
 }
 
-@keyframes crbn-appear {
+@keyframes soluchan-appear {
   0% {
     opacity: 0;
     transform: translateY(12px);
@@ -325,7 +325,7 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-.crbn-status-pill {
+.soluchan-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -336,7 +336,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 1.75rem;
 }
 
-.crbn-pulse {
+.soluchan-pulse {
   position: relative;
   width: 8px;
   height: 8px;
@@ -345,37 +345,37 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
 }
 
-.crbn-pulse-core {
+.soluchan-pulse-core {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--success);
 }
 
-.crbn-pulse-ring {
+.soluchan-pulse-ring {
   position: absolute;
   width: 100%;
   height: 100%;
   border-radius: 50%;
   background: var(--success);
   opacity: 0.6;
-  animation: crbn-ripple 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+  animation: soluchan-ripple 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
 }
 
-@keyframes crbn-ripple {
+@keyframes soluchan-ripple {
   0% { transform: scale(0.9); opacity: 0.8; }
   70% { transform: scale(2.8); opacity: 0; }
   100% { transform: scale(3); opacity: 0; }
 }
 
-.crbn-status-label {
+.soluchan-status-label {
   font-size: 0.82rem;
   font-weight: 600;
   color: #34d399;
   letter-spacing: 0.02em;
 }
 
-.crbn-title {
+.soluchan-title {
   font-size: clamp(2.1rem, 6vw, 2.75rem);
   font-weight: 700;
   color: var(--text-primary);
@@ -383,7 +383,7 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.15;
 }
 
-.crbn-description {
+.soluchan-description {
   font-size: clamp(1rem, 2.8vw, 1.15rem);
   color: var(--text-secondary);
   line-height: 1.6;
@@ -391,7 +391,7 @@ h1, h2, h3, h4, h5, h6 {
   margin-bottom: 2.25rem;
 }
 
-.crbn-agent-status {
+.soluchan-agent-status {
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -402,35 +402,35 @@ h1, h2, h3, h4, h5, h6 {
   transition: var(--transition-fast);
 }
 
-.crbn-agent-status:hover {
+.soluchan-agent-status:hover {
   background: rgba(255, 255, 255, 0.08);
   border-color: var(--border-hover);
 }
 
-.crbn-dots {
+.soluchan-dots {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.crbn-dot {
+.soluchan-dot {
   width: 4px;
   height: 4px;
   border-radius: 50%;
   background: var(--text-secondary);
-  animation: crbn-wave 1.4s ease-in-out infinite;
+  animation: soluchan-wave 1.4s ease-in-out infinite;
 }
 
-.crbn-dot--1 { animation-delay: 0s; }
-.crbn-dot--2 { animation-delay: 0.2s; }
-.crbn-dot--3 { animation-delay: 0.4s; }
+.soluchan-dot--1 { animation-delay: 0s; }
+.soluchan-dot--2 { animation-delay: 0.2s; }
+.soluchan-dot--3 { animation-delay: 0.4s; }
 
-@keyframes crbn-wave {
+@keyframes soluchan-wave {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
   30% { transform: translateY(-4px); opacity: 1; background: #ffffff; }
 }
 
-.crbn-agent-text {
+.soluchan-agent-text {
   font-size: 0.82rem;
   color: var(--text-secondary);
   font-weight: 500;

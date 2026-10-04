@@ -3,33 +3,33 @@ import React from 'react';
 
 export default function App() {
   return (
-    <div className="crbn-canvas">
-      <main className="crbn-hero">
+    <div className="soluchan-canvas">
+      <main className="soluchan-hero">
         {/* Live Status Pill with Ripple Animation */}
-        <div className="crbn-status-pill">
-          <span className="crbn-pulse">
-            <span className="crbn-pulse-ring" />
-            <span className="crbn-pulse-core" />
+        <div className="soluchan-status-pill">
+          <span className="soluchan-pulse">
+            <span className="soluchan-pulse-ring" />
+            <span className="soluchan-pulse-core" />
           </span>
-          <span className="crbn-status-label">Live Preview Running</span>
+          <span className="soluchan-status-label">Live Preview Running</span>
         </div>
 
         {/* Large Prominent Heading */}
-        <h1 className="crbn-title">Welcome to crbn</h1>
+        <h1 className="soluchan-title">Welcome to soluchan</h1>
 
         {/* Larger Readable Subtitle */}
-        <p className="crbn-description">
+        <p className="soluchan-description">
           Your preview is working. The agent will build your app here — thanks for your patience.
         </p>
 
         {/* Animated Agent Readiness Indicator */}
-        <div className="crbn-agent-status">
-          <div className="crbn-dots">
-            <span className="crbn-dot crbn-dot--1" />
-            <span className="crbn-dot crbn-dot--2" />
-            <span className="crbn-dot crbn-dot--3" />
+        <div className="soluchan-agent-status">
+          <div className="soluchan-dots">
+            <span className="soluchan-dot soluchan-dot--1" />
+            <span className="soluchan-dot soluchan-dot--2" />
+            <span className="soluchan-dot soluchan-dot--3" />
           </div>
-          <span className="crbn-agent-text">Standing by for your prompts</span>
+          <span className="soluchan-agent-text">Standing by for your prompts</span>
         </div>
       </main>
     </div>

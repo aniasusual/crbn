@@ -5,6 +5,8 @@ import ModelSelector from './ModelSelector';
 import SubagentPanel from './SubagentPanel';
 import ContextGauge from './ContextGauge';
 import { getSubagentSessionData, isSubagentTool, normalizeSubagentName } from './subagentUtils';
+import AttachmentRibbon from './AttachmentRibbon';
+import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import './ChatPanel.css';
 
 const SendIcon = () => (
@@ -94,9 +96,26 @@ export default function ChatPanel({
   todoState = null,
   _checkpointTimeline = [],
   onRewindToStep = null,
+  input: controlledInput,
+  onInputChange,
 }) {
-  const [input, setInput] = useState('');
+  const [localInput, setLocalInput] = useState('');
+  const input = controlledInput !== undefined ? controlledInput : localInput;
+  const setInput = onInputChange || setLocalInput;
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const {
+    attachments,
+    isDragging,
+    fileInputRef,
+    openFilePicker,
+    removeAttachment,
+    clearAttachments,
+    handleDragOver,
+    handleDragLeave,
+    handleDrop,
+    handlePaste,
+    addFiles,
+  } = useMediaAttachments();
   const [selectedSubagentMsg, setSelectedSubagentMsg] = useState(null);
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
   const messagesEndRef = useRef(null);
@@ -180,10 +199,19 @@ export default function ChatPanel({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!input.trim() || !isConnected || isAgentRunning) return;
+    const hasContent = input.trim() || attachments.length > 0;
+    if (!hasContent || !isConnected || isAgentRunning) return;
 
-    onSendMessage(input);
+    const images = attachments
+      .filter((a) => a.type === 'image')
+      .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
+    const files = attachments
+      .filter((a) => a.type === 'file')
+      .map((a) => ({ name: a.name, content: a.content, size: a.size }));
+
+    onSendMessage(input, { images, files });
     setInput('');
+    clearAttachments();
 
     isUserScrolledRef.current = false;
     setTimeout(() => {
@@ -356,7 +384,25 @@ export default function ChatPanel({
           )}
         </div>
       )}
-      <form className="chat-panel__input-area" onSubmit={handleSubmit}>
+      <form
+        className="chat-panel__input-area"
+        onSubmit={handleSubmit}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onPaste={handlePaste}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            if (e.target.files) addFiles(Array.from(e.target.files));
+          }}
+        />
+
         {isConnected && agentStatus && (
           <div
             className={`chat-panel__agent-status chat-panel__agent-status--${agentStatus}`}
@@ -369,7 +415,16 @@ export default function ChatPanel({
           </div>
         )}
 
-        <div className="chat-panel__input-wrapper">
+        {/* Attachment preview directly ABOVE the input box */}
+        <div style={{ padding: '0 12px' }}>
+          <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
+        </div>
+
+        <div
+          className={`chat-panel__input-wrapper ${
+            isDragging ? 'chat-panel__input-wrapper--dragging' : ''
+          }`}
+        >
           <textarea
             className="chat-panel__input"
             value={input}
@@ -395,6 +450,17 @@ export default function ChatPanel({
           {/* Bottom footer containing Model Selector & Context Gauge chips on left, and send button on right */}
           <div className="chat-panel__input-footer">
             <div className="chat-panel__input-footer-left">
+              <button
+                type="button"
+                className="chat-panel__attach-btn"
+                onClick={openFilePicker}
+                title="Attach media or files"
+                aria-label="Attach files"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                </svg>
+              </button>
               <button
                 type="button"
                 className="chat-panel__model-pill"
@@ -433,7 +499,7 @@ export default function ChatPanel({
               <button
                 type="submit"
                 className="chat-panel__send"
-                disabled={!input.trim() || !isConnected}
+                disabled={(!input.trim() && attachments.length === 0) || !isConnected}
                 title="Send message"
               >
                 <SendIcon />

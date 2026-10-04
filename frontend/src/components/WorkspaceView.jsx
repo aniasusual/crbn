@@ -1,7 +1,6 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useCallback, useRef, useEffect } from 'react';
 import ChatPanel from './ChatPanel';
 import PreviewPanel from './PreviewPanel';
-import ModelSelector from './ModelSelector';
 import './WorkspaceView.css';
 
 export default function WorkspaceView({
@@ -29,8 +28,9 @@ export default function WorkspaceView({
   todoState,
   checkpointTimeline = [],
   onRewindToStep = null,
+  input,
+  onInputChange,
 }) {
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
   const rightPanelRef = useRef(null);
@@ -107,6 +107,8 @@ export default function WorkspaceView({
             todoState={todoState}
             checkpointTimeline={checkpointTimeline}
             onRewindToStep={onRewindToStep}
+            input={input}
+            onInputChange={onInputChange}
           />
         </div>
 
@@ -121,17 +123,6 @@ export default function WorkspaceView({
         </div>
       </div>
 
-
-      {/* Model Selector Modal */}
-      <ModelSelector
-        isOpen={isModelSelectorOpen}
-        onClose={() => setIsModelSelectorOpen(false)}
-        selectedModel={selectedModel}
-        onSelectModel={onSelectModel}
-        hardwareInfo={hardwareInfo}
-        models={models}
-        onRefreshModels={onRefreshModels}
-      />
     </div>
   );
 }

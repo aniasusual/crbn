@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "lowkey-omp-bridge",
+      "name": "soluchan-omp-bridge",
       "devDependencies": {
         "@types/bun": "^1.2.0",
         "@types/node": "^22.0.0",

@@ -342,14 +342,46 @@ const _server = Bun.serve<WsData>({
           return;
         }
 
-        // Direct prompt invocation
-        const promptText = (data.prompt as string)?.trim();
-        if (promptText) {
+        // Direct prompt invocation with optional media/files
+        const promptText = (data.prompt as string)?.trim() || "";
+        const rawImages = Array.isArray(data.images) ? (data.images as unknown[]) : [];
+        const rawFiles = Array.isArray(data.files) ? (data.files as unknown[]) : [];
+
+        const images = rawImages.filter(
+          (item): item is { data: string; mimeType: string } => {
+            return (
+              Boolean(item) &&
+              typeof item === "object" &&
+              "data" in item &&
+              typeof item.data === "string" &&
+              "mimeType" in item &&
+              typeof item.mimeType === "string"
+            );
+          }
+        );
+
+        const files = rawFiles.filter(
+          (item): item is { name: string; content: string; mimeType?: string; size?: number } => {
+            return (
+              Boolean(item) &&
+              typeof item === "object" &&
+              "name" in item &&
+              typeof item.name === "string" &&
+              "content" in item &&
+              typeof item.content === "string"
+            );
+          }
+        );
+
+        if (promptText || images.length > 0 || files.length > 0) {
           const modelName = data.model as string | undefined;
           if (modelName) {
             await bridge.setModel(modelName);
           }
-          await bridge.prompt(promptText);
+          await bridge.prompt(promptText, {
+            images: images.length > 0 ? images : undefined,
+            files: files.length > 0 ? files : undefined,
+          });
         }
         } catch (err) {
           console.error("[WebSocket] Error processing message:", err);
@@ -373,6 +405,6 @@ const _server = Bun.serve<WsData>({
 });
 
 console.log(`\n======================================================`);
-console.log(`⚡ Lowkey OMP Bridge Server running on http://${HOST}:${PORT}`);
+console.log(`⚡ soluchan OMP Bridge Server running on http://${HOST}:${PORT}`);
 console.log(`🔌 WebSocket available at ws://${HOST}:${PORT}/ws`);
 console.log(`======================================================\n`);

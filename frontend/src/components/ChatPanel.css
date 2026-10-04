@@ -192,8 +192,9 @@
   background: transparent;
   border: none;
   outline: none;
-  resize: none;
+  resize: none !important;
   min-height: 52px;
+  height: 52px;
 }
 
 .chat-panel__input::placeholder {
@@ -278,6 +279,31 @@
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.2);
   cursor: not-allowed;
+}
+.chat-panel__input-wrapper--dragging {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.chat-panel__attach-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  padding: 0;
+}
+
+.chat-panel__attach-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
 }
 
 /* Stop button when agent is actively generating */

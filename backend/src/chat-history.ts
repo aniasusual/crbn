@@ -3,7 +3,7 @@ import * as fsSync from "node:fs";
 import * as path from "node:path";
 import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index";
 
-export const CHAT_FILENAME = ".lowkey_chat.json";
+export const CHAT_FILENAME = ".soluchan_chat.json";
 
 export interface ChatStoragePayload {
   version: number;

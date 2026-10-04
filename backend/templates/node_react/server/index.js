@@ -28,7 +28,7 @@ let items = [
   },
   {
     id: '3',
-    title: 'Prompt Lowkey AI to build your full-stack feature',
+    title: 'Prompt soluchan AI to build your full-stack feature',
     category: 'AI',
     priority: 'high',
     done: false,

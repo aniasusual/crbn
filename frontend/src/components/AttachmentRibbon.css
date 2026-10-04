@@ -1,0 +1,107 @@
+/* Staged Attachment Ribbon */
+
+.attachment-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 0 2px;
+  margin-bottom: 8px;
+  background: transparent !important;
+  border: none !important;
+}
+
+.attachment-ribbon__item {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Image Thumbnail Square */
+.attachment-ribbon__thumb-wrap {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent !important;
+  flex-shrink: 0;
+}
+
+.attachment-ribbon__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.attachment-ribbon__remove-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.1s ease;
+}
+
+.attachment-ribbon__remove-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+/* File Chip */
+.attachment-ribbon__file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11.5px;
+  color: #e4e4e7;
+  max-width: 220px;
+}
+
+.attachment-ribbon__file-icon {
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+
+.attachment-ribbon__file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachment-ribbon__file-size {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+}
+
+.attachment-ribbon__remove-chip-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: color 0.1s;
+}
+
+.attachment-ribbon__remove-chip-btn:hover {
+  color: #ef4444;
+}

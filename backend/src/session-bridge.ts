@@ -11,6 +11,22 @@ import type { ModelsService } from "./models-service";
 import type { DevServerManager } from "./dev-server";
 export type WebSocketSender = (message: Record<string, unknown>) => void;
 
+export interface PromptImageAttachment {
+  data: string; // base64 encoded string
+  mimeType: string;
+}
+
+export interface PromptFileAttachment {
+  name: string;
+  content: string;
+  mimeType?: string;
+  size?: number;
+}
+
+export interface PromptAttachments {
+  images?: PromptImageAttachment[];
+  files?: PromptFileAttachment[];
+}
 export class SessionBridge {
   private session: AgentSession | null = null;
   private unsubscribe: (() => void) | null = null;
@@ -267,7 +283,7 @@ export class SessionBridge {
     await this.initPromise;
   }
 
-  async prompt(promptText: string): Promise<void> {
+  async prompt(promptText: string, attachments?: PromptAttachments): Promise<void> {
     if (this.initPromise) {
       await this.initPromise;
     }
@@ -287,13 +303,20 @@ export class SessionBridge {
 
     this.isGenerating = true;
 
-    // Record user message in UI events
+    // Record user message in UI events with any attached media
     const now = new Date().toISOString();
-    const userMsg = {
+    const userMsg: Record<string, unknown> = {
       role: "user",
       content: promptText,
       timestamp: now,
     };
+    if (attachments?.images && attachments.images.length > 0) {
+      userMsg.images = attachments.images;
+    }
+    if (attachments?.files && attachments.files.length > 0) {
+      userMsg.files = attachments.files;
+    }
+
     this.activeTurns.push(userMsg);
     if (this.activeProjectPath) {
       await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg);
@@ -305,8 +328,26 @@ export class SessionBridge {
       timestamp: now,
     });
 
+    // Prepare prompt text with non-image file attachments if any
+    let fullPromptText = promptText;
+    if (attachments?.files && attachments.files.length > 0) {
+      const fileSections = attachments.files
+        .map((f) => `--- Attached File: ${f.name} ---\n${f.content}\n--- End Attached File ---`)
+        .join("\n\n");
+      fullPromptText = fullPromptText ? `${fullPromptText}\n\n${fileSections}` : fileSections;
+    }
+
+    // Format ImageContent blocks for pi-harness vision models
+    const images = (attachments?.images ?? []).map((img) => ({
+      type: "image" as const,
+      data: img.data,
+      mimeType: img.mimeType,
+    }));
+
     try {
-      await session.prompt(promptText);
+      await session.prompt(fullPromptText || "Analyze the attached media and proceed.", {
+        images: images.length > 0 ? images : undefined,
+      });
     } catch (err) {
       this.send({
         type: "status",
