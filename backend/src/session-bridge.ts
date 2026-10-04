@@ -3,8 +3,9 @@ import {
   SessionManager,
   type AgentSession,
 } from "../../pi-harness/packages/coding-agent/src/index";
+import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
 import { ChatHistoryManager } from "./chat-history";
-
+import type { ModelsService } from "./models-service";
 export type WebSocketSender = (message: Record<string, unknown>) => void;
 
 export class SessionBridge {
@@ -16,15 +17,38 @@ export class SessionBridge {
   private initPromise: Promise<void> | null = null;
   private activeToolCalls = new Map<string, { name: string; args: Record<string, unknown> }>();
   private activeTurns: Record<string, unknown>[] = [];
+  private pendingUiRequests = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
 
-  constructor(private readonly send: WebSocketSender) {}
+  constructor(
+    private readonly send: WebSocketSender,
+    private readonly modelsService?: ModelsService,
+  ) {}
 
   getActiveModel(): string {
     return this.activeModel;
   }
 
-  setModel(modelName: string): void {
+  async setModel(modelName: string): Promise<void> {
     this.activeModel = modelName;
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    if (this.session && this.modelsService) {
+      try {
+        const registry = await this.modelsService.getRegistry();
+        const parts = modelName.split("/");
+        let found = parts.length === 2 ? registry.find(parts[0], parts[1]) : undefined;
+        if (!found) {
+          found = registry.getAll().find(m => m.id === modelName || `${m.provider}/${m.id}` === modelName);
+        }
+        if (found && this.session) {
+          await this.session.setModel(found);
+          console.log(`[SessionBridge] Switched active session model to ${found.provider}/${found.id}`);
+        }
+      } catch (err) {
+        console.warn("[SessionBridge] Failed to switch model on active session:", err);
+      }
+    }
   }
 
   getIsGenerating(): boolean {
@@ -55,14 +79,161 @@ export class SessionBridge {
       this.activeTurns = [...history.ui_events];
 
       try {
-        const { session } = await createAgentSession({
+        const authStorage = this.modelsService ? await this.modelsService.getAuthStorage() : undefined;
+        const modelRegistry = this.modelsService ? await this.modelsService.getRegistry() : undefined;
+
+        const { session, setToolUIContext } = await createAgentSession({
           cwd: projectPath,
           modelPattern: this.activeModel,
           sessionManager: SessionManager.create(projectPath),
+          authStorage,
+          modelRegistry,
+          interactivePrompts: true,
         });
-
         this.session = session;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));
+
+        setToolUIContext?.({
+          timeoutStartsOnPresentation: true,
+          select: async (title, options, dialogOptions) => {
+            const id = `sel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const optionLabels = options.map(opt => (typeof opt === "string" ? opt : opt.label));
+            const isApproval = optionLabels.includes("Approve") && optionLabels.includes("Deny");
+            const timestamp = new Date().toISOString();
+
+            if (isApproval) {
+              this.send({
+                type: "command_approval_request",
+                id,
+                request_id: id,
+                command: title,
+                options: optionLabels,
+                timestamp,
+              });
+            } else {
+              this.send({
+                type: "ask_human",
+                id,
+                question: title,
+                options: optionLabels,
+                questions: [{ id: "q1", question: title, options: optionLabels }],
+                timestamp,
+              });
+            }
+            const { promise, resolve, reject } = Promise.withResolvers<string | undefined>();
+            const cleanup = () => {
+              this.pendingUiRequests.delete(id);
+              signal?.removeEventListener("abort", onAbort);
+            };
+            const signal = dialogOptions?.signal;
+            const onAbort = () => {
+              cleanup();
+              reject(new Error("Operation cancelled"));
+            };
+            signal?.addEventListener("abort", onAbort, { once: true });
+
+            this.pendingUiRequests.set(id, {
+              resolve: (val: any) => {
+                cleanup();
+                const selected = typeof val === "string" ? val : val?.label ?? String(val ?? "");
+                resolve(selected || undefined);
+              },
+              reject: (err: any) => {
+                cleanup();
+                reject(err);
+              },
+            });
+            return promise;
+          },
+          confirm: async (title, message, dialogOptions) => {
+            const id = `conf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const timestamp = new Date().toISOString();
+            this.send({
+              type: "command_approval_request",
+              id,
+              request_id: id,
+              command: `${title}${message ? `\n${message}` : ""}`,
+              options: ["Approve", "Deny"],
+              timestamp,
+            });
+
+            const { promise, resolve, reject } = Promise.withResolvers<boolean>();
+            this.pendingUiRequests.set(id, {
+              resolve: (val: any) => {
+                this.pendingUiRequests.delete(id);
+                resolve(val === "Approve" || val === "Yes" || val === true);
+              },
+              reject: (err: any) => {
+                this.pendingUiRequests.delete(id);
+                reject(err);
+              },
+            });
+            return promise;
+          },
+          askDialog: async (questions, dialogOptions) => {
+            const id = `ask_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const timestamp = new Date().toISOString();
+            const primaryQ = questions[0];
+
+            this.send({
+              type: "ask_human",
+              id,
+              question: primaryQ?.question ?? "Please clarify:",
+              options: primaryQ?.options?.map(o => o.label) ?? [],
+              questions: questions.map(q => ({
+                id: q.id,
+                question: q.question,
+                header: q.header,
+                options: q.options.map(o => o.label),
+                multi: Boolean(q.multi),
+                recommended: q.recommended,
+              })),
+              timestamp,
+            });
+            const { promise, resolve, reject } = Promise.withResolvers<any>();
+            this.pendingUiRequests.set(id, {
+              resolve: (val: any) => {
+                this.pendingUiRequests.delete(id);
+                const answerList = Array.isArray(val)
+                  ? val
+                  : typeof val === "string"
+                  ? [val]
+                  : val?.label
+                  ? [val.label]
+                  : [];
+
+                resolve({
+                  kind: "submit",
+                  results: questions.map(q => ({
+                    id: q.id,
+                    question: q.question,
+                    options: q.options.map(o => o.label),
+                    multi: q.multi ?? false,
+                    selectedOptions: answerList.length > 0 ? answerList : [q.options[q.recommended ?? 0]?.label ?? ""],
+                    customInput: typeof val === "string" && !q.options.some(o => o.label === val) ? val : undefined,
+                    timedOut: false,
+                  })),
+                });
+              },
+              reject: (err: any) => {
+                this.pendingUiRequests.delete(id);
+                reject(err);
+              },
+            });
+            return promise;
+          },
+          input: async () => undefined,
+          notify: (msg, type) => this.send({ type: "notice", message: msg, level: type }),
+          onTerminalInput: () => () => {},
+          setStatus: () => {},
+          setWorkingMessage: msg => this.send({ type: "status", content: msg || "Running" }),
+          setWidget: () => {},
+          setFooter: () => {},
+          setHeader: () => {},
+          setTitle: () => {},
+          custom: async () => undefined as any,
+          editor: async () => undefined,
+        }, true);
 
         console.log(`[SessionBridge] Initialized AgentSession for ${projectPath} with model ${session.model?.id}`);
       } catch (err) {
@@ -82,7 +253,8 @@ export class SessionBridge {
       await this.initPromise;
     }
 
-    if (!this.session) {
+    const session = this.session;
+    if (!session) {
       this.send({
         type: "status",
         content: "Harness Error: No active session. Please open a project first.",
@@ -91,7 +263,7 @@ export class SessionBridge {
     }
 
     if (this.isGenerating) {
-      await this.session.abort().catch(() => {});
+      await session.abort().catch(() => {});
     }
 
     this.isGenerating = true;
@@ -108,10 +280,15 @@ export class SessionBridge {
       await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg);
     }
 
+    this.send({
+      type: "status",
+      content: "Running",
+      timestamp: now,
+    });
+
     try {
-      await this.session.prompt(promptText);
+      await session.prompt(promptText);
     } catch (err) {
-      console.error(`[SessionBridge] Error executing prompt:`, err);
       this.send({
         type: "status",
         content: `Harness Error: ${err instanceof Error ? err.message : String(err)}`,
@@ -121,7 +298,29 @@ export class SessionBridge {
     }
   }
 
+  resolveUiRequest(id: string, response: any): boolean {
+    const pending = this.pendingUiRequests.get(id);
+    if (pending) {
+      pending.resolve(response);
+      this.pendingUiRequests.delete(id);
+      return true;
+    }
+    for (const [key, val] of this.pendingUiRequests.entries()) {
+      if (key.includes(id) || id.includes(key)) {
+        val.resolve(response);
+        this.pendingUiRequests.delete(key);
+        return true;
+      }
+    }
+    return false;
+  }
+
   async stop(): Promise<void> {
+    for (const [, req] of this.pendingUiRequests.entries()) {
+      req.reject(new Error("Agent execution stopped by user."));
+    }
+    this.pendingUiRequests.clear();
+
     if (this.session && this.isGenerating) {
       await this.session.abort().catch(() => {});
       this.isGenerating = false;
@@ -227,16 +426,18 @@ export class SessionBridge {
 
       case "tool_execution_end": {
         const cachedCall = this.activeToolCalls.get(event.toolCallId);
-        const resultString =
-          typeof event.result === "string"
-            ? event.result
-            : JSON.stringify(event.result ?? "");
+        const structuredResult = {
+          content: event.result?.content ?? [{ type: "text", text: String(event.result ?? "") }],
+          details: event.result?.details ?? undefined,
+          isError: Boolean(event.isError),
+        };
 
         const toolResultMsg = {
           type: "tool_result",
           id: event.toolCallId,
           name: event.toolName,
-          result: resultString,
+          arguments: cachedCall?.args ?? {},
+          result: structuredResult,
           is_error: Boolean(event.isError),
           timestamp,
         };
@@ -249,10 +450,23 @@ export class SessionBridge {
 
         // Notify file modification for live reload
         if (event.toolName === "write" || event.toolName === "edit") {
-          const filePath = (cachedCall?.args?.path as string) ?? "*";
+          let filePath: string | null =
+            (cachedCall?.args?.path as string) ?? (cachedCall?.args?.file_path as string) ?? null;
+          if (!filePath && typeof cachedCall?.args?.input === "string") {
+            const match = /\[([^#\]\s]+)#/.exec(cachedCall.args.input);
+            if (match) filePath = match[1];
+          }
+          if (!filePath && event.result?.details && typeof event.result.details === "object") {
+            const details = event.result.details as Record<string, unknown>;
+            if (typeof details.path === "string") {
+              filePath = details.path;
+            } else if (Array.isArray(details.perFileResults) && details.perFileResults[0]?.path) {
+              filePath = details.perFileResults[0].path;
+            }
+          }
           this.send({
             type: "file_changed",
-            file: filePath,
+            file: filePath ?? "*",
             timestamp,
           });
         }
@@ -264,7 +478,7 @@ export class SessionBridge {
             subagent: (cachedCall?.args?.name as string) ?? "task",
             event: "finish",
             status: event.isError ? "failed" : "completed",
-            result: resultString,
+            result: structuredResult,
             id: event.toolCallId,
             timestamp,
           });
@@ -318,6 +532,11 @@ export class SessionBridge {
   }
 
   async dispose(): Promise<void> {
+    for (const [, req] of this.pendingUiRequests.entries()) {
+      req.reject(new Error("Session disposed"));
+    }
+    this.pendingUiRequests.clear();
+
     if (this.session) {
       this.unsubscribe?.();
       this.unsubscribe = null;

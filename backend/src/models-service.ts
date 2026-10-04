@@ -113,7 +113,7 @@ export class ModelsService {
     const registry = await this.getRegistry();
 
     // 1. Store in OMP's SQLite vault
-    await authStorage.credentials.storeLoginApiKey(provider, trimmedKey);
+    await authStorage.credentials.set(provider, { type: "api_key", key: trimmedKey });
 
     // 2. Export environment variable so child processes/subagents inherit it
     const entry = providerEntry(provider);

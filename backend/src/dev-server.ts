@@ -84,9 +84,9 @@ export class DevServerManager {
 
     const info: DevServerInfo = {
       port: targetPort,
-      url: `http://localhost:${targetPort}`,
+      url: `http://127.0.0.1:${targetPort}`,
       backend_port: backendPort,
-      backend_url: `http://localhost:${backendPort}`,
+      backend_url: `http://127.0.0.1:${backendPort}`,
       pid: proc.pid,
     };
 
@@ -112,7 +112,7 @@ export class DevServerManager {
             if (detectedPort !== targetPort) {
               targetPort = detectedPort;
               info.port = detectedPort;
-              info.url = `http://localhost:${detectedPort}`;
+              info.url = `http://127.0.0.1:${detectedPort}`;
             }
             this.emit({
               type: "preview_ready",

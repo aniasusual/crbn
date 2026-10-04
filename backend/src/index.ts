@@ -21,6 +21,7 @@ interface WsData {
   bridge?: SessionBridge;
   activeProjectName?: string;
   unsubscribeDevServer?: () => void;
+  messageQueue?: Promise<void>;
 }
 
 const _server = Bun.serve<WsData>({
@@ -182,6 +183,7 @@ const _server = Bun.serve<WsData>({
   websocket: {
     open(ws) {
       console.log("[WebSocket] Client connected");
+      ws.data.messageQueue = Promise.resolve();
 
       const send = (msg: Record<string, unknown>) => {
         try {
@@ -191,7 +193,7 @@ const _server = Bun.serve<WsData>({
         }
       };
 
-      const bridge = new SessionBridge(send);
+      const bridge = new SessionBridge(send, modelsService);
       ws.data.bridge = bridge;
 
       // Forward dev server events to frontend
@@ -213,42 +215,51 @@ const _server = Bun.serve<WsData>({
         },
       });
     },
-
-    async message(ws, messageRaw) {
+    message(ws, messageRaw) {
       const bridge = ws.data.bridge;
       if (!bridge) return;
 
-      try {
-        const text = typeof messageRaw === "string" ? messageRaw : new TextDecoder().decode(messageRaw);
-        const data = JSON.parse(text) as Record<string, unknown>;
-        const action = data.action as string | undefined;
+      const processMessage = async () => {
+        try {
+          const text = typeof messageRaw === "string" ? messageRaw : new TextDecoder().decode(messageRaw);
+          const data = JSON.parse(text) as Record<string, unknown>;
+          const action = data.action as string | undefined;
+          if (action === "open_project") {
+            const projectName = (data.name as string) || "default";
+            const previousProject = ws.data.activeProjectName;
+            ws.data.activeProjectName = projectName;
 
-        if (action === "open_project") {
-          const projectName = (data.name as string) || "default";
-          ws.data.activeProjectName = projectName;
+            // Stop previous project's dev server if switching projects
+            if (previousProject && previousProject !== projectName) {
+              try {
+                const prevProj = await projectManager.getProject(previousProject);
+                devServerManager.stopDevServer(prevProj.path);
+              } catch {}
+            }
 
-          const project = await projectManager.getOrCreateProject(projectName);
-          const history = await ChatHistoryManager.loadHistory(project.path);
+            const project = await projectManager.getOrCreateProject(projectName);
+            const history = await ChatHistoryManager.loadHistory(project.path);
 
-          // Open AgentSession first
-          await bridge.openProject(project.path);
+            // Open AgentSession with selected model if provided
+            const modelName = (data.model as string | undefined) || bridge.getActiveModel();
+            await bridge.openProject(project.path, modelName);
 
-          ws.send(JSON.stringify({ type: "project_opened", project }));
+            ws.send(JSON.stringify({ type: "project_opened", project }));
 
-          ws.send(
-            JSON.stringify({
-              type: "chat_history_loaded",
-              project: project.name,
-              messages: history.ui_events,
-            }),
-          );
+            ws.send(
+              JSON.stringify({
+                type: "chat_history_loaded",
+                project: project.name,
+                messages: history.ui_events,
+              }),
+            );
 
-          // Boot dev server for live preview
-          devServerManager.startDevServer(project.path).catch(err => {
-            console.error("[WebSocket] Failed to start dev server:", err);
-          });
-          return;
-        }
+            // Boot dev server for live preview
+            devServerManager.startDevServer(project.path).catch(err => {
+              console.error("[WebSocket] Failed to start dev server:", err);
+            });
+            return;
+          }
 
         if (action === "stop_preview") {
           if (ws.data.activeProjectName) {
@@ -277,9 +288,9 @@ const _server = Bun.serve<WsData>({
         }
 
         if (action === "set_model") {
-          const model = data.model as string;
+          const model = data.model as string | undefined;
           if (model) {
-            bridge.setModel(model);
+            await bridge.setModel(model);
           }
           return;
         }
@@ -288,9 +299,29 @@ const _server = Bun.serve<WsData>({
           await bridge.stop();
           return;
         }
-
         if (action === "list_checkpoints") {
           ws.send(JSON.stringify({ type: "checkpoint_timeline", steps: [], formatted: "No checkpoints yet." }));
+          return;
+        }
+
+        // Interactive tool clarification response
+        if (action === "tool_response" || action === "ask_response") {
+          const requestId = (data.id || data.request_id || data.tool_call_id) as string;
+          const response = data.response ?? data.answer ?? data.value;
+          if (requestId) {
+            bridge.resolveUiRequest(requestId, response);
+          }
+          return;
+        }
+
+        // Tool command approval / denial response
+        if (action === "command_approval") {
+          const requestId = (data.request_id || data.id || data.tool_call_id) as string;
+          const approved = Boolean(data.approved);
+          const choice = approved ? "Approve" : "Deny";
+          if (requestId) {
+            bridge.resolveUiRequest(requestId, choice);
+          }
           return;
         }
 
@@ -299,16 +330,23 @@ const _server = Bun.serve<WsData>({
         if (promptText) {
           const modelName = data.model as string | undefined;
           if (modelName) {
-            bridge.setModel(modelName);
+            await bridge.setModel(modelName);
           }
           await bridge.prompt(promptText);
         }
-      } catch (err) {
-        console.error("[WebSocket] Error processing message:", err);
-        ws.send(JSON.stringify({ type: "error", content: String(err) }));
-      }
-    },
+        } catch (err) {
+          console.error("[WebSocket] Error processing message:", err);
+          ws.send(JSON.stringify({ type: "error", content: String(err) }));
+        }
+      };
 
+      // Execute sequentially in FIFO order on this connection's queue
+      ws.data.messageQueue = (ws.data.messageQueue ?? Promise.resolve())
+        .then(processMessage)
+        .catch(err => {
+          console.error("[WebSocket] Uncaught queue error:", err);
+        });
+    },
     close(ws) {
       console.log("[WebSocket] Client disconnected");
       ws.data.unsubscribeDevServer?.();

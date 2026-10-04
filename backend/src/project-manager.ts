@@ -203,10 +203,9 @@ export class ProjectManager {
   async deleteProject(name: string): Promise<void> {
     const validatedName = this.validateName(name);
     const projectDir = path.join(this.root, validatedName);
-    if (!fsSync.existsSync(projectDir)) {
-      throw new Error(`Project "${validatedName}" not found`);
+    if (fsSync.existsSync(projectDir)) {
+      await fs.rm(projectDir, { recursive: true, force: true });
     }
-    await fs.rm(projectDir, { recursive: true, force: true });
   }
 
   async openInFinder(name: string): Promise<void> {
