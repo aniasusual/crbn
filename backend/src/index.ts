@@ -115,11 +115,11 @@ const _server = Bun.serve<WsData>({
     // Projects: Create
     if (url.pathname === "/api/projects" && req.method === "POST") {
       try {
-        const body = (await req.json()) as { name?: string; template?: string };
+        const body = (await req.json()) as { name?: string; template?: string; model?: string };
         if (!body.name) {
           return Response.json({ detail: "Project name is required" }, { status: 400, headers: CORS_HEADERS });
         }
-        const project = await projectManager.createProject(body.name, body.template || "node_react");
+        const project = await projectManager.createProject(body.name, body.template || "node_react", body.model);
         return Response.json(project, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -237,15 +237,18 @@ const _server = Bun.serve<WsData>({
               } catch {}
             }
 
-            const project = await projectManager.getOrCreateProject(projectName);
+            const project = await projectManager.getOrCreateProject(projectName, data.model as string | undefined);
             const history = await ChatHistoryManager.loadHistory(project.path);
 
-            // Open AgentSession with selected model if provided
-            const modelName = (data.model as string | undefined) || bridge.getActiveModel();
+            // Prefer explicit model > project persisted model > bridge active model
+            const modelName = (data.model as string | undefined) || project.model || bridge.getActiveModel();
+            if (!project.model && modelName) {
+              project.model = modelName;
+              projectManager.saveMeta(project).catch(() => {});
+            }
             await bridge.openProject(project.path, modelName);
 
             ws.send(JSON.stringify({ type: "project_opened", project }));
-
             ws.send(
               JSON.stringify({
                 type: "chat_history_loaded",
@@ -291,6 +294,9 @@ const _server = Bun.serve<WsData>({
           const model = data.model as string | undefined;
           if (model) {
             await bridge.setModel(model);
+            if (ws.data.activeProjectName) {
+              projectManager.updateMeta(ws.data.activeProjectName, { model }).catch(() => {});
+            }
           }
           return;
         }

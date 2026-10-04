@@ -1,4 +1,4 @@
-/* Notion-inspired Minimal Context Telemetry Gauge */
+/* Minimal Context Telemetry Gauge */
 
 .context-gauge {
   position: relative;
@@ -98,24 +98,23 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* Notion-Inspired Popover Menu (Pops up above the input box) */
+/* Popover Menu */
 .context-gauge__popover {
   position: absolute;
   bottom: calc(100% + 10px);
   left: 50%;
   transform: translate(-50%, 0);
-  width: 280px;
+  width: 250px;
   background: #18181b;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
-  padding: 14px;
+  padding: 12px 14px;
   z-index: 1000;
   animation: context-gauge-fade-up 0.12s ease-out;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-/* Box boundary arrow protruding from bottom edge directly toward the button */
 .context-gauge__arrow {
   position: absolute;
   bottom: -6px;
@@ -141,7 +140,8 @@
     transform: translate(-50%, 0);
   }
 }
-/* Bottom placement (drops down from header, aligned to right boundary) */
+
+/* Bottom placement */
 .context-gauge--placement-bottom .context-gauge__popover {
   bottom: auto;
   top: calc(100% + 10px);
@@ -179,25 +179,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .context-gauge__popover-title {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #e4e4e7;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .context-gauge__popover-status {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
 .context-gauge__popover-status--normal {
@@ -217,16 +214,16 @@
 
 /* Minimal Progress Track */
 .context-gauge__track {
-  height: 5px;
+  height: 4px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .context-gauge__fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 2px;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -242,12 +239,12 @@
   background: #ef4444;
 }
 
-/* Notion-style Properties Table */
+/* Properties Table */
 .context-gauge__table {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11.5px;
 }
 
 .context-gauge__row {
@@ -259,56 +256,11 @@
 
 .context-gauge__row-key {
   color: #a1a1aa;
-  font-size: 12px;
+  font-size: 11.5px;
 }
 
 .context-gauge__row-val {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: #f4f4f5;
-  font-size: 11.5px;
-}
-
-.context-gauge__ram-files {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px 0 4px 0;
-}
-
-.context-gauge__ram-file-chip {
-  display: inline-flex;
-  align-items: center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 10px;
-  color: #a1a1aa;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 1px 6px;
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.context-gauge__ram-file-chip:hover {
-  color: #f4f4f5;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-.context-gauge__divider {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.06);
-  margin: 6px 0;
-}
-
-.context-gauge__alert {
-  margin-top: 10px;
-  padding: 6px 8px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 5px;
   font-size: 11px;
-  color: #fbbf24;
-  line-height: 1.4;
 }

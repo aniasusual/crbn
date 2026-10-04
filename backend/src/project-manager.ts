@@ -7,6 +7,7 @@ export interface ProjectInfo {
   name: string;
   path: string;
   template: string;
+  model?: string;
   status: "running" | "stopped";
   port: number | null;
   pid: number | null;
@@ -89,7 +90,7 @@ export class ProjectManager {
     return cachedNodeModules;
   }
 
-  async createProject(name: string, template: string = "node_react"): Promise<ProjectInfo> {
+  async createProject(name: string, template: string = "node_react", model?: string): Promise<ProjectInfo> {
     const validatedName = this.validateName(name);
     const projectDir = path.join(this.root, validatedName);
 
@@ -123,13 +124,13 @@ export class ProjectManager {
       name: validatedName,
       path: projectDir,
       template,
+      model: model || undefined,
       status: "stopped",
       port: null,
       pid: null,
       created_at: now,
       last_opened: now,
     };
-
     await this.saveMeta(project);
     return project;
   }
@@ -151,6 +152,7 @@ export class ProjectManager {
           name: meta.name ?? validatedName,
           path: projectDir,
           template: meta.template ?? "node_react",
+          model: meta.model ?? undefined,
           status: meta.status ?? "stopped",
           port: meta.port ?? null,
           pid: meta.pid ?? null,
@@ -174,11 +176,11 @@ export class ProjectManager {
     };
   }
 
-  async getOrCreateProject(name: string): Promise<ProjectInfo> {
+  async getOrCreateProject(name: string, model?: string): Promise<ProjectInfo> {
     try {
       return await this.getProject(name);
     } catch {
-      return await this.createProject(name);
+      return await this.createProject(name, "node_react", model);
     }
   }
 
@@ -218,6 +220,7 @@ export class ProjectManager {
     const payload = {
       name: project.name,
       template: project.template,
+      model: project.model,
       status: project.status,
       port: project.port,
       pid: project.pid,

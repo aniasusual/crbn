@@ -44,6 +44,7 @@ export class SessionBridge {
         if (found && this.session) {
           await this.session.setModel(found);
           console.log(`[SessionBridge] Switched active session model to ${found.provider}/${found.id}`);
+          this.emitContextTelemetry();
         }
       } catch (err) {
         console.warn("[SessionBridge] Failed to switch model on active session:", err);
@@ -82,10 +83,12 @@ export class SessionBridge {
         const authStorage = this.modelsService ? await this.modelsService.getAuthStorage() : undefined;
         const modelRegistry = this.modelsService ? await this.modelsService.getRegistry() : undefined;
 
+        const sessionManager = await SessionManager.continueRecent(projectPath);
+
         const { session, setToolUIContext } = await createAgentSession({
           cwd: projectPath,
           modelPattern: this.activeModel,
-          sessionManager: SessionManager.create(projectPath),
+          sessionManager,
           authStorage,
           modelRegistry,
           interactivePrompts: true,
@@ -236,10 +239,10 @@ export class SessionBridge {
         }, true);
 
         console.log(`[SessionBridge] Initialized AgentSession for ${projectPath} with model ${session.model?.id}`);
+        this.emitContextTelemetry();
       } catch (err) {
         console.error(`[SessionBridge] Failed to create AgentSession:`, err);
         this.send({
-          type: "status",
           content: `Harness Error: ${err instanceof Error ? err.message : String(err)}`,
         });
       }
@@ -334,6 +337,13 @@ export class SessionBridge {
   async clear(): Promise<void> {
     if (this.activeProjectPath) {
       await ChatHistoryManager.clearHistory(this.activeProjectPath);
+      if (this.session) {
+        try {
+          await this.session.newSession();
+        } catch (err) {
+          console.warn("[SessionBridge] Failed to reset AgentSession to new session:", err);
+        }
+      }
       this.activeTurns = [];
       this.send({
         type: "chat_history_loaded",
@@ -344,6 +354,7 @@ export class SessionBridge {
         type: "status",
         content: "Session context reset.",
       });
+      this.emitContextTelemetry();
     }
   }
 
@@ -365,6 +376,37 @@ export class SessionBridge {
             content: assistantEvt.delta,
             timestamp,
           });
+        }
+        break;
+      }
+
+      case "message_end": {
+        const msg = event.message;
+        if (msg && msg.role === "assistant" && Array.isArray(msg.content)) {
+          let text = "";
+          for (const block of msg.content) {
+            if (
+              block &&
+              typeof block === "object" &&
+              "type" in block &&
+              block.type === "text" &&
+              "text" in block &&
+              typeof block.text === "string"
+            ) {
+              text += block.text;
+            }
+          }
+          if (text.trim().length > 0) {
+            const assistantMsg: Record<string, unknown> = {
+              role: "assistant",
+              content: text,
+              timestamp,
+            };
+            this.activeTurns.push(assistantMsg);
+            if (this.activeProjectPath) {
+              ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg).catch(() => {});
+            }
+          }
         }
         break;
       }
@@ -487,20 +529,23 @@ export class SessionBridge {
       }
 
       case "auto_compaction_start": {
-        this.send({
-          type: "status",
-          content: "Compacting conversation context...",
-          timestamp,
-        });
         break;
       }
 
       case "auto_compaction_end": {
-        this.send({
-          type: "compaction_divider",
-          summary: "Context automatically compacted to preserve memory headroom.",
-          timestamp,
-        });
+        if (event.result?.summary) {
+          this.send({
+            type: "compaction_divider",
+            summary: event.result.summary,
+            timestamp,
+          });
+        }
+        this.emitContextTelemetry();
+        break;
+      }
+
+      case "model_changed": {
+        this.emitContextTelemetry();
         break;
       }
 
@@ -511,21 +556,7 @@ export class SessionBridge {
           content: "Done",
           timestamp,
         });
-
-        // Emit telemetry update
-        const contextWindow = this.session?.model?.contextWindow ?? 1_000_000;
-        this.send({
-          type: "context_telemetry",
-          telemetry: {
-            context_window: contextWindow,
-            total_tokens: 1500,
-            usage_pct: 15,
-            compact_threshold_pct: 80,
-            squash_threshold_pct: 70,
-            status: "normal",
-          },
-          timestamp,
-        });
+        this.emitContextTelemetry();
         break;
       }
     }
@@ -543,5 +574,39 @@ export class SessionBridge {
       await this.session.dispose().catch(() => {});
       this.session = null;
     }
+  }
+  private emitContextTelemetry(): void {
+    if (!this.session) return;
+    const usage = this.session.getContextUsage();
+    const breakdown = this.session.getContextBreakdown() as Record<string, unknown> | undefined;
+    const contextWindow = usage?.contextWindow ?? this.session.model?.contextWindow ?? 1_000_000;
+    const totalTokens = usage?.tokens ?? 0;
+    const usagePct = usage?.percent !== undefined ? Math.round(usage.percent * 10) / 10 : Math.round((totalTokens / contextWindow) * 100);
+
+    const staticTokens = Number(breakdown?.systemPromptTokens ?? 0);
+    const schemaTokens = Number(breakdown?.systemToolsTokens ?? 0);
+    const virtualRamTokens = Number(breakdown?.skillsTokens ?? 0);
+    const providerPromptTokens = Number(breakdown?.messagesTokens ?? 0);
+
+    this.send({
+      type: "context_telemetry",
+      telemetry: {
+        context_window: contextWindow,
+        total_tokens: totalTokens,
+        usage_pct: usagePct,
+        compact_threshold_pct: 80,
+        squash_threshold_pct: 70,
+        status: usagePct >= 80 ? "critical" : usagePct >= 70 ? "warning" : "normal",
+        static_tokens: staticTokens,
+        schema_tokens: schemaTokens,
+        virtual_ram_tokens: virtualRamTokens,
+        provider_prompt_tokens: providerPromptTokens,
+        virtual_ram_files: 0,
+        squashed: false,
+        evicted: false,
+        rolled_up: false,
+      },
+      timestamp: new Date().toISOString(),
+    });
   }
 }

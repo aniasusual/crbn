@@ -103,8 +103,8 @@ export default function ChatPanel({
   const scrollContainerRef = useRef(null);
   const isUserScrolledRef = useRef(false);
 
-  const currentModelObj = models.find((m) => m.id === selectedModel) || {
-    name: selectedModel || 'qwen3:8b',
+  const currentModelObj = models.find((m) => m.id === selectedModel || m.canonical_id === selectedModel) || {
+    name: selectedModel || 'gemini-3.8-flash',
     compatibility_label: 'Optimal',
   };
 

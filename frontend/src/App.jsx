@@ -37,9 +37,16 @@ function App() {
   // Hardware & Model States
   const [hardwareInfo, setHardwareInfo] = useState(null);
   const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState(
-    () => localStorage.getItem('lowkey_selected_model') || 'qwen3:8b'
-  );
+  const [selectedModel, setSelectedModel] = useState(() => {
+    try {
+      const activeProj = localStorage.getItem('lowkey_active_project');
+      if (activeProj) {
+        const parsed = JSON.parse(activeProj);
+        if (parsed?.model) return parsed.model;
+      }
+    } catch {}
+    return localStorage.getItem('lowkey_selected_model') || 'gemini-3.8-flash';
+  });
 
   const wsRef = useRef(null);
   const pendingInitialPromptRef = useRef(null);
@@ -55,16 +62,46 @@ function App() {
 
         // Validate or set default selected model
         if (data.models && data.models.length > 0) {
-          const savedModel = localStorage.getItem('lowkey_selected_model');
-          const isSavedValid = data.models.some((m) => m.id === savedModel && m.installed);
-          if (!isSavedValid) {
+          let preferredModel = null;
+          try {
+            const activeProj = localStorage.getItem('lowkey_active_project');
+            if (activeProj) {
+              const parsed = JSON.parse(activeProj);
+              if (parsed?.model) preferredModel = parsed.model;
+            }
+          } catch {}
+          if (!preferredModel) {
+            preferredModel = localStorage.getItem('lowkey_selected_model');
+          }
+
+          const matchingModel = data.models.find(
+            (m) =>
+              (m.id === preferredModel ||
+                m.canonical_id === preferredModel ||
+                `${m.provider}/${m.id}` === preferredModel) &&
+              (m.has_auth || m.installed)
+          );
+
+          if (matchingModel) {
+            const targetId = matchingModel.canonical_id || matchingModel.id;
+            setSelectedModel(targetId);
+            localStorage.setItem('lowkey_selected_model', targetId);
+          } else {
+            // Only default if the user's saved choice does not exist or has no auth
             const defaultModel =
-              data.models.find((m) => m.id === data.active_model && m.installed) ||
-              data.models.find((m) => m.installed) ||
+              data.models.find(
+                (m) =>
+                  (m.id === data.active_model || m.canonical_id === data.active_model) &&
+                  (m.has_auth || m.installed)
+              ) ||
+              data.models.find((m) => m.id === 'gemini-3.8-flash' && m.has_auth) ||
+              data.models.find((m) => m.id === 'gemini-2.5-flash' && m.has_auth) ||
+              data.models.find((m) => m.has_auth || m.installed) ||
               data.models[0];
             if (defaultModel) {
-              setSelectedModel(defaultModel.id);
-              localStorage.setItem('lowkey_selected_model', defaultModel.id);
+              const targetId = defaultModel.canonical_id || defaultModel.id;
+              setSelectedModel(targetId);
+              localStorage.setItem('lowkey_selected_model', targetId);
             }
           }
         }
@@ -269,6 +306,12 @@ function App() {
         if (data.type === 'project_opened') {
           if (data.project) {
             setActiveProject(data.project);
+            if (data.project.model) {
+              setSelectedModel(data.project.model);
+              try {
+                localStorage.setItem('lowkey_selected_model', data.project.model);
+              } catch {}
+            }
             try {
               localStorage.setItem('lowkey_active_project', JSON.stringify(data.project));
             } catch (e) {
@@ -624,7 +667,7 @@ function App() {
       const response = await fetch(`${API_BASE_URL}/api/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: projectName, template: 'node_react' }),
+        body: JSON.stringify({ name: projectName, template: 'node_react', model: selectedModel }),
       });
       const data = await response.json();
 
