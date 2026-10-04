@@ -1,0 +1,190 @@
+.llm-debug-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.llm-debug-modal {
+  background: #0d0d11;
+  color: #d4d4d4;
+  border: 1px solid #2a2a30;
+  border-radius: 6px;
+  width: 95vw;
+  max-width: 1100px;
+  height: 85vh;
+  max-height: 850px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.llm-debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  background: #131318;
+  border-bottom: 1px solid #24242c;
+}
+
+.llm-debug-header__title {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.llm-debug-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-debug-btn {
+  background: #1e1e26;
+  color: #c8c8d0;
+  border: 1px solid #363642;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-family: monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.llm-debug-btn:hover {
+  background: #2a2a36;
+  color: #ffffff;
+}
+
+.llm-debug-body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px 16px;
+  background: #0d0d11;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  user-select: text;
+}
+
+/* Collapsible JSON Tree */
+.json-tree {
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.json-node {
+  display: flex;
+  flex-direction: column;
+}
+
+.json-line {
+  display: flex;
+  align-items: baseline;
+  min-height: 20px;
+  line-height: 1.5;
+}
+.json-line--expandable {
+  cursor: pointer;
+}
+
+.json-line--expandable:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 3px;
+}
+
+.json-indent {
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.json-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin-right: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  color: #aaa;
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.json-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.json-key {
+  color: #9cdcfe;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.json-string {
+  color: #ce9178;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  min-width: 0;
+}
+
+.json-number {
+  color: #b5cea8;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.json-boolean {
+  color: #569cd6;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.json-null {
+  color: #569cd6;
+  font-style: italic;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.json-bracket,
+.json-brace {
+  color: #ffd700;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.json-comma {
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.json-collapsed-text {
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.json-raw-fallback {
+  margin: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

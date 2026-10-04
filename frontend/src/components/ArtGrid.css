@@ -1,0 +1,69 @@
+/* ============================================
+   ArtGrid — Masonry abstract art background
+   ============================================ */
+
+/* We make the art-grid intentionally taller and wider than the screen 
+   to guarantee there are no empty blocks at the edges, then hide overflow */
+.art-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  /* Allow natural vertical growth to avoid masonry bottom gaps */
+  column-count: 5;
+  column-gap: 12px;
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.art-grid__cell {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+  break-inside: avoid;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  /* Removed random colors, defaults to transparent/black */
+  background: transparent;
+}
+
+/* Ensure images maintain their aspect ratio but fill their block */
+.art-grid__img {
+  display: block;
+  width: 100%;
+  height: auto; /* Natural masonry flow */
+  object-fit: cover;
+  transition: opacity 1.3s ease;
+  will-change: opacity;
+}
+
+/* When images fail to load or haven't loaded yet */
+.art-grid__img--failed {
+  opacity: 0 !important;
+}
+
+/* Crossfade animation */
+.art-grid__img--exiting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  z-index: 2;
+}
+
+/* Subtle dark gradient overlay to ensure the input field remains highly legible */
+.art-grid__overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(25, 25, 25, 0.4) 0%,
+    rgba(25, 25, 25, 0.85) 60%,
+    var(--lk-bg) 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+}

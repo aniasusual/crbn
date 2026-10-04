@@ -1,0 +1,322 @@
+/* =========================================================
+   Notion-Style Minimalist Welcome View
+   ========================================================= */
+
+.notion-welcome {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--lk-bg, #191919);
+  padding: 40px 24px;
+}
+
+.notion-welcome--exiting {
+  animation: fadeOut 0.25s ease forwards;
+}
+
+.notion-welcome__content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 640px;
+}
+
+/* Top System & Model Bar */
+.notion-welcome__top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.notion-welcome__model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  outline: none;
+}
+
+.notion-welcome__model-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.notion-welcome__model-name {
+  font-weight: 500;
+}
+
+.notion-welcome__model-compat {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+/* Typography */
+.notion-welcome__title {
+  font-size: 28px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.025em;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.notion-welcome__subtitle {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 28px;
+  text-align: center;
+  line-height: 1.45;
+}
+
+/* Form & Input */
+.notion-welcome__form {
+  width: 100%;
+}
+
+.notion-welcome__input-wrapper {
+  width: 100%;
+  background: #202020;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 14px 16px 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.15s ease;
+}
+
+.notion-welcome__input-wrapper:focus-within {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.notion-welcome__input {
+  width: 100%;
+  min-height: 90px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  color: rgba(255, 255, 255, 0.9);
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+}
+
+.notion-welcome__input::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.notion-welcome__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notion-welcome__actions-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notion-welcome__actions-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.notion-welcome__shortcut-hint {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+
+.notion-welcome__submit-btn {
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #111111;
+  background: #ededed;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.notion-welcome__submit-btn:hover {
+  background: #ffffff;
+}
+
+.notion-welcome__submit-btn:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.25);
+  cursor: not-allowed;
+}
+
+/* Naming step */
+.notion-welcome__name-input {
+  width: 100%;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  background: transparent;
+  border: none;
+  outline: none;
+  text-align: center;
+  padding: 10px 0;
+}
+
+.notion-welcome__name-loading {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+  display: block;
+}
+
+.notion-welcome__actions--naming {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Projects List */
+.notion-welcome__projects-section {
+  width: 100%;
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notion-welcome__projects-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 4px;
+}
+
+.notion-welcome__projects-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.notion-project-item {
+  background: transparent;
+  border-radius: 5px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.notion-project-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notion-project-item__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.notion-project-item__icon {
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+}
+
+.notion-project-item:hover .notion-project-item__icon {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.notion-project-item__name {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notion-project-item__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.notion-project-item__status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #4ade80;
+}
+
+.notion-project-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.notion-project-item:hover .notion-project-item__actions {
+  opacity: 1;
+}
+
+.notion-project-item__btn {
+  background: transparent;
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.notion-project-item__btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.notion-project-item__btn--delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}

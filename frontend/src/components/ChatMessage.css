@@ -1,0 +1,781 @@
+/* =========================================================
+   ChatMessage — Notion Minimalist Styling
+   ========================================================= */
+
+.chat-msg {
+  max-width: 92%;
+  font-size: 14px;
+  line-height: 1.55;
+  word-wrap: break-word;
+  animation: slideUp 0.15s ease both;
+  margin-bottom: 6px;
+}
+
+/* User Message */
+.chat-msg--user {
+  align-self: flex-end;
+}
+
+.chat-msg__box--user {
+  background: #2a2a2a;
+  color: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-family: var(--font-sans, sans-serif);
+  font-size: 14px;
+}
+
+/* Status message */
+.chat-msg--status {
+  align-self: flex-start;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11.5px;
+  font-style: italic;
+  padding: 2px 0;
+}
+
+/* Tool call & result */
+.chat-msg--tool_call,
+.chat-msg--tool_result {
+  align-self: stretch;
+  max-width: 100%;
+}
+
+.chat-msg__box {
+  background: #202020;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-mono, monospace);
+  font-size: 12.5px;
+}
+
+.chat-msg--tool_result {
+  margin-top: -2px;
+}
+
+/* Header */
+.chat-msg__header {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+  transition: opacity 0.12s ease;
+}
+
+.chat-msg__header:hover {
+  opacity: 0.85;
+}
+
+.chat-msg__file-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: 2px;
+}
+
+.chat-msg__file-badge {
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 400;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  padding: 1px 5px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.chat-msg__chevron {
+  display: inline-block;
+  transition: transform 0.15s ease;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.chat-msg__chevron--expanded {
+  transform: rotate(90deg);
+}
+
+.chat-msg__loader {
+  animation: lk-spin 1s linear infinite;
+  display: inline-block;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+@keyframes lk-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.chat-msg__details {
+  margin: 6px 0 0 0;
+  white-space: pre-wrap;
+  background: #191919;
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Assistant response */
+.chat-msg--assistant {
+  align-self: stretch;
+  max-width: 100%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: var(--font-sans, sans-serif);
+  font-size: 14px;
+  white-space: pre-wrap;
+  padding: 4px 0;
+  border: none;
+}
+
+.chat-msg__assistant-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.chat-msg__assistant-icon {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Thinking block */
+.chat-msg--thinking {
+  align-self: stretch;
+  max-width: 100%;
+  margin-bottom: 6px;
+}
+
+.chat-msg__box--thinking {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.chat-msg__thinking-content {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: pre-wrap;
+  max-height: 250px;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+/* Footer / Copy */
+.chat-msg__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  opacity: 0;
+  font-size: 11px;
+  margin-top: 2px;
+  transition: opacity 0.12s ease;
+}
+
+.chat-msg:hover .chat-msg__footer {
+  opacity: 1;
+}
+
+.chat-msg__time {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.chat-msg__copy {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.chat-msg__copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.chat-msg__debug-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.chat-msg__debug-btn:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+
+.chat-msg__rewind-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.chat-msg__rewind-btn:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+/* Subagent cards in main chat */
+.chat-msg--subagent-card .chat-msg__box,
+.chat-msg--subagent-result .chat-msg__box {
+  background: #202020;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.chat-msg--subagent-card .chat-msg__box:hover,
+.chat-msg--subagent-result .chat-msg__box:hover {
+  background: #242424;
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* =========================================================
+   Ask Human Interactive Question Cards
+   ========================================================= */
+
+.chat-msg--ask_human {
+  align-self: stretch;
+  max-width: 100%;
+}
+
+.chat-msg__box--ask_human {
+  background: #202020;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-family: var(--font-sans, sans-serif);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.ask-human__item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ask-human__item + .ask-human__item {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ask-human__header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ask-human__chip {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 10.5px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ask-human__question-title {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.45;
+}
+
+.ask-human__options-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ask-human__option-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 8px 11px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: inherit;
+  font-family: inherit;
+  width: 100%;
+}
+
+.ask-human__option-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.ask-human__option-card--recommended {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ask-human__option-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ask-human__option-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+}
+
+.ask-human__badge-recommended {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 10px;
+  font-weight: 400;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.ask-human__option-desc {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.4;
+}
+
+.ask-human__submit-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: #ededed;
+  color: #111111;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.ask-human__submit-btn:hover {
+  background: #ffffff;
+}
+
+.ask-human__submit-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ask-human__other-btn {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  padding: 6px 10px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  margin-top: 2px;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+
+.ask-human__other-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.ask-human__custom-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ask-human__custom-input {
+  flex: 1;
+  background: #181818;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.12s ease;
+}
+
+.ask-human__custom-input:focus {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.ask-human__cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 5px 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+
+.ask-human__cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* =========================================================
+   Todo Checklist Card — Modern Task Matrix
+   ========================================================= */
+
+.chat-msg--todo {
+  align-self: stretch;
+  max-width: 100%;
+}
+
+.chat-msg__box--todo {
+  background: #1e1e1e;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.todo-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.todo-card__title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #93c5fd;
+  letter-spacing: -0.01em;
+}
+
+.todo-card__op-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  font-family: var(--font-mono, monospace);
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.todo-card__active-task {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.55);
+  font-style: italic;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-card__progress-bar-wrap {
+  width: 70px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.todo-card__progress-bar {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 3px;
+  transition: width 0.2s ease;
+}
+
+.todo-card__body {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.todo-card__phase {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+
+.todo-card__phase-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.todo-card__phase-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.todo-card__phase-count {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-mono, monospace);
+}
+
+.todo-card__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-card__task {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+
+.todo-card__task:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.todo-card__task-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.todo-marker--completed {
+  color: #10b981;
+}
+
+.todo-marker--blocked {
+  color: #f59e0b;
+}
+
+.todo-marker--abandoned {
+  color: rgba(255, 255, 255, 0.35);
+  font-weight: bold;
+}
+
+.todo-marker--pending {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.todo-card__task-content {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.todo-card__task-text {
+  color: rgba(255, 255, 255, 0.85);
+  word-break: break-word;
+}
+
+.todo-card__task-text--done {
+  color: rgba(255, 255, 255, 0.4);
+  text-decoration: line-through;
+}
+
+.todo-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.todo-badge--in_progress {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.todo-badge--blocked {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.todo-badge--abandoned {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.todo-card__empty {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+}
+
+/* ==========================================================================
+   Compaction Divider & Executive Handoff Drawer (Phase 8 Standard)
+   ========================================================================== */
+.chat-msg--compaction-divider {
+  width: 100%;
+  margin: 16px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.compaction-divider__banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.compaction-divider__line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.3), transparent);
+}
+
+.compaction-divider__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  background: rgba(147, 51, 234, 0.12);
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  border-radius: 9999px;
+  color: #c084fc;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.compaction-divider__pill:hover {
+  background: rgba(147, 51, 234, 0.2);
+  border-color: rgba(147, 51, 234, 0.5);
+}
+
+.compaction-divider__badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.compaction-divider__drawer {
+  width: 100%;
+  max-width: 720px;
+  margin-top: 10px;
+  background: #141419;
+  border: 1px solid rgba(147, 51, 234, 0.25);
+  border-radius: 8px;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.compaction-divider__drawer-header {
+  padding: 8px 14px;
+  background: rgba(147, 51, 234, 0.08);
+  border-bottom: 1px solid rgba(147, 51, 234, 0.15);
+  font-size: 11px;
+  font-weight: 600;
+  color: #d8b4fe;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compaction-divider__drawer-body {
+  padding: 12px 14px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.compaction-divider__text {
+  margin: 0;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.8);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

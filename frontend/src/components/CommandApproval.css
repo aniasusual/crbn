@@ -1,0 +1,116 @@
+.command-approval-inline {
+  position: absolute;
+  bottom: 80px;
+  left: 20px;
+  right: 20px;
+  background-color: rgba(26, 26, 26, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  color: #eeeeee;
+  z-index: 100;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.modal-header {
+  padding: 14px 18px 8px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #a0a0a0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-body {
+  padding: 0 18px;
+}
+
+.reason-text {
+  margin: 8px 0 12px 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #d4d4d4;
+  font-weight: 400;
+}
+
+.command-box {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 6px;
+  margin: 12px 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow-x: auto;
+}
+
+.command-box code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  font-size: 0.85rem;
+  color: #cccccc;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 14px 18px;
+  background-color: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.btn-deny, .btn-approve {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-deny {
+  background-color: transparent;
+  color: #a0a0a0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-deny:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #e0e0e0;
+}
+
+.btn-approve {
+  background-color: #ededed;
+  color: #111111;
+}
+
+.btn-approve:hover {
+  background-color: #ffffff;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
