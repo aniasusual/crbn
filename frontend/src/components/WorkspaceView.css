@@ -1,3 +1,8 @@
+/* ==========================================================================
+   80degrees — WorkspaceView Styling
+   Museum-Grade Studio Canvas, Full-Bleed Chat Panel & Precision Splitter
+   ========================================================================== */
+
 .workspace-container {
   display: flex;
   flex-direction: column;
@@ -5,94 +10,30 @@
   height: 100%;
   flex: 1;
   min-height: 0;
-  background: var(--lk-bg);
+  background: var(--app-bg, #16161a);
   overflow: hidden;
+  position: relative;
+  animation: workspaceSwitchIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.workspace-header__back {
-  background: transparent;
-  border: 1px solid var(--lk-border);
-  color: var(--lk-text-secondary);
-  padding: 6px 12px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex: 1;
-  max-width: fit-content;
+@keyframes workspaceSwitchIn {
+  from {
+    opacity: 0.65;
+    transform: scale(0.996);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
-
-.workspace-header__back:hover {
-  background: var(--lk-bg-hover);
-  color: var(--lk-text);
-}
-
-.workspace-header__title {
-  flex: 2;
-  text-align: center;
-  font-weight: 600;
-  font-size: 14px;
-  color: var(--lk-text);
-}
-
-.workspace-header__spacer {
-  flex: 1;
-}
-
-.workspace-header__right {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  flex: 1;
-}
-
-.workspace-header__model-container {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.workspace-header__model-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--lk-border);
-  color: var(--lk-text-secondary);
-  padding: 5px 10px;
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  outline: none;
-}
-
-.workspace-header__model-btn:hover {
-  background: var(--lk-bg-hover);
-  color: var(--lk-text);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.workspace-header__model-name {
-  color: var(--lk-text);
-  font-weight: 500;
-}
-
-.workspace-header__model-arrow {
-  font-size: 10px;
-  opacity: 0.6;
-}
-
-
 .workspace {
   flex: 1;
-  padding: 16px;
+  padding: 0;
   display: flex;
   min-height: 0;
   box-sizing: border-box;
+  gap: 0;
+  overflow: hidden;
 }
 
 .workspace__left {
@@ -100,30 +41,38 @@
   flex-direction: column;
   min-height: 0;
   flex-shrink: 0;
+  min-width: 320px;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
 }
 
 .workspace__splitter {
-  width: 16px;
+  width: 6px;
   cursor: col-resize;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  user-select: none;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .workspace__splitter::after {
   content: '';
-  width: 4px;
-  height: 30%;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  transition: background 0.2s;
+  width: 2px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .workspace__splitter:hover::after,
 .workspace__splitter:active::after {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.7);
+  height: 48px;
 }
 
 .workspace__right {
@@ -131,5 +80,8 @@
   flex-direction: column;
   min-height: 0;
   flex-grow: 1;
-  min-width: 0;
+  min-width: 320px;
+  height: 100%;
+  padding: 8px 10px 10px 4px;
+  box-sizing: border-box;
 }

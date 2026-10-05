@@ -1,45 +1,48 @@
-/* Tab Bar — Notion/macOS Desktop Window Tabs with Unified Header */
+/* =========================================================
+   80degrees — Tab Bar
+   Museum-Grade Studio Chrome, Architectural Glass Surfaces,
+   Precision Micro-Pills & Cohesive Monochrome Depth
+   ========================================================= */
 
 .tab-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #16161a;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  height: 38px;
+  background: rgba(18, 18, 22, 0.78);
+  border-bottom: none;
+  box-shadow: none;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  height: 40px;
   user-select: none;
   overflow: hidden;
   flex-shrink: 0;
-  padding: 0 10px 0 6px;
+  padding: 0 14px 0 10px;
+  position: relative;
+  z-index: 20;
 }
 
 .tab-bar__left {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   overflow: hidden;
   flex: 1;
   min-width: 0;
   height: 100%;
 }
 
-.tab-bar__right {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  margin-left: 12px;
-}
 
 /* Scrollable container for project tabs */
 .tab-bar__tabs-scroll {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
   height: 100%;
   scrollbar-width: none;
-  padding: 3px 0;
+  padding: 4px 0;
 }
 
 .tab-bar__tabs-scroll::-webkit-scrollbar {
@@ -50,48 +53,87 @@
 .tab-bar__tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 0 10px;
   height: 28px;
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: 8px;
   color: rgba(255, 255, 255, 0.55);
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   font-size: 12px;
   font-weight: 450;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 0.12s ease;
-  max-width: 200px;
+  transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 220px;
   min-width: 80px;
   position: relative;
   white-space: nowrap;
 }
 
 .tab-bar__tab:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .tab-bar__tab--active {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.44) 0%, rgba(234, 88, 12, 0.32) 100%);
+  border: none;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: #ffffff;
+  font-weight: 550;
+  transform: scale(1.03);
+  transform-origin: center center;
+  animation: tabSelectPulse 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: none;
+  z-index: 2;
+}
+
+.tab-bar__tab--active:hover {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.54) 0%, rgba(234, 88, 12, 0.4) 100%);
+  border: none;
+  transform: scale(1.04);
   color: #ffffff;
 }
 
-/* Home Tab */
+/* Home / Projects Pinned Tab */
 .tab-bar__tab--home {
   min-width: auto;
-  padding: 0 10px;
-  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.035);
+  border: none;
+}
+
+.tab-bar__tab--home:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  color: #ffffff;
+}
+
+.tab-bar__tab--home.tab-bar__tab--active {
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.44) 0%, rgba(234, 88, 12, 0.32) 100%);
+  border: none;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  color: #ffffff;
+  transform: scale(1.03);
+  transform-origin: center center;
+  animation: tabSelectPulse 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: none;
 }
 
 .tab-bar__tab-icon {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.45);
   display: flex;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  transition: color 0.14s ease;
 }
 
+.tab-bar__tab:hover .tab-bar__tab-icon,
 .tab-bar__tab--active .tab-bar__tab-icon {
   color: #ffffff;
 }
@@ -108,6 +150,7 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  margin-left: 2px;
 }
 
 .tab-bar__status-dot {
@@ -118,14 +161,14 @@
 }
 
 .tab-bar__status-dot--generating {
-  background-color: #10b981;
-  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  background-color: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
   animation: tab-pulse 1.4s infinite ease-in-out;
 }
 
 .tab-bar__status-dot--awaiting {
   background-color: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
   animation: tab-pulse 1.4s infinite ease-in-out;
 }
 
@@ -135,8 +178,22 @@
     opacity: 1;
   }
   50% {
-    transform: scale(1.3);
-    opacity: 0.6;
+    transform: scale(1.25);
+    opacity: 0.65;
+  }
+}
+
+@keyframes tabSelectPulse {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.8;
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1.03);
+    opacity: 1;
   }
 }
 
@@ -145,17 +202,18 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
+  width: 17px;
+  height: 17px;
+  border-radius: 4px;
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.35);
   cursor: pointer;
   padding: 0;
-  transition: all 0.1s ease;
+  transition: all 0.12s ease;
   flex-shrink: 0;
   opacity: 0;
+  margin-left: 2px;
 }
 
 .tab-bar__tab:hover .tab-bar__tab-close,
@@ -166,27 +224,39 @@
 .tab-bar__tab-close:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+  transform: scale(1.06);
 }
 
-/* New Tab (+) Button */
+.tab-bar__tab-close:active {
+  transform: scale(0.96);
+}
+
+/* New Tab (+) Utility Button */
 .tab-bar__new-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.4);
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   padding: 0;
-  transition: all 0.12s ease;
+  transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
   margin-left: 2px;
 }
 
 .tab-bar__new-btn:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
   color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.tab-bar__new-btn:active {
+  transform: translateY(0);
 }

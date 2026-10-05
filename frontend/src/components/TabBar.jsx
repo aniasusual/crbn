@@ -1,5 +1,4 @@
 import React from 'react';
-import ContextGauge from './ContextGauge';
 import './TabBar.css';
 
 export default function TabBar({
@@ -10,7 +9,6 @@ export default function TabBar({
   onSelectTab,
   onCloseTab,
   onNewTab,
-  contextTelemetry,
 }) {
   return (
     <div className="tab-bar">
@@ -100,12 +98,6 @@ export default function TabBar({
         </div>
       </div>
 
-      {/* Right side: Context Gauge */}
-      <div className="tab-bar__right">
-        {!isHomeActive && contextTelemetry && (
-          <ContextGauge telemetry={contextTelemetry} placement="bottom" />
-        )}
-      </div>
     </div>
   );
 }

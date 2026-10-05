@@ -221,7 +221,9 @@ export default function ModelSelector({
         <div className="notion-modal__header">
           <div className="notion-modal__header-info">
             <div className="notion-modal__title-row">
-              <h2 className="notion-modal__title">Models</h2>
+              <h2 className="notion-modal__title">
+                Models <span className="notion-modal__title-serif">studio</span>
+              </h2>
               <span className="notion-modal__counter-pill">
                 {models.length.toLocaleString()} models / {providerStats.length} providers
               </span>

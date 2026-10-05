@@ -133,11 +133,18 @@ export default function PreviewPanel({ previewData, _onStopPreview, lastChangeTi
     return (
       <div className="preview-panel preview-panel--empty">
         <div className="preview-panel__empty-content">
-          <div className="preview-panel__empty-icon">
-            <BrowserEmptyIcon />
+          <div className="preview-panel__empty-icon-wrap">
+            <div className="preview-panel__empty-icon-glow" />
+            <div className="preview-panel__empty-icon">
+              <BrowserEmptyIcon />
+            </div>
           </div>
-          <h3>No Preview Running</h3>
-          <p>The dev server will boot automatically when you open or create a project.</p>
+          <h3 className="preview-panel__empty-title">
+            Live app <span className="preview-panel__empty-title-serif">preview</span>
+          </h3>
+          <p className="preview-panel__empty-desc">
+            The dev server will boot automatically when you open or create a workspace.
+          </p>
         </div>
       </div>
     );

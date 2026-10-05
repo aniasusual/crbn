@@ -1,7 +1,7 @@
 .markdown-body {
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-  font-size: 13.5px;
-  line-height: 1.6;
+  font-size: 14.5px;
+  line-height: 1.65;
   color: rgba(255, 255, 255, 0.9);
   word-break: break-word;
 }

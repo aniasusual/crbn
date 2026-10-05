@@ -812,7 +812,6 @@ export default function App() {
         }}
         onCloseTab={handleCloseTab}
         onNewTab={() => setCurrentView('welcome')}
-        contextTelemetry={currentView === 'workspace' ? activeTab?.contextTelemetry : null}
       />
 
       {currentView === 'welcome' && (

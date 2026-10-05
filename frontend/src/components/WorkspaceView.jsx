@@ -14,6 +14,7 @@ export default function WorkspaceView({
   lastChangeTimestamp,
   onStopPreview,
   _onGoBack,
+  projectName,
   _projectName,
   pendingApproval,
   onApproveCommand,
@@ -109,6 +110,7 @@ export default function WorkspaceView({
             onRewindToStep={onRewindToStep}
             input={input}
             onInputChange={onInputChange}
+            projectName={projectName || _projectName}
           />
         </div>
 

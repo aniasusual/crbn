@@ -98,6 +98,7 @@ export default function ChatPanel({
   onRewindToStep = null,
   input: controlledInput,
   onInputChange,
+  _projectName = '',
 }) {
   const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
@@ -239,36 +240,6 @@ export default function ChatPanel({
 
   return (
     <div className="chat-panel">
-      <div className="chat-panel__header">
-        <div className="chat-panel__header-left">
-          <div className="chat-panel__brand-logo-wrap">
-            <img
-              src="/logo-white.png"
-              alt="80degrees"
-              className="chat-panel__brand-logo"
-            />
-          </div>
-
-          <div className={`chat-panel__status-badge ${isConnected ? 'chat-panel__status-badge--connected' : ''}`}>
-            <span className="chat-panel__status-dot" />
-            <span>{isAgentRunning ? 'Generating' : isConnected ? 'Connected' : 'Offline'}</span>
-          </div>
-        </div>
-
-        <div className="chat-panel__header-right">
-          {isAgentRunning && (
-            <button
-              type="button"
-              className="chat-panel__header-stop-btn"
-              onClick={onStopAgent}
-              title="Stop agent"
-            >
-              <StopIcon />
-              <span>Stop</span>
-            </button>
-          )}
-        </div>
-      </div>
 
       <div
         className="chat-panel__messages"
@@ -427,22 +398,39 @@ export default function ChatPanel({
           }}
         />
 
-        {isConnected && agentStatus && (
-          <div
-            className={`chat-panel__agent-status chat-panel__agent-status--${agentStatus}`}
-          >
-            <span className="chat-panel__agent-status-label">
-              {agentStatus === 'generating' && 'Agent is generating...'}
-              {agentStatus === 'awaiting_human' && 'Agent is awaiting human response'}
-              {agentStatus === 'done' && 'Done'}
-            </span>
-          </div>
-        )}
+        {/* Status Strip above input box (Online, Offline, Generating, Awaiting, Done) */}
+        <div
+          className={`chat-panel__status-strip chat-panel__status-strip--${
+            !isConnected
+              ? 'offline'
+              : agentStatus === 'generating'
+              ? 'generating'
+              : agentStatus === 'awaiting_human'
+              ? 'awaiting_human'
+              : agentStatus === 'done'
+              ? 'done'
+              : 'online'
+          }`}
+        >
+          <span className="chat-panel__status-strip-text">
+            {!isConnected
+              ? 'Agent is offline · Engine disconnected'
+              : agentStatus === 'generating'
+              ? 'Agent is generating...'
+              : agentStatus === 'awaiting_human'
+              ? 'Agent is awaiting human response'
+              : agentStatus === 'done'
+              ? 'Done'
+              : 'Agent is online'}
+          </span>
+        </div>
 
         {/* Attachment preview directly ABOVE the input box */}
-        <div style={{ padding: '0 12px' }}>
-          <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
-        </div>
+        {attachments && attachments.length > 0 && (
+          <div style={{ padding: '0 4px' }}>
+            <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
+          </div>
+        )}
 
         <div
           className={`chat-panel__input-wrapper ${
@@ -491,14 +479,7 @@ export default function ChatPanel({
                 onClick={() => setIsModelSelectorOpen(true)}
                 title="Change active model"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
-                  <rect x="9" y="9" width="6" height="6"></rect>
-                  <line x1="9" y1="1" x2="9" y2="4"></line>
-                  <line x1="15" y1="1" x2="15" y2="4"></line>
-                  <line x1="9" y1="20" x2="9" y2="23"></line>
-                  <line x1="15" y1="20" x2="15" y2="23"></line>
-                </svg>
+                <span className="chat-panel__model-pill-icon">✦</span>
                 <span className="chat-panel__model-name">
                   {currentModelObj.name || selectedModel}
                 </span>
@@ -508,27 +489,34 @@ export default function ChatPanel({
               </button>
 
               <ContextGauge telemetry={contextTelemetry} />
+
             </div>
 
-            {isAgentRunning ? (
-              <button
-                type="button"
-                className="chat-panel__send chat-panel__send--stop"
-                onClick={onStopAgent}
-                title="Stop agent"
-              >
-                <StopIcon />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="chat-panel__send"
-                disabled={(!input.trim() && attachments.length === 0) || !isConnected}
-                title="Send message"
-              >
-                <SendIcon />
-              </button>
-            )}
+            <div className="chat-panel__input-footer-right">
+              <span className="chat-panel__hint">
+                <kbd className="degrees-keycap">↵</kbd>
+              </span>
+              {isAgentRunning ? (
+                <button
+                  type="button"
+                  className="chat-panel__send chat-panel__send--stop"
+                  onClick={onStopAgent}
+                  title="Stop agent"
+                >
+                  <StopIcon />
+                  <span>Stop</span>
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="chat-panel__send"
+                  disabled={(!input.trim() && attachments.length === 0) || !isConnected}
+                  title="Send message"
+                >
+                  <SendIcon />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </form>

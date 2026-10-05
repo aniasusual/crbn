@@ -1,4 +1,8 @@
-/* Minimal Context Telemetry Gauge */
+/* =========================================================
+   80degrees — Context Gauge
+   Museum-Grade Precision Telemetry, Glassmorphic Capsule,
+   Tabular Typography & Ambient Glowing Indicators
+   ========================================================= */
 
 .context-gauge {
   position: relative;
@@ -11,29 +15,32 @@
 .context-gauge__btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 0 8px;
+  height: 28px;
   color: rgba(255, 255, 255, 0.75);
-  padding: 3px 8px;
-  border-radius: 4px;
+  flex-shrink: 0;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   font-size: 11.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.12s ease;
   outline: none;
-  font-family: inherit;
+  transition: all 0.12s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
 }
 
 .context-gauge__btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
   color: #ffffff;
 }
 
 .context-gauge__btn--active {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.2);
   color: #ffffff;
 }
 
@@ -43,90 +50,92 @@
   height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
-  transition: background-color 0.2s ease;
 }
 
 .context-gauge__dot--normal {
-  background-color: #10b981;
-  box-shadow: 0 0 5px rgba(16, 185, 129, 0.35);
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
 }
 
 .context-gauge__dot--warning {
-  background-color: #f59e0b;
-  box-shadow: 0 0 5px rgba(245, 158, 11, 0.35);
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
 }
 
 .context-gauge__dot--critical {
-  background-color: #ef4444;
-  box-shadow: 0 0 5px rgba(239, 68, 68, 0.45);
-  animation: pulse-dot 1.5s infinite;
+  background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+  animation: pulse-dot 1.2s infinite ease-in-out;
 }
 
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(1.15); }
+  50% { opacity: 0.5; transform: scale(1.3); }
 }
 
 .context-gauge__label {
-  letter-spacing: -0.01em;
   font-weight: 500;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
+  letter-spacing: -0.01em;
 }
 
 .context-gauge__pct {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.45);
   font-variant-numeric: tabular-nums;
-  margin-left: 1px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
 }
 
 /* Button indicator arrow */
 .context-gauge__btn-arrow {
-  margin-left: 2px;
+  display: flex;
+  align-items: center;
   color: rgba(255, 255, 255, 0.4);
-  transition: transform 0.15s ease, color 0.15s ease;
-  flex-shrink: 0;
+  transition: transform 0.14s ease, color 0.14s ease;
+  margin-left: 1px;
 }
 
 .context-gauge__btn:hover .context-gauge__btn-arrow {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .context-gauge__btn-arrow--open {
   transform: rotate(180deg);
-  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Popover Menu */
 .context-gauge__popover {
   position: absolute;
   bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translate(-50%, 0);
+  left: 0;
+  transform: none;
   width: 250px;
-  background: #18181b;
+  background: rgba(22, 22, 28, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
-  padding: 12px 14px;
-  z-index: 1000;
-  animation: context-gauge-fade-up 0.12s ease-out;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  border-radius: 12px;
+  box-shadow: 
+    0 24px 56px -10px rgba(0, 0, 0, 0.85),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  padding: 14px 16px;
+  z-index: 9999;
+  animation: context-gauge-fade-up 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
+  pointer-events: auto;
 }
 
 .context-gauge__arrow {
   position: absolute;
   bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%) rotate(45deg);
+  left: 18px;
+  transform: rotate(45deg);
   width: 10px;
   height: 10px;
-  background: #18181b;
+  background: rgba(22, 22, 28, 0.96);
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  z-index: 1001;
+  z-index: 10000;
   pointer-events: none;
 }
 
@@ -148,20 +157,19 @@
   left: auto;
   right: 0;
   transform: none;
-  animation: context-gauge-fade-down 0.12s ease-out;
+  animation: context-gauge-fade-down 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .context-gauge--placement-bottom .context-gauge__arrow {
   bottom: auto;
   top: -6px;
   left: auto;
-  right: 20px;
+  right: 14px;
   transform: rotate(45deg);
   border-right: none;
   border-bottom: none;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
   border-top: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: -2px -2px 4px rgba(0, 0, 0, 0.2);
 }
 
 @keyframes context-gauge-fade-down {
@@ -179,64 +187,66 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .context-gauge__popover-title {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: #e4e4e7;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
 .context-gauge__popover-status {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 1px 5px;
-  border-radius: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
 .context-gauge__popover-status--normal {
-  background: rgba(16, 185, 129, 0.12);
-  color: #34d399;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.12);
 }
 
 .context-gauge__popover-status--warning {
+  color: #f59e0b;
   background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
 }
 
 .context-gauge__popover-status--critical {
-  background: rgba(239, 68, 68, 0.14);
-  color: #f87171;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.15);
 }
 
 /* Minimal Progress Track */
 .context-gauge__track {
   height: 4px;
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  border-radius: 999px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .context-gauge__fill {
   height: 100%;
-  border-radius: 2px;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 999px;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
 }
 
 .context-gauge__fill--normal {
-  background: #10b981;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
 }
 
 .context-gauge__fill--warning {
   background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
 }
 
 .context-gauge__fill--critical {
   background: #ef4444;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
 }
 
 /* Properties Table */
@@ -244,23 +254,22 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 11.5px;
 }
 
 .context-gauge__row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #a1a1aa;
-}
-
-.context-gauge__row-key {
-  color: #a1a1aa;
   font-size: 11.5px;
 }
 
+.context-gauge__row-key {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .context-gauge__row-val {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  color: #f4f4f5;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-mono, monospace);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
 }

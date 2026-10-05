@@ -1,6 +1,6 @@
 /* =========================================================
-   SubagentPanel — Notion Minimalist Styling matching ChatPanel
-   Seamlessly overlays ChatPanel with identical UI structure
+   80degrees — SubagentPanel Styling
+   Museum-Grade Studio Glass, Cohesive Overlay Architecture
    ========================================================= */
 
 .subagent-panel-overlay {
@@ -9,10 +9,12 @@
   z-index: 40;
   display: flex;
   flex-direction: column;
-  background: var(--lk-bg, #191919);
+  background: rgba(18, 18, 22, 0.94);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
   border-radius: inherit;
   overflow: hidden;
-  animation: subagentFadeIn 0.14s ease both;
+  animation: subagentFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes subagentFadeIn {
@@ -31,10 +33,11 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 0 14px;
+  height: 44px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
   flex-shrink: 0;
-  background: #1c1c1c;
 }
 
 .subagent-panel__status-group {
@@ -44,56 +47,62 @@
 }
 
 .subagent-panel__back-btn {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.5);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 3px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .subagent-panel__back-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
   color: #ffffff;
 }
 
 .subagent-panel__title {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
 .subagent-panel__close-btn {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.45);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .subagent-panel__close-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
   color: #ffffff;
 }
 
 /* Messages area */
 .subagent-panel__messages {
   flex: 1;
+  overflow-y: auto;
+  padding: 16px 14px;
 }
 
 /* Bottom area status banner */
 .subagent-panel__bottom-area {
-  padding: 0;
+  padding: 10px 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  flex-shrink: 0;
-  background: #1c1c1c;
+  background: rgba(255, 255, 255, 0.02);
 }

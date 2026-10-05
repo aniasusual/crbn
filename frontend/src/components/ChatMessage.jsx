@@ -84,6 +84,12 @@ const AgentIcon = () => (
     <line x1="15" y1="20" x2="15" y2="23"></line>
   </svg>
 );
+const UserIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+    <circle cx="12" cy="7" r="4"></circle>
+  </svg>
+);
 const CameraIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -447,44 +453,49 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
 
       return (
         <div className="chat-msg chat-msg--user">
-          <div className="chat-msg__box chat-msg__box--user">
-            {hasImages && (
-              <div className="chat-msg__user-images">
-                {message.images.map((img, idx) => {
-                  const src =
-                    img.dataUrl ||
-                    (img.data ? `data:${img.mimeType || 'image/png'};base64,${img.data}` : '');
-                  return (
-                    <img
-                      key={idx}
-                      src={src}
-                      alt={img.name || `Image attachment ${idx + 1}`}
-                      className="chat-msg__user-img"
-                      onClick={() => {
-                        if (src) window.open(src, '_blank');
-                      }}
-                      title="Click to view full image"
-                    />
-                  );
-                })}
-              </div>
-            )}
+          <div className="chat-msg__user-row">
+            <div className="chat-msg__box chat-msg__box--user">
+              {hasImages && (
+                <div className="chat-msg__user-images">
+                  {message.images.map((img, idx) => {
+                    const src =
+                      img.dataUrl ||
+                      (img.data ? `data:${img.mimeType || 'image/png'};base64,${img.data}` : '');
+                    return (
+                      <img
+                        key={idx}
+                        src={src}
+                        alt={img.name || `Image attachment ${idx + 1}`}
+                        className="chat-msg__user-img"
+                        onClick={() => {
+                          if (src) window.open(src, '_blank');
+                        }}
+                        title="Click to view full image"
+                      />
+                    );
+                  })}
+                </div>
+              )}
 
-            {hasFiles && (
-              <div className="chat-msg__user-files">
-                {message.files.map((file, idx) => (
-                  <div key={idx} className="chat-msg__user-file-chip" title={file.name}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                      <polyline points="14 2 14 8 20 8"></polyline>
-                    </svg>
-                    <span>{file.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+              {hasFiles && (
+                <div className="chat-msg__user-files">
+                  {message.files.map((file, idx) => (
+                    <div key={idx} className="chat-msg__user-file-chip" title={file.name}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                      </svg>
+                      <span>{file.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            {message.content && <div className="chat-msg__content">{message.content}</div>}
+              {message.content && <div className="chat-msg__content">{message.content}</div>}
+            </div>
+            <div className="chat-msg__user-icon" title="You">
+              <UserIcon />
+            </div>
           </div>
           <MessageFooter
             timestamp={message.timestamp}
@@ -1107,8 +1118,13 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
     if (message.content) {
       return (
         <div className="chat-msg chat-msg--user">
-          <div className="chat-msg__box chat-msg__box--user">
-            <div className="chat-msg__content">{message.content}</div>
+          <div className="chat-msg__user-row">
+            <div className="chat-msg__box chat-msg__box--user">
+              <div className="chat-msg__content">{message.content}</div>
+            </div>
+            <div className="chat-msg__user-icon" title="You">
+              <UserIcon />
+            </div>
           </div>
           <MessageFooter
             timestamp={message.timestamp}

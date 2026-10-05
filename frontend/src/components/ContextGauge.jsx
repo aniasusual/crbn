@@ -56,14 +56,15 @@ export default function ContextGauge({ telemetry, placement = 'top' }) {
       <button
         type="button"
         className={`context-gauge__btn ${isOpen ? 'context-gauge__btn--active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        title="Context Window Utilization"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen((prev) => !prev);
+        }}
+        title={`Context Window: ${formatTokens(totalTokens)} / ${formatTokens(contextWindow)} (${usagePct}%)`}
         aria-expanded={isOpen}
       >
         <span className={`context-gauge__dot context-gauge__dot--${status}`} />
-        <span className="context-gauge__label">
-          {formatTokens(totalTokens)} / {formatTokens(contextWindow)}
-        </span>
+        <span className="context-gauge__label">Ctx</span>
         <span className="context-gauge__pct">{usagePct}%</span>
         <svg
           className={`context-gauge__btn-arrow ${isOpen ? 'context-gauge__btn-arrow--open' : ''}`}
