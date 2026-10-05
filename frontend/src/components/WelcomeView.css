@@ -396,9 +396,28 @@
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
 }
 
+.degrees-timelines__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.degrees-timelines__list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.degrees-timelines__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.degrees-timelines__list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
 .degrees-timeline-row {
   display: flex;
   align-items: center;

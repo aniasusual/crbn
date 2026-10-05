@@ -240,9 +240,33 @@ export default function ChatPanel({
   return (
     <div className="chat-panel">
       <div className="chat-panel__header">
-        <div className="chat-panel__status">
-          <div className={`chat-panel__status-dot ${isConnected ? 'chat-panel__status-dot--connected' : ''}`} />
-          {isConnected ? 'Connected' : 'Disconnected'}
+        <div className="chat-panel__header-left">
+          <div className="chat-panel__brand-logo-wrap">
+            <img
+              src="/logo-white.png"
+              alt="80degrees"
+              className="chat-panel__brand-logo"
+            />
+          </div>
+
+          <div className={`chat-panel__status-badge ${isConnected ? 'chat-panel__status-badge--connected' : ''}`}>
+            <span className="chat-panel__status-dot" />
+            <span>{isAgentRunning ? 'Generating' : isConnected ? 'Connected' : 'Offline'}</span>
+          </div>
+        </div>
+
+        <div className="chat-panel__header-right">
+          {isAgentRunning && (
+            <button
+              type="button"
+              className="chat-panel__header-stop-btn"
+              onClick={onStopAgent}
+              title="Stop agent"
+            >
+              <StopIcon />
+              <span>Stop</span>
+            </button>
+          )}
         </div>
       </div>
 

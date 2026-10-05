@@ -19,11 +19,6 @@ const ExternalLinkIcon = () => (
   </svg>
 );
 
-const StopIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="4" width="16" height="16" rx="2" />
-  </svg>
-);
 
 const GlobeIcon = () => (
   <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -56,7 +51,7 @@ const BrowserEmptyIcon = () => (
   </svg>
 );
 
-export default function PreviewPanel({ previewData, onStopPreview, lastChangeTimestamp }) {
+export default function PreviewPanel({ previewData, _onStopPreview, lastChangeTimestamp }) {
   const [frameKey, setFrameKey] = useState(0);
   const [isServerReady, setIsServerReady] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -197,13 +192,6 @@ export default function PreviewPanel({ previewData, onStopPreview, lastChangeTim
             <ExternalLinkIcon />
           </button>
 
-          <button
-            className="preview-panel__action-btn preview-panel__action-btn--stop"
-            onClick={onStopPreview}
-            title="Stop Server"
-          >
-            <StopIcon />
-          </button>
         </div>
       </div>
 
