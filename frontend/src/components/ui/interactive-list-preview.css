@@ -1,0 +1,170 @@
+/* ==========================================================================
+   InteractiveListPreview — Dedicated Styles (with Tailwind Fallback)
+   ========================================================================== */
+
+.ilp-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+}
+
+.ilp-highlight {
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 10;
+  background-color: #ffffff;
+}
+
+.ilp-image-container {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  mix-blend-mode: difference;
+}
+
+.ilp-image-box {
+  position: absolute;
+  left: 36%;
+  top: 50%;
+  transform: translateY(-50%);
+  visibility: hidden;
+  will-change: clip-path, opacity;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.ilp-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ilp-table-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.ilp-table {
+  position: relative;
+  z-index: 30;
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.ilp-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.ilp-row:last-child {
+  border-bottom: none;
+}
+
+.ilp-cell {
+  white-space: nowrap;
+  padding: 11px 16px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.ilp-cell--client {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ilp-cell--platform {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.ilp-cell--services {
+  color: rgba(255, 255, 255, 0.45);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ilp-cell--actions {
+  text-align: right;
+}
+
+.ilp-actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.ilp-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.ilp-action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.ilp-action-btn--delete:hover {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* Coarse pointer (mobile/touch) split layout */
+.ilp-mobile-container {
+  width: 100%;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+}
+
+.ilp-mobile-card {
+  display: flex;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.15s ease;
+}
+
+.ilp-mobile-card:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.ilp-mobile-info {
+  display: flex;
+  width: 50%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ilp-mobile-image-wrap {
+  position: relative;
+  aspect-ratio: 3/4;
+  height: 100%;
+  width: 50%;
+}

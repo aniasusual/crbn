@@ -1,7 +1,8 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useMemo } from 'react';
 import ModelSelector from './ModelSelector';
 import AttachmentRibbon from './AttachmentRibbon';
-import PaintArtBackground from './PaintArtBackground';
+import { ShaderBackground } from '@/components/ui/repeat-start';
+import InteractiveListPreview from '@/components/ui/interactive-list-preview';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './WelcomeView.css';
@@ -46,7 +47,46 @@ export default function WelcomeView({
 
   const [projects, setProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
+  const [timelineSearch, setTimelineSearch] = useState('');
 
+  const filteredProjects = useMemo(() => {
+    if (!timelineSearch.trim()) return projects;
+    const q = timelineSearch.toLowerCase().trim();
+    return projects.filter((p) => {
+      const nameMatch = p.name?.toLowerCase().includes(q);
+      const modelMatch = p.model?.toLowerCase().includes(q);
+      return Boolean(nameMatch || modelMatch);
+    });
+  }, [projects, timelineSearch]);
+
+  const timelineItems = useMemo(() => {
+    const artPool = [
+      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1574169208507-84376144848b?w=600&h=800&fit=crop',
+      'https://images.unsplash.com/photo-1604076913837-52ab5f0e2f20?w=600&h=800&fit=crop',
+    ];
+
+    return filteredProjects.map((p, idx) => {
+      const modelName = p.model ? p.model.split('/').pop() || 'gemini-3.8-flash' : 'gemini-3.8-flash';
+      const statusLabel = p.status === 'running' ? `LIVE :${p.port || 3000}` : 'LOCAL';
+      const dateLabel = p.last_opened
+        ? new Date(p.last_opened).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : 'Recent';
+
+      return {
+        client: p.name,
+        platform: modelName.toUpperCase(),
+        services: `${statusLabel} · ${dateLabel}`,
+        img: artPool[idx % artPool.length],
+        data: p,
+      };
+    });
+  }, [filteredProjects]);
   const currentModelObj = models.find(
     (m) => m.id === selectedModel || m.canonical_id === selectedModel
   ) || {
@@ -139,8 +179,11 @@ export default function WelcomeView({
 
   return (
     <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''}`}>
-      {/* Background Painted Fine-Art Canvas */}
-      <PaintArtBackground />
+      {/* 21st.dev WebGL Shader Background */}
+      <div className="degrees-welcome__shader-wrap" aria-hidden="true">
+        <ShaderBackground className="degrees-welcome__shader-canvas" />
+        <div className="degrees-welcome__shader-overlay" />
+      </div>
 
       <div className="degrees-welcome__content">
         {!isNaming ? (
@@ -272,10 +315,54 @@ export default function WelcomeView({
                 <div className="degrees-timelines__title-group">
                   <h2 className="degrees-timelines__title">Recent Timelines</h2>
                   {projects.length > 0 && (
-                    <span className="degrees-timelines__count">{projects.length}</span>
+                    <span className="degrees-timelines__count">
+                      {timelineSearch.trim()
+                        ? `${filteredProjects.length} of ${projects.length}`
+                        : projects.length}
+                    </span>
                   )}
                 </div>
-                <span className="degrees-timelines__sub">Workspaces stored locally</span>
+
+                <div className="degrees-timelines__header-right">
+                  <div className="degrees-timelines__search-box">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="degrees-timelines__search-icon"
+                    >
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input
+                      type="text"
+                      className="degrees-timelines__search-input"
+                      placeholder="Search timelines..."
+                      value={timelineSearch}
+                      onChange={(e) => setTimelineSearch(e.target.value)}
+                      spellCheck={false}
+                    />
+                    {timelineSearch && (
+                      <button
+                        type="button"
+                        className="degrees-timelines__search-clear"
+                        onClick={() => setTimelineSearch('')}
+                        title="Clear search"
+                        aria-label="Clear search"
+                      >
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {isLoadingProjects ? (
@@ -283,78 +370,31 @@ export default function WelcomeView({
                   <div className="degrees-spinner" />
                   <span>Loading workspaces...</span>
                 </div>
-              ) : projects.length > 0 ? (
-                <div className="degrees-timelines__list">
-                  {projects.map((project) => (
-                    <div
-                      key={project.name}
-                      className="degrees-timeline-row"
-                      onClick={() => onOpenProject(project)}
-                    >
-                      <div className="degrees-timeline-row__main">
-                        <div className="degrees-timeline-row__monogram">
-                          {project.name.charAt(0).toUpperCase()}
-                        </div>
-
-                        <span className="degrees-timeline-row__name">{project.name}</span>
-
-                        {project.status === 'running' && (
-                          <span className="degrees-status-badge">
-                            <span className="degrees-status-badge__dot" />
-                            <span>LIVE</span>
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="degrees-timeline-row__meta">
-                        <span className="degrees-timeline-row__model">
-                          {project.model ? project.model.split('/').pop() : 'gemini-3.8-flash'}
-                        </span>
-
-                        <span className="degrees-timeline-row__date">
-                          {project.last_opened
-                            ? new Date(project.last_opened).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                              })
-                            : 'Recent'}
-                        </span>
-
-                        <div className="degrees-timeline-row__actions" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className="degrees-icon-btn"
-                            onClick={(e) => handleOpenInFinder(e, project.name)}
-                            title="Reveal in Finder"
-                            aria-label="Reveal in Finder"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                            </svg>
-                          </button>
-
-                          <button
-                            type="button"
-                            className="degrees-icon-btn degrees-icon-btn--danger"
-                            onClick={(e) => handleDeleteProject(e, project.name)}
-                            title="Delete project"
-                            aria-label="Delete project"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"></polyline>
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            </svg>
-                          </button>
-                        </div>
-
-                        <span className="degrees-timeline-row__arrow">→</span>
-                      </div>
-                    </div>
-                  ))}
+              ) : filteredProjects.length > 0 ? (
+                <div className="degrees-timelines__interactive-wrap">
+                  <InteractiveListPreview
+                    items={timelineItems}
+                    onItemClick={(item) => onOpenProject(item.data || item)}
+                    onOpenFinder={handleOpenInFinder}
+                    onDeleteProject={handleDeleteProject}
+                  />
                 </div>
               ) : (
                 <div className="degrees-timelines__empty">
-                  <p>No workspaces created yet. Enter an idea above to start building.</p>
+                  {timelineSearch.trim() ? (
+                    <div className="degrees-timelines__empty-search">
+                      <span>No workspaces matching &ldquo;{timelineSearch}&rdquo;</span>
+                      <button
+                        type="button"
+                        className="degrees-timelines__clear-btn"
+                        onClick={() => setTimelineSearch('')}
+                      >
+                        Clear search
+                      </button>
+                    </div>
+                  ) : (
+                    <p>No workspaces created yet. Enter an idea above to start building.</p>
+                  )}
                 </div>
               )}
             </section>
@@ -377,42 +417,49 @@ export default function WelcomeView({
               Choose a directory name for your project in <code>~/.soluchan/projects</code>.
             </p>
 
-            <form className="degrees-welcome__form" onSubmit={handleFinalSubmit}>
-              <div className="degrees-naming-input-box">
-                <input
-                  type="text"
-                  className="degrees-naming-input"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  disabled={isGeneratingName}
-                  placeholder="e.g. creative-studio"
-                  autoFocus
-                  spellCheck={false}
-                />
-                {isGeneratingName && (
-                  <span className="degrees-naming-loading">Generating suggestion...</span>
-                )}
-              </div>
+            <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>
+              <div className="degrees-naming-console">
+                <div className="degrees-naming-field">
+                  <span className="degrees-naming-icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="degrees-naming-input"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    disabled={isGeneratingName}
+                    placeholder="e.g. creative-studio"
+                    autoFocus
+                    spellCheck={false}
+                  />
+                  {isGeneratingName && (
+                    <span className="degrees-naming-loading">Generating suggestion...</span>
+                  )}
+                </div>
 
-              <div className="degrees-naming-actions">
-                <button
-                  type="button"
-                  className="degrees-btn-secondary"
-                  onClick={() => setIsNaming(false)}
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  className="degrees-cta-btn"
-                  disabled={isGeneratingName || !projectName.trim()}
-                >
-                  <span>Create Workspace</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                    <polyline points="12 5 19 12 12 19"></polyline>
-                  </svg>
-                </button>
+                <div className="degrees-naming-actions">
+                  <button
+                    type="button"
+                    className="degrees-btn-secondary"
+                    onClick={() => setIsNaming(false)}
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="degrees-cta-btn"
+                    disabled={isGeneratingName || !projectName.trim()}
+                  >
+                    <span>Create Workspace</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </button>
+                </div>
               </div>
             </form>
           </div>
