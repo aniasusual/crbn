@@ -1,6 +1,13 @@
 {
   "version": 1,
   "skills": {
+    "autoae": {
+      "source": "autoae.online",
+      "sourceUrl": "https://autoae.online",
+      "sourceType": "well-known",
+      "computedHash": "3457ee1f524c7fda6c1eca535bc714ffb9512a34d7b2081d36f549696e4bebcc",
+      "wellKnownDigest": "sha256:6c134d713fcfb34fcbad6cee51a2d8882933d0a7997c912ca8d721dda2938ec2"
+    },
     "brandkit": {
       "source": "Leonxlnx/taste-skill",
       "sourceType": "github",

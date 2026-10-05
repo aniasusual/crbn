@@ -1,13 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import ModelSelector from './ModelSelector';
 import AttachmentRibbon from './AttachmentRibbon';
+import PaintArtBackground from './PaintArtBackground';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './WelcomeView.css';
-/**
- * WelcomeView — Minimalist Notion-style Landing Page.
- * Pure typography, quiet monochrome controls, and crisp hierarchy.
- */
+
 export default function WelcomeView({
   onSubmit,
   onOpenProject,
@@ -25,10 +23,13 @@ export default function WelcomeView({
   const [localPrompt, setLocalPrompt] = useState('');
   const prompt = controlledPrompt !== undefined ? controlledPrompt : localPrompt;
   const setPrompt = onPromptChange || setLocalPrompt;
+
   const [isNaming, setIsNaming] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [isGeneratingName, setIsGeneratingName] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const textareaId = useId();
+
   const {
     attachments,
     isDragging,
@@ -46,7 +47,9 @@ export default function WelcomeView({
   const [projects, setProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
-  const currentModelObj = models.find((m) => m.id === selectedModel || m.canonical_id === selectedModel) || {
+  const currentModelObj = models.find(
+    (m) => m.id === selectedModel || m.canonical_id === selectedModel
+  ) || {
     name: selectedModel || 'gemini-3.8-flash',
     compatibility_label: 'Optimal',
   };
@@ -54,8 +57,10 @@ export default function WelcomeView({
   const fetchProjects = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/projects`);
-      const data = await response.json();
-      setProjects(data);
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
       console.error('Failed to fetch projects', err);
     } finally {
@@ -69,7 +74,7 @@ export default function WelcomeView({
 
   const handleDeleteProject = async (e, name) => {
     e.stopPropagation();
-    if (!window.confirm(`Delete project "${name}"?`)) return;
+    if (!window.confirm(`Delete project "${name}"? This removes its files.`)) return;
     try {
       await fetch(`${API_BASE_URL}/api/projects/${name}`, { method: 'DELETE' });
       onDeleteProject?.(name);
@@ -91,21 +96,25 @@ export default function WelcomeView({
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     const value = prompt.trim();
-    if (!value) return;
+    if (!value && attachments.length === 0) return;
 
     setIsNaming(true);
     setIsGeneratingName(true);
 
     try {
-      const words = value.split(' ').slice(0, 4).join('-');
+      const baseWord = value ? value.split(' ').slice(0, 4).join('-') : 'app';
       const response = await fetch(
-        `${API_BASE_URL}/api/projects/suggest-name?base=${encodeURIComponent(words)}`
+        `${API_BASE_URL}/api/projects/suggest-name?base=${encodeURIComponent(baseWord)}`
       );
-      const data = await response.json();
-      setProjectName(data.suggested_name);
+      if (response.ok) {
+        const data = await response.json();
+        setProjectName(data.suggested_name || 'app');
+      } else {
+        setProjectName('app');
+      }
     } catch (err) {
       console.error('Failed to get suggested name', err);
-      setProjectName('new-project');
+      setProjectName('app');
     } finally {
       setIsGeneratingName(false);
     }
@@ -114,12 +123,14 @@ export default function WelcomeView({
   const handleFinalSubmit = (e) => {
     e.preventDefault();
     if (!projectName.trim()) return;
+
     const images = attachments
       .filter((a) => a.type === 'image')
       .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
     const files = attachments
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, content: a.content, size: a.size }));
+
     onSubmit(prompt, projectName.trim(), { images, files });
     clearAttachments();
   };
@@ -127,17 +138,36 @@ export default function WelcomeView({
   const exiting = isExiting || isTransitioning;
 
   return (
-    <div className={`notion-welcome ${exiting ? 'notion-welcome--exiting' : ''}`}>
-      <div className="notion-welcome__content">
+    <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''}`}>
+      {/* Background Painted Fine-Art Canvas */}
+      <PaintArtBackground />
+
+      <div className="degrees-welcome__content">
         {!isNaming ? (
           <>
-            <h1 className="notion-welcome__title">What do you want to build?</h1>
-            <p className="notion-welcome__subtitle">
-              Describe your web application and soluchan will build and run it locally.
-            </p>
+            {/* Header & Editorial Wordmark */}
+            {/* Header & Official 80degrees Logo */}
+            <header className="degrees-welcome__header">
+              <div className="degrees-logo-container">
+                <img
+                  src="/logo-white.png"
+                  alt="80degrees"
+                  className="degrees-logo-img"
+                />
+              </div>
 
+              <h1 className="degrees-welcome__title">
+                Cook what you <span className="degrees-welcome__title-serif">want.</span>
+              </h1>
+
+              <p className="degrees-welcome__subtitle">
+                A creative studio for full-stack software. Describe your concept in natural language; we'll compose, build, and run it locally.
+              </p>
+            </header>
+
+            {/* Main Creative Input Box (Timeline Composer) */}
             <form
-              className="notion-welcome__form"
+              className="degrees-welcome__form"
               onSubmit={handleInitialSubmit}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -155,19 +185,22 @@ export default function WelcomeView({
                 }}
               />
 
-              {/* Attachment preview directly ABOVE the input box */}
-              <div style={{ padding: '0 4px' }}>
-                <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
-              </div>
-
               <div
-                className={`notion-welcome__input-wrapper ${
-                  isDragging ? 'notion-welcome__input-wrapper--dragging' : ''
+                className={`degrees-composer ${
+                  isDragging ? 'degrees-composer--dragging' : ''
                 }`}
               >
+                {/* Uploaded Attachments Preview */}
+                {attachments && attachments.length > 0 && (
+                  <div className="degrees-composer__attachments">
+                    <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
+                  </div>
+                )}
+
                 <textarea
-                  className="notion-welcome__input"
-                  placeholder="A Kanban board with drag-and-drop, tags, and local storage..."
+                  id={textareaId}
+                  className="degrees-composer__textarea"
+                  placeholder="Describe an application, interface, or creative tool you'd like to build..."
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
@@ -178,115 +211,134 @@ export default function WelcomeView({
                   }}
                   autoFocus
                   spellCheck={false}
+                  rows={3}
                 />
-                <div className="notion-welcome__actions">
-                  <div className="notion-welcome__actions-left">
+
+                {/* Bottom Action Ribbon */}
+                <div className="degrees-composer__toolbar">
+                  <div className="degrees-composer__toolbar-left">
                     <button
                       type="button"
-                      className="notion-welcome__attach-btn"
+                      className="degrees-toolbar-btn"
                       onClick={openFilePicker}
-                      title="Attach media or files"
+                      title="Attach media, mockups, or source files"
                       aria-label="Attach files"
                     >
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                       </svg>
+                      <span>Attach</span>
                     </button>
+
                     <button
                       type="button"
-                      className="notion-welcome__model-pill"
+                      className="degrees-model-pill"
                       onClick={() => setIsModelSelectorOpen(true)}
-                      title="Change active model"
+                      title="Select foundation model"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
-                        <rect x="9" y="9" width="6" height="6"></rect>
-                        <line x1="9" y1="1" x2="9" y2="4"></line>
-                        <line x1="15" y1="1" x2="15" y2="4"></line>
-                        <line x1="9" y1="20" x2="9" y2="23"></line>
-                        <line x1="15" y1="20" x2="15" y2="23"></line>
-                      </svg>
-                      <span className="notion-welcome__model-name">
+                      <span className="degrees-model-pill__icon">✦</span>
+                      <span className="degrees-model-pill__name">
                         {currentModelObj.name || selectedModel}
                       </span>
-                      {currentModelObj.compatibility_label && (
-                        <span className="notion-welcome__model-compat">
-                          {currentModelObj.compatibility_label}
-                        </span>
-                      )}
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="6 9 12 15 18 9"></polyline>
                       </svg>
                     </button>
-
                   </div>
 
-                  <div className="notion-welcome__actions-right">
-                    <span className="notion-welcome__shortcut-hint">Enter to build</span>
+                  <div className="degrees-composer__toolbar-right">
+                    <span className="degrees-composer__hint">
+                      <kbd className="degrees-keycap">↵ return</kbd> to build
+                    </span>
                     <button
                       type="submit"
-                      className="notion-welcome__submit-btn"
+                      className="degrees-cta-btn"
                       disabled={!prompt.trim() && attachments.length === 0}
                     >
-                      Start building
+                      <span>Start building</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
                     </button>
                   </div>
                 </div>
               </div>
             </form>
 
+            {/* Recent Timelines Section — Clean Editorial List Format */}
+            <section className="degrees-timelines">
+              <div className="degrees-timelines__header">
+                <div className="degrees-timelines__title-group">
+                  <h2 className="degrees-timelines__title">Recent Timelines</h2>
+                  {projects.length > 0 && (
+                    <span className="degrees-timelines__count">{projects.length}</span>
+                  )}
+                </div>
+                <span className="degrees-timelines__sub">Workspaces stored locally</span>
+              </div>
 
-            {!isLoadingProjects && projects.length > 0 && (
-              <div className="notion-welcome__projects-section">
-                <h3 className="notion-welcome__projects-heading">Recent Projects</h3>
-                <div className="notion-welcome__projects-list">
+              {isLoadingProjects ? (
+                <div className="degrees-timelines__loading">
+                  <div className="degrees-spinner" />
+                  <span>Loading workspaces...</span>
+                </div>
+              ) : projects.length > 0 ? (
+                <div className="degrees-timelines__list">
                   {projects.map((project) => (
                     <div
                       key={project.name}
-                      className="notion-project-item"
+                      className="degrees-timeline-row"
                       onClick={() => onOpenProject(project)}
                     >
-                      <div className="notion-project-item__left">
-                        <svg
-                          width="14"
-                          height="14"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="notion-project-item__icon"
-                        >
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <polyline points="14 2 14 8 20 8"></polyline>
-                        </svg>
-                        <span className="notion-project-item__name">{project.name}</span>
+                      <div className="degrees-timeline-row__main">
+                        <div className="degrees-timeline-row__monogram">
+                          {project.name.charAt(0).toUpperCase()}
+                        </div>
+
+                        <span className="degrees-timeline-row__name">{project.name}</span>
+
+                        {project.status === 'running' && (
+                          <span className="degrees-status-badge">
+                            <span className="degrees-status-badge__dot" />
+                            <span>LIVE</span>
+                          </span>
+                        )}
                       </div>
 
-                      <div className="notion-project-item__right">
-                        <span className="notion-project-item__date">
-                          {new Date(project.last_opened).toLocaleDateString()}
+                      <div className="degrees-timeline-row__meta">
+                        <span className="degrees-timeline-row__model">
+                          {project.model ? project.model.split('/').pop() : 'gemini-3.8-flash'}
                         </span>
-                        {project.status === 'running' && (
-                          <span className="notion-project-item__status-dot" title="Dev server running" />
-                        )}
-                        <div className="notion-project-item__actions">
+
+                        <span className="degrees-timeline-row__date">
+                          {project.last_opened
+                            ? new Date(project.last_opened).toLocaleDateString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : 'Recent'}
+                        </span>
+
+                        <div className="degrees-timeline-row__actions" onClick={(e) => e.stopPropagation()}>
                           <button
-                            className="notion-project-item__btn"
+                            type="button"
+                            className="degrees-icon-btn"
                             onClick={(e) => handleOpenInFinder(e, project.name)}
                             title="Reveal in Finder"
+                            aria-label="Reveal in Finder"
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                              <polyline points="15 3 21 3 21 9"></polyline>
-                              <line x1="10" y1="14" x2="21" y2="3"></line>
+                              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                             </svg>
                           </button>
+
                           <button
-                            className="notion-project-item__btn notion-project-item__btn--delete"
+                            type="button"
+                            className="degrees-icon-btn degrees-icon-btn--danger"
                             onClick={(e) => handleDeleteProject(e, project.name)}
                             title="Delete project"
+                            aria-label="Delete project"
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <polyline points="3 6 5 6 21 6"></polyline>
@@ -294,51 +346,76 @@ export default function WelcomeView({
                             </svg>
                           </button>
                         </div>
+
+                        <span className="degrees-timeline-row__arrow">→</span>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="degrees-timelines__empty">
+                  <p>No workspaces created yet. Enter an idea above to start building.</p>
+                </div>
+              )}
+            </section>
           </>
         ) : (
-          <>
-            <h1 className="notion-welcome__title">Name your project</h1>
-            <p className="notion-welcome__subtitle">
-              Choose a folder name for your project workspace.
+          /* Naming Step */
+          <div className="degrees-naming-card">
+            <div className="degrees-logo-container degrees-logo-container--naming">
+              <img
+                src="/logo-white.png"
+                alt="80degrees"
+                className="degrees-logo-img degrees-logo-img--small"
+              />
+            </div>
+
+            <h1 className="degrees-welcome__title">
+              Name your <span className="degrees-welcome__title-serif">workspace</span>
+            </h1>
+            <p className="degrees-welcome__subtitle">
+              Choose a directory name for your project in <code>~/.soluchan/projects</code>.
             </p>
 
-            <form className="notion-welcome__form" onSubmit={handleFinalSubmit}>
-              <div className="notion-welcome__input-wrapper">
+            <form className="degrees-welcome__form" onSubmit={handleFinalSubmit}>
+              <div className="degrees-naming-input-box">
                 <input
                   type="text"
-                  className="notion-welcome__name-input"
+                  className="degrees-naming-input"
                   value={projectName}
                   onChange={(e) => setProjectName(e.target.value)}
                   disabled={isGeneratingName}
+                  placeholder="e.g. creative-studio"
                   autoFocus
+                  spellCheck={false}
                 />
-                {isGeneratingName && <span className="notion-welcome__name-loading">Generating...</span>}
+                {isGeneratingName && (
+                  <span className="degrees-naming-loading">Generating suggestion...</span>
+                )}
               </div>
 
-              <div className="notion-welcome__actions notion-welcome__actions--naming">
+              <div className="degrees-naming-actions">
                 <button
                   type="button"
-                  className="notion-btn notion-btn--secondary"
+                  className="degrees-btn-secondary"
                   onClick={() => setIsNaming(false)}
                 >
                   Back
                 </button>
                 <button
                   type="submit"
-                  className="notion-welcome__submit-btn"
+                  className="degrees-cta-btn"
                   disabled={isGeneratingName || !projectName.trim()}
                 >
-                  Create Project
+                  <span>Create Workspace</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                    <polyline points="12 5 19 12 12 19"></polyline>
+                  </svg>
                 </button>
               </div>
             </form>
-          </>
+          </div>
         )}
       </div>
 

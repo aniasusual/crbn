@@ -4,49 +4,51 @@
    ============================================ */
 
 :root {
-  /* Backgrounds */
-  --lk-bg: #191919;
-  --lk-bg-secondary: #202020;
-  --lk-bg-elevated: #262626;
-  --lk-bg-hover: #2f2f2f;
-  --lk-bg-active: #363636;
+  /* 80degrees Design Tokens — Restrained, Museum-Grade Monochrome */
+  --app-bg: #16161a;
+  --app-surface: #1c1c22;
+  --app-surface-card: #222228;
+  --app-surface-elevated: #282830;
+  --app-surface-hover: #30303a;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-border-subtle: rgba(255, 255, 255, 0.05);
+  --app-border-hover: rgba(255, 255, 255, 0.16);
+  --app-border-focus: rgba(255, 255, 255, 0.28);
 
-  /* Accent — muted emerald */
-  --lk-accent: #2ecc71;
-  --lk-accent-hover: #27ae60;
-  --lk-accent-subtle: rgba(46, 204, 113, 0.08);
+  --app-text: #ffffff;
+  --app-text-secondary: rgba(255, 255, 255, 0.65);
+  --app-text-muted: rgba(255, 255, 255, 0.42);
+  --app-text-faint: rgba(255, 255, 255, 0.25);
 
-  /* New vibrant accents */
-  --lk-violet: #8B5CF6;
-  --lk-violet-subtle: rgba(139, 92, 246, 0.15);
-  --lk-teal: #14B8A6;
-  --lk-teal-subtle: rgba(20, 184, 166, 0.15);
-  --lk-coral: #F97316;
-  --lk-coral-subtle: rgba(249, 115, 22, 0.15);
-  --lk-pink: #EC4899;
-  --lk-gold: #c9a84c;
+  --app-accent: #ffffff;
+  --app-accent-hover: #f0f0f4;
+  --app-accent-subtle: rgba(255, 255, 255, 0.08);
 
-  /* Gradient buttons */
-  --lk-accent-from: var(--lk-violet);
-  --lk-accent-to: var(--lk-pink);
+  /* Compatibility layer */
+  --lk-bg: var(--app-bg);
+  --lk-bg-secondary: var(--app-surface);
+  --lk-bg-elevated: var(--app-surface-card);
+  --lk-bg-hover: var(--app-surface-hover);
+  --lk-bg-active: #2e2e38;
 
-  /* Borders */
-  --lk-border: rgba(255, 255, 255, 0.06);
-  --lk-border-strong: rgba(255, 255, 255, 0.1);
+  --lk-accent: var(--app-accent);
+  --lk-accent-hover: var(--app-accent-hover);
+  --lk-accent-subtle: var(--app-accent-subtle);
 
-  /* Text */
-  --lk-text: rgba(255, 255, 255, 0.9);
-  --lk-text-secondary: rgba(255, 255, 255, 0.5);
-  --lk-text-tertiary: rgba(255, 255, 255, 0.25);
+  --lk-border: var(--app-border);
+  --lk-border-strong: var(--app-border-hover);
 
-  /* Status */
-  --lk-red: #e74c3c;
-  --lk-green-status: #2ecc71;
+  --lk-text: var(--app-text);
+  --lk-text-secondary: var(--app-text-secondary);
+  --lk-text-tertiary: var(--app-text-muted);
 
+  --lk-red: #ef4444;
+  --lk-green-status: #22c55e;
   /* Typography */
-  --font-sans: 'Inter', ui-sans-serif, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
-
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   /* Radii — more curves */
   --radius-sm: 8px;
   --radius-md: 12px;
