@@ -4,6 +4,7 @@ import { ModelsService, detectHardware } from "./models-service";
 import { DevServerManager } from "./dev-server";
 import { SessionBridge } from "./session-bridge";
 import { ChatHistoryManager } from "./chat-history";
+import { CheckpointManager } from "./checkpoint-manager";
 
 const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8000);
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
@@ -258,6 +259,51 @@ const _server = Bun.serve<WsData>({
       }
     }
 
+    // Projects: Checkpoints Timeline
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/checkpoints$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const steps = await CheckpointManager.getCheckpoints(project.path);
+        return Response.json({ steps }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 404, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Rewind to Step
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/rewind$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const body = (await req.json()) as { step_id?: string; mode?: "code_and_messages" | "messages_only" };
+        if (!body.step_id) {
+          return Response.json({ detail: "step_id is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const rollbackCode = body.mode !== "messages_only";
+        const result = await CheckpointManager.rewindToStep(project.path, body.step_id, { rollbackCode });
+        const prunedEvents = await ChatHistoryManager.pruneHistoryAfter(
+          project.path,
+          body.step_id,
+          result.targetStep.timestamp,
+        );
+        return Response.json(
+          { status: "ok", result, remainingMessages: prunedEvents.length },
+          { headers: CORS_HEADERS },
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
     return new Response("Not Found", { status: 404, headers: CORS_HEADERS });
   },
 
@@ -440,7 +486,22 @@ const _server = Bun.serve<WsData>({
         }
 
         if (action === "list_checkpoints") {
-          ws.send(JSON.stringify({ type: "checkpoint_timeline", steps: [], formatted: "No checkpoints yet." }));
+          if (ws.data.activeProjectName) {
+            const project = await projectManager.getProject(ws.data.activeProjectName).catch(() => null);
+            if (project) {
+              const steps = await CheckpointManager.getCheckpoints(project.path);
+              ws.send(JSON.stringify({ type: "checkpoint_timeline", steps }));
+            }
+          }
+          return;
+        }
+
+        if (action === "rewind_to_step") {
+          const stepId = (data.step_id || data.stepId) as string;
+          const mode = (data.mode || "code_and_messages") as "code_and_messages" | "messages_only";
+          if (stepId && bridge) {
+            await bridge.rewindToStep(stepId, mode);
+          }
           return;
         }
 

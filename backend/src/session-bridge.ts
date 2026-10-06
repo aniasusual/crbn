@@ -16,6 +16,7 @@ import type {
 } from "../../pi-harness/packages/coding-agent/src/extensibility/extensions/types";
 import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tui/src/theme/theme";
 import { ChatHistoryManager } from "./chat-history";
+import { CheckpointManager } from "./checkpoint-manager";
 import type { ModelsService } from "./models-service";
 import type { DevServerManager } from "./dev-server";
 export type WebSocketSender = (message: Record<string, unknown>) => void;
@@ -49,6 +50,7 @@ export class SessionBridge {
   private pendingUiRequests = new Map<string, { resolve: (val: unknown) => void; reject: (err: unknown) => void }>();
   private devServerUnsubscribe: (() => void) | null = null;
   private currentPreviewUrl: string | null = null;
+  private lastPromptText: string = "";
 
   constructor(
     private readonly send: WebSocketSender,
@@ -109,6 +111,10 @@ export class SessionBridge {
       // Load persisted chat history for this project
       const history = await ChatHistoryManager.loadHistory(projectPath);
       this.activeTurns = [...history.ui_events];
+      CheckpointManager.ensureGitRepo(projectPath).catch(() => {});
+      CheckpointManager.getCheckpoints(projectPath).then((steps) => {
+        this.send({ type: "checkpoint_timeline", steps });
+      }).catch(() => {});
 
       try {
         const authStorage = this.modelsService ? await this.modelsService.getAuthStorage() : undefined;
@@ -353,6 +359,7 @@ export class SessionBridge {
     this.wasStoppedByUser = false;
     this.isGenerating = true;
 
+    this.lastPromptText = promptText;
     // Record user message in UI events with any attached media
     const now = new Date().toISOString();
     const userMsg: Record<string, unknown> = {
@@ -465,6 +472,82 @@ export class SessionBridge {
         content: "Session context reset.",
       });
       this.emitContextTelemetry();
+    }
+  }
+
+  async rewindToStep(
+    stepId: string,
+    mode: "code_and_messages" | "messages_only" = "code_and_messages",
+  ): Promise<boolean> {
+    if (!this.activeProjectPath) return false;
+    const projectPath = this.activeProjectPath;
+    const rollbackCode = mode === "code_and_messages";
+
+    if (this.isGenerating && this.session) {
+      this.wasStoppedByUser = true;
+      await this.session.abort({ reason: USER_INTERRUPT_LABEL }).catch(() => {});
+      this.isGenerating = false;
+    }
+
+    try {
+      const rewindResult = await CheckpointManager.rewindToStep(projectPath, stepId, { rollbackCode });
+      const prunedEvents = await ChatHistoryManager.pruneHistoryAfter(
+        projectPath,
+        stepId,
+        rewindResult.targetStep.timestamp,
+      );
+      this.activeTurns = [...prunedEvents];
+
+      // Re-prime AgentSession on rewound tree
+      if (this.session) {
+        if (
+          rollbackCode &&
+          rewindResult.targetStep.entry_id &&
+          this.session.sessionManager?.getEntry?.(rewindResult.targetStep.entry_id)
+        ) {
+          await this.session.navigateTree(rewindResult.targetStep.entry_id, { summarize: false }).catch(() => {});
+        } else {
+          await this.session.dispose().catch(() => {});
+          this.session = null;
+          await this.openProject(projectPath, this.activeModel);
+        }
+      }
+
+      this.send({
+        type: "chat_history_loaded",
+        project: path.basename(projectPath),
+        messages: prunedEvents,
+        is_rewind: true,
+      });
+
+      this.send({
+        type: "checkpoint_timeline",
+        steps: rewindResult.remainingSteps,
+      });
+
+      this.send({
+        type: "rewind_completed",
+        step_id: stepId,
+        mode,
+        messages: prunedEvents,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (rollbackCode) {
+        this.send({
+          type: "file_changed",
+          timestamp: Date.now(),
+        });
+      }
+
+      return true;
+    } catch (err) {
+      console.error("[SessionBridge] Rewind failed:", err);
+      this.send({
+        type: "error",
+        content: `Rewind failed: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return false;
     }
   }
 
@@ -682,6 +765,40 @@ export class SessionBridge {
           });
         }
         this.emitContextTelemetry();
+
+        // Commit snapshot checkpoint when turn finishes
+        if (!wasStopped && this.activeProjectPath) {
+          (async () => {
+            try {
+              const leafId = this.session?.sessionManager?.getLeafId?.() ?? null;
+              const checkpoint = await CheckpointManager.createCheckpoint(
+                this.activeProjectPath!,
+                this.lastPromptText || "App update",
+                leafId,
+              );
+              if (checkpoint) {
+                // Stamp step_id on the last turn event
+                if (this.activeTurns.length > 0) {
+                  const lastMsg = this.activeTurns[this.activeTurns.length - 1];
+                  lastMsg.step_id = checkpoint.step_id;
+                  await ChatHistoryManager.saveHistory(this.activeProjectPath!, this.activeTurns);
+                }
+                const steps = await CheckpointManager.getCheckpoints(this.activeProjectPath!);
+                this.send({
+                  type: "checkpoint_timeline",
+                  steps,
+                });
+                this.send({
+                  type: "step_checkpoint_created",
+                  step: checkpoint,
+                  step_id: checkpoint.step_id,
+                });
+              }
+            } catch (err) {
+              console.error("[SessionBridge] Error committing checkpoint:", err);
+            }
+          })();
+        }
         break;
       }
     }

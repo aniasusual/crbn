@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import LlmDebugModal from './LlmDebugModal';
 import { isSubagentTool, getSubagentDisplayName } from './subagentUtils';
 import OmpToolCard from './OmpToolCard';
@@ -55,9 +56,22 @@ const FileIcon = () => (
 );
 
 const RewindIcon = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="1 4 1 10 7 10"></polyline>
     <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+  </svg>
+);
+
+const CodeRollbackIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 18l6-6-6-6" />
+    <path d="M8 6l-6 6 6 6" />
+  </svg>
+);
+
+const ChatRollbackIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
 
@@ -368,6 +382,7 @@ const AskHumanQuestionItem = ({ questionData, onSelectOption }) => {
 
 const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, onRewindToStep }) => {
   const [copied, setCopied] = useState(false);
+  const [isRewindModalOpen, setIsRewindModalOpen] = useState(false);
 
   const handleCopy = (e) => {
     e.stopPropagation();
@@ -389,9 +404,7 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
   const handleRewindClick = (e) => {
     e.stopPropagation();
     if (onRewindToStep && stepId) {
-      if (window.confirm(`Rewind workspace to ${stepId}? All file modifications made after this point will be reverted.`)) {
-        onRewindToStep(stepId);
-      }
+      setIsRewindModalOpen(true);
     }
   };
 
@@ -401,16 +414,6 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
   return (
     <div className="chat-msg__footer">
       <span className="chat-msg__time">{timeString}</span>
-      {stepId && onRewindToStep && (
-        <button
-          className="chat-msg__rewind-btn"
-          onClick={handleRewindClick}
-          title={`Rewind workspace to ${stepId}`}
-        >
-          <RewindIcon />
-          <span>Rewind</span>
-        </button>
-      )}
       {debug && (
         <button
           className="chat-msg__debug-btn"
@@ -426,6 +429,85 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
           {copied ? <CheckIcon /> : <CopyIcon />}
         </button>
       )}
+      {stepId && onRewindToStep && (
+        <button
+          className="chat-msg__rewind-btn"
+          onClick={handleRewindClick}
+          title={`Rewind workspace to ${stepId}`}
+        >
+          <RewindIcon />
+          <span>Rewind</span>
+        </button>
+      )}
+
+      {/* 2-Option Rewind Rollback Modal rendered via Portal onto body */}
+      {isRewindModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="chat-msg__rewind-backdrop"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsRewindModalOpen(false);
+            }}
+          >
+            <div className="chat-msg__rewind-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="chat-msg__rewind-header">
+                <h3 className="chat-msg__rewind-title">Rewind Workspace</h3>
+                <p className="chat-msg__rewind-desc">
+                  Roll back your workspace to this turn. Choose how you want to revert:
+                </p>
+              </div>
+
+              <div className="chat-msg__rewind-options">
+                <button
+                  type="button"
+                  className="chat-msg__rewind-opt-card chat-msg__rewind-opt-card--primary"
+                  onClick={() => {
+                    setIsRewindModalOpen(false);
+                    onRewindToStep(stepId, 'code_and_messages');
+                  }}
+                >
+                  <div className="chat-msg__rewind-opt-title">
+                    <CodeRollbackIcon />
+                    <span>Rollback Code & Messages</span>
+                  </div>
+                  <div className="chat-msg__rewind-opt-desc">
+                    Restores all source files on disk to this checkpoint, updates the live preview, and rewinds the chat history.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="chat-msg__rewind-opt-card"
+                  onClick={() => {
+                    setIsRewindModalOpen(false);
+                    onRewindToStep(stepId, 'messages_only');
+                  }}
+                >
+                  <div className="chat-msg__rewind-opt-title">
+                    <ChatRollbackIcon />
+                    <span>Rollback Messages Only</span>
+                  </div>
+                  <div className="chat-msg__rewind-opt-desc">
+                    Keeps your current source files and code on disk untouched. Only prunes the chat transcript so you can branch the conversation from this point.
+                  </div>
+                </button>
+              </div>
+
+              <div className="chat-msg__rewind-footer">
+                <button
+                  type="button"
+                  className="chat-msg__rewind-cancel-btn"
+                  onClick={() => setIsRewindModalOpen(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

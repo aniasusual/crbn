@@ -229,6 +229,41 @@ export default function App() {
             updateTab(tabId, { lastChangeTimestamp: Date.now() });
             return;
           }
+          if (data.type === 'step_checkpoint_created' && data.step_id) {
+            updateTab(tabId, (t) => {
+              const msgs = [...t.messages];
+              if (msgs.length > 0) {
+                const lastIdx = msgs.length - 1;
+                msgs[lastIdx] = { ...msgs[lastIdx], step_id: data.step_id };
+              }
+              return { messages: msgs };
+            });
+            return;
+          }
+
+          if (data.type === 'checkpoint_timeline') {
+            updateTab(tabId, {
+              checkpointTimeline: Array.isArray(data.steps) ? data.steps : [],
+            });
+            return;
+          }
+
+          if (data.type === 'rewind_completed') {
+            updateTab(tabId, (t) => ({
+              agentStatus: null,
+              lastChangeTimestamp: Date.now(),
+              messages: Array.isArray(data.messages)
+                ? data.messages.map((m) => ({
+                    ...m,
+                    collapsed:
+                      m.type === 'tool_call' || m.type === 'tool_result' || m.type === 'thinking'
+                        ? true
+                        : m.collapsed,
+                  }))
+                : t.messages,
+            }));
+            return;
+          }
 
           if (data.type === 'project_opened') {
             updateTab(tabId, (t) => ({
@@ -318,24 +353,26 @@ export default function App() {
                     : m.collapsed,
               }));
 
-              // Preserve any in-flight active user prompt in t.messages that isn't in loaded history yet
-              const inFlight = (t.messages || []).filter(
-                (activeMsg) =>
-                  !mappedLoaded.some(
-                    (histMsg) =>
-                      (histMsg.id && activeMsg.id && histMsg.id === activeMsg.id) ||
-                      (histMsg.role === activeMsg.role && histMsg.content === activeMsg.content)
-                  )
-              );
+              // Preserve in-flight prompt only on initial load, NEVER on rewind
+              const inFlight = data.is_rewind
+                ? []
+                : (t.messages || []).filter(
+                    (activeMsg) =>
+                      !mappedLoaded.some(
+                        (histMsg) =>
+                          (histMsg.id && activeMsg.id && histMsg.id === activeMsg.id) ||
+                          (histMsg.role === activeMsg.role && histMsg.content === activeMsg.content)
+                      )
+                  );
 
               return {
                 agentStatus:
-                  t.agentStatus === 'generating'
+                  t.agentStatus === 'generating' && !data.is_rewind
                     ? 'generating'
                     : lastWasAsk
                     ? 'awaiting_human'
                     : null,
-                messages: [...mappedLoaded, ...inFlight],
+                messages: data.is_rewind ? mappedLoaded : [...mappedLoaded, ...inFlight],
               };
             });
             return;
@@ -767,6 +804,17 @@ export default function App() {
     updateTab(activeTabId, { agentStatus: null, pendingApproval: null });
   }, [activeTabId, updateTab]);
 
+  const handleRewindToStep = useCallback(
+    (stepId, mode = 'code_and_messages') => {
+      if (!activeTabId || !stepId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'rewind_to_step', step_id: stepId, mode }));
+      }
+    },
+    [activeTabId]
+  );
+
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       if (e.key === 'Escape') {
@@ -877,7 +925,7 @@ export default function App() {
           onStopAgent={handleStopAgent}
           todoState={activeTab.todoState}
           checkpointTimeline={activeTab.checkpointTimeline}
-          onRewindToStep={null}
+          onRewindToStep={handleRewindToStep}
           input={activeTab.inputText || ''}
           onInputChange={(val) => updateTab(activeTab.id, { inputText: val })}
         />

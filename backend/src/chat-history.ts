@@ -98,6 +98,48 @@ export class ChatHistoryManager {
     }
   }
 
+  static async pruneHistoryAfter(
+    projectPath: string,
+    targetStepId: string,
+    targetTimestamp?: string,
+  ): Promise<Record<string, unknown>[]> {
+    const history = await this.loadHistory(projectPath);
+    const events = history.ui_events;
+
+    // 1. Try finding by step_id
+    let cutoffIndex = -1;
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i];
+      if (ev.step_id === targetStepId || ev.id === targetStepId) {
+        cutoffIndex = i;
+        break;
+      }
+    }
+
+    // 2. Fall back to timestamp match
+    if (cutoffIndex === -1 && targetTimestamp) {
+      const targetTime = new Date(targetTimestamp).getTime();
+      for (let i = events.length - 1; i >= 0; i--) {
+        const ev = events[i];
+        const evTime = ev.timestamp ? new Date(ev.timestamp as string).getTime() : 0;
+        if (evTime && evTime <= targetTime) {
+          cutoffIndex = i;
+          break;
+        }
+      }
+    }
+
+    // If step_0, clear all turns to reset to initial project state
+    const prunedEvents = targetStepId === "step_0"
+      ? []
+      : cutoffIndex !== -1
+      ? events.slice(0, cutoffIndex + 1)
+      : events;
+
+    await this.saveHistory(projectPath, prunedEvents);
+    return prunedEvents;
+  }
+
   static async recoverFromSession(projectPath: string): Promise<Record<string, unknown>[]> {
     try {
       const sm = await SessionManager.continueRecent(projectPath);
