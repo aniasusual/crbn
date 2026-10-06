@@ -9,7 +9,7 @@ import './index.css';
 export default function App() {
   const [tabs, setTabs] = useState(() => {
     try {
-      const saved = localStorage.getItem('soluchan_open_tabs');
+      const saved = localStorage.getItem('80degrees_open_tabs');
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -18,7 +18,7 @@ export default function App() {
 
   const [activeTabId, setActiveTabId] = useState(() => {
     try {
-      return localStorage.getItem('soluchan_active_tab_id') || null;
+      return localStorage.getItem('80degrees_active_tab_id') || null;
     } catch {
       return null;
     }
@@ -26,7 +26,7 @@ export default function App() {
 
   const [currentView, setCurrentView] = useState(() => {
     try {
-      const savedTabs = localStorage.getItem('soluchan_open_tabs');
+      const savedTabs = localStorage.getItem('80degrees_open_tabs');
       const parsed = savedTabs ? JSON.parse(savedTabs) : [];
       return parsed.length > 0 ? 'workspace' : 'welcome';
     } catch {
@@ -38,7 +38,7 @@ export default function App() {
   const [hardwareInfo, setHardwareInfo] = useState(null);
   const [models, setModels] = useState([]);
   const [globalDefaultModel, setGlobalDefaultModel] = useState(() => {
-    return localStorage.getItem('soluchan_selected_model') || 'gemini-3.8-flash';
+    return localStorage.getItem('80degrees_selected_model') || 'gemini-3.8-flash';
   });
   const [welcomePrompt, setWelcomePrompt] = useState('');
 
@@ -57,7 +57,7 @@ export default function App() {
         projectName: t.projectName,
         model: t.model,
       }));
-      localStorage.setItem('soluchan_open_tabs', JSON.stringify(serialized));
+      localStorage.setItem('80degrees_open_tabs', JSON.stringify(serialized));
     } catch (e) {
       console.error('Failed to persist open tabs:', e);
     }
@@ -67,9 +67,9 @@ export default function App() {
   useEffect(() => {
     try {
       if (activeTabId) {
-        localStorage.setItem('soluchan_active_tab_id', activeTabId);
+        localStorage.setItem('80degrees_active_tab_id', activeTabId);
       } else {
-        localStorage.removeItem('soluchan_active_tab_id');
+        localStorage.removeItem('80degrees_active_tab_id');
       }
     } catch (e) {
       console.error('Failed to persist active tab id:', e);
@@ -87,7 +87,7 @@ export default function App() {
 
         // Validate or set default selected model
         if (data.models && data.models.length > 0) {
-          const savedModel = localStorage.getItem('soluchan_selected_model');
+          const savedModel = localStorage.getItem('80degrees_selected_model');
           const matching = data.models.find(
             (m) =>
               (m.id === savedModel || m.canonical_id === savedModel) &&
@@ -96,7 +96,7 @@ export default function App() {
           if (matching) {
             const targetId = matching.canonical_id || matching.id;
             setGlobalDefaultModel(targetId);
-            localStorage.setItem('soluchan_selected_model', targetId);
+            localStorage.setItem('80degrees_selected_model', targetId);
           } else {
             const defaultModel =
               data.models.find(
@@ -111,7 +111,7 @@ export default function App() {
             if (defaultModel) {
               const targetId = defaultModel.canonical_id || defaultModel.id;
               setGlobalDefaultModel(targetId);
-              localStorage.setItem('soluchan_selected_model', targetId);
+              localStorage.setItem('80degrees_selected_model', targetId);
             }
           }
         }
@@ -507,14 +507,14 @@ export default function App() {
     fetchModelsAndHardware();
 
     try {
-      const savedTabs = localStorage.getItem('soluchan_open_tabs');
+      const savedTabs = localStorage.getItem('80degrees_open_tabs');
       const parsedTabs = savedTabs ? JSON.parse(savedTabs) : [];
       if (Array.isArray(parsedTabs) && parsedTabs.length > 0) {
         const initialized = parsedTabs.map((t) => ({
           id: t.id,
           projectName: t.projectName,
           project: { name: t.projectName },
-          model: t.model || localStorage.getItem('soluchan_selected_model') || 'gemini-3.8-flash',
+          model: t.model || localStorage.getItem('80degrees_selected_model') || 'gemini-3.8-flash',
           inputText: '',
           messages: [],
           agentStatus: null,
@@ -533,7 +533,7 @@ export default function App() {
           connectTabSocketRef.current?.(t.id, t.projectName, t.model);
         }
 
-        const savedActiveId = localStorage.getItem('soluchan_active_tab_id');
+        const savedActiveId = localStorage.getItem('80degrees_active_tab_id');
         const activeExists = initialized.some((t) => t.id === savedActiveId);
         setActiveTabId(activeExists ? savedActiveId : initialized[0].id);
         setCurrentView('workspace');
@@ -741,12 +741,12 @@ export default function App() {
     (modelId) => {
       if (!activeTabId) {
         setGlobalDefaultModel(modelId);
-        localStorage.setItem('soluchan_selected_model', modelId);
+        localStorage.setItem('80degrees_selected_model', modelId);
         return;
       }
       updateTab(activeTabId, { model: modelId });
       setGlobalDefaultModel(modelId);
-      localStorage.setItem('soluchan_selected_model', modelId);
+      localStorage.setItem('80degrees_selected_model', modelId);
 
       const ws = socketsRef.current.get(activeTabId);
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -825,7 +825,7 @@ export default function App() {
           selectedModel={globalDefaultModel}
           onSelectModel={(mId) => {
             setGlobalDefaultModel(mId);
-            localStorage.setItem('soluchan_selected_model', mId);
+            localStorage.setItem('80degrees_selected_model', mId);
           }}
           onRefreshModels={fetchModelsAndHardware}
           prompt={welcomePrompt}

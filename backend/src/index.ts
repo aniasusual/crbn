@@ -405,6 +405,6 @@ const _server = Bun.serve<WsData>({
 });
 
 console.log(`\n======================================================`);
-console.log(`⚡ soluchan OMP Bridge Server running on http://${HOST}:${PORT}`);
+console.log(`⚡ 80degrees OMP Bridge Server running on http://${HOST}:${PORT}`);
 console.log(`🔌 WebSocket available at ws://${HOST}:${PORT}/ws`);
 console.log(`======================================================\n`);

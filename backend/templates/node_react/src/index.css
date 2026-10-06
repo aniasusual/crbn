@@ -1,14 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 /* ==========================================================================
-   soluchan Production Design System & Living Token Foundation
+   80degrees Production Design System & Living Token Foundation
    ========================================================================== */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   /* Surface & Background Hierarchy */
-  --bg-main: #090d16;
+  --bg-main: #06080d;
   --bg-surface: rgba(17, 24, 39, 0.85);
   --bg-card: rgba(30, 41, 59, 0.6);
   --bg-card-hover: rgba(51, 65, 85, 0.7);
@@ -17,7 +16,7 @@
   --border-hover: rgba(255, 255, 255, 0.18);
   --border-active: rgba(99, 102, 241, 0.5);
 
-  /* Primary Brand & Accents (Indigo / Violet Glow) */
+  /* Primary Brand & Accents */
   --primary: #6366f1;
   --primary-hover: #4f46e5;
   --primary-glow: rgba(99, 102, 241, 0.35);
@@ -292,32 +291,51 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ==========================================================================
-   Temporary Preview Welcome Screen Styles (Can be removed or ignored when building)
+   Preview Welcome Screen Styles (Clean, Modern, Boundary-Free with Loader)
    ========================================================================== */
 
-.soluchan-canvas {
+.degrees-canvas {
+  position: relative;
   width: 100%;
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 2rem 1.5rem;
+  padding: 3rem 1.5rem;
+  background-color: #06080d;
 }
 
-.soluchan-hero {
+.degrees-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 85% 75% at 50% 40%,
+    rgba(6, 8, 13, 0.65) 0%,
+    rgba(6, 8, 13, 0.84) 55%,
+    rgba(6, 8, 13, 0.96) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.degrees-hero {
+  position: relative;
+  z-index: 2;
   width: 100%;
-  max-width: 600px;
+  max-width: 680px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  animation: soluchan-appear 0.7s var(--ease-out-expo) both;
+  padding: 1rem 0;
+  pointer-events: auto;
+  animation: degrees-appear 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@keyframes soluchan-appear {
+@keyframes degrees-appear {
   0% {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(14px);
   }
   100% {
     opacity: 1;
@@ -325,114 +343,140 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-.soluchan-status-pill {
+/* Brand Logo (Native White Text with Terracotta Mark) */
+.degrees-logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2.25rem;
+}
+
+.degrees-logo {
+  height: 52px;
+  width: auto;
+  max-width: 280px;
+  object-fit: contain;
+  display: block;
+  opacity: 0.98;
+  user-select: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.degrees-logo:hover {
+  opacity: 1;
+  transform: scale(1.02);
+}
+
+/* Live Status Label with Micro Spinner */
+.degrees-status-wrap {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 14px;
-  background: var(--success-glow);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: var(--radius-full);
-  margin-bottom: 1.75rem;
+  margin-bottom: 1.5rem;
+  user-select: none;
 }
 
-.soluchan-pulse {
-  position: relative;
+.degrees-status-spinner {
   width: 8px;
   height: 8px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-top-color: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+  animation: degrees-spin 0.8s linear infinite;
+}
+
+.degrees-status-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Editorial Heading */
+.degrees-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2.4rem, 6vw, 3.5rem);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.96);
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  margin-bottom: 1.25rem;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+/* Readable Subtitle (Refined Opacity) */
+.degrees-description {
+  font-family: var(--font-sans);
+  font-size: clamp(1.05rem, 2.5vw, 1.2rem);
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.58);
+  max-width: 520px;
+  margin-bottom: 2.25rem;
+  font-weight: 400;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
+}
+
+/* Dedicated Elegant Modern Loader */
+.degrees-loader-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2.5rem;
+}
+
+.degrees-loader {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  border-right-color: rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  animation: degrees-spin 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.15);
+}
+
+@keyframes degrees-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Agent Readiness Indicator (Understated Opacity) */
+.degrees-agent-status {
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.soluchan-pulse-core {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--success);
+.degrees-agent-text {
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.38);
+  user-select: none;
 }
 
-.soluchan-pulse-ring {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: var(--success);
-  opacity: 0.6;
-  animation: soluchan-ripple 2.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
-}
-
-@keyframes soluchan-ripple {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  70% { transform: scale(2.8); opacity: 0; }
-  100% { transform: scale(3); opacity: 0; }
-}
-
-.soluchan-status-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: #34d399;
-  letter-spacing: 0.02em;
-}
-
-.soluchan-title {
-  font-size: clamp(2.1rem, 6vw, 2.75rem);
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.9rem;
-  line-height: 1.15;
-}
-
-.soluchan-description {
-  font-size: clamp(1rem, 2.8vw, 1.15rem);
-  color: var(--text-secondary);
-  line-height: 1.6;
-  max-width: 480px;
-  margin-bottom: 2.25rem;
-}
-
-.soluchan-agent-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  padding: 6px 16px;
-  transition: var(--transition-fast);
-}
-
-.soluchan-agent-status:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-hover);
-}
-
-.soluchan-dots {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.soluchan-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-  animation: soluchan-wave 1.4s ease-in-out infinite;
-}
-
-.soluchan-dot--1 { animation-delay: 0s; }
-.soluchan-dot--2 { animation-delay: 0.2s; }
-.soluchan-dot--3 { animation-delay: 0.4s; }
-
-@keyframes soluchan-wave {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-4px); opacity: 1; background: #ffffff; }
-}
-
-.soluchan-agent-text {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  font-weight: 500;
-  letter-spacing: 0.01em;
+@media (max-width: 640px) {
+  .degrees-logo {
+    height: 42px;
+    max-width: 220px;
+  }
+  .degrees-logo-container {
+    margin-bottom: 1.75rem;
+  }
+  .degrees-status-wrap {
+    margin-bottom: 1.25rem;
+  }
+  .degrees-description {
+    margin-bottom: 1.75rem;
+  }
+  .degrees-loader-container {
+    margin-bottom: 2rem;
+  }
 }

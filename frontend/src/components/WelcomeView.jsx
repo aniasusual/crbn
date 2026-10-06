@@ -414,7 +414,7 @@ export default function WelcomeView({
               Name your <span className="degrees-welcome__title-serif">workspace</span>
             </h1>
             <p className="degrees-welcome__subtitle">
-              Choose a directory name for your project in <code>~/.soluchan/projects</code>.
+              Choose a directory name for your project in <code>~/.80degrees/projects</code>.
             </p>
 
             <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>

@@ -15,8 +15,8 @@ export interface ProjectInfo {
   last_opened: string;
 }
 
-export const META_FILENAME = ".soluchan_meta.json";
-export const CHAT_FILENAME = ".soluchan_chat.json";
+export const META_FILENAME = ".80degrees_meta.json";
+export const CHAT_FILENAME = ".80degrees_chat.json";
 
 export class ProjectManager {
   readonly root: string;
@@ -24,11 +24,11 @@ export class ProjectManager {
   readonly templateCacheDir: string;
 
   constructor(options?: { root?: string; templatesDir?: string; templateCacheDir?: string }) {
-    this.root = options?.root ?? process.env.PROJECTS_ROOT ?? path.join(os.homedir(), ".soluchan", "projects");
+    this.root = options?.root ?? process.env.PROJECTS_ROOT ?? path.join(os.homedir(), ".80degrees", "projects");
     this.templatesDir =
       options?.templatesDir ?? path.join(import.meta.dir, "..", "templates");
     this.templateCacheDir =
-      options?.templateCacheDir ?? path.join(os.homedir(), ".soluchan", "template_cache");
+      options?.templateCacheDir ?? path.join(os.homedir(), ".80degrees", "template_cache");
 
     fsSync.mkdirSync(this.root, { recursive: true });
     fsSync.mkdirSync(this.templateCacheDir, { recursive: true });

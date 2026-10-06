@@ -1,5 +1,5 @@
 /**
- * Centralized Application Configuration for soluchan Frontend.
+ * Centralized Application Configuration for 80degrees Frontend.
  * Reads environment variables defined with VITE_ prefix.
  */
 
