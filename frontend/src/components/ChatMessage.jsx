@@ -581,6 +581,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
           </div>
           <MessageFooter
             timestamp={message.timestamp}
+            contentToCopy={message.content}
             debug={message.debug}
             onOpenDebug={openDebug}
             stepId={message.step_id}
