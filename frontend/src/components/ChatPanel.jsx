@@ -299,7 +299,7 @@ export default function ChatPanel({
         onDeny={onDenyCommand}
       />
       {/* Collapsible Todo Progress Sheet docked right above the input box */}
-      {activeTodos && activeTodos.phases && activeTodos.phases.length > 0 && todoStats && (
+      {/* {activeTodos && activeTodos.phases && activeTodos.phases.length > 0 && todoStats && (
         <div className={`chat-panel__todo-sheet ${isTodoExpanded ? 'chat-panel__todo-sheet--expanded' : ''}`}>
           <div
             className="chat-panel__todo-ribbon"
@@ -378,7 +378,7 @@ export default function ChatPanel({
             </div>
           )}
         </div>
-      )}
+      )} */}
       <form
         className="chat-panel__input-area"
         onSubmit={handleSubmit}

@@ -6,6 +6,14 @@ import {
   type AgentSession,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
+import type {
+  ExtensionUIContext,
+  ExtensionAskDialogQuestion,
+  ExtensionAskDialogResult,
+  ExtensionUISelectItem,
+  ExtensionUIDialogOptions,
+} from "../../pi-harness/packages/coding-agent/src/extensibility/extensions/types";
+import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tui/src/theme/theme";
 import { ChatHistoryManager } from "./chat-history";
 import type { ModelsService } from "./models-service";
 import type { DevServerManager } from "./dev-server";
@@ -36,7 +44,9 @@ export class SessionBridge {
   private initPromise: Promise<void> | null = null;
   private activeToolCalls = new Map<string, { name: string; args: Record<string, unknown> }>();
   private activeTurns: Record<string, unknown>[] = [];
-  private pendingUiRequests = new Map<string, { resolve: (val: any) => void; reject: (err: any) => void }>();
+  private pendingUiRequests = new Map<string, { resolve: (val: unknown) => void; reject: (err: unknown) => void }>();
+  private devServerUnsubscribe: (() => void) | null = null;
+  private currentPreviewUrl: string | null = null;
 
   constructor(
     private readonly send: WebSocketSender,
@@ -103,17 +113,25 @@ export class SessionBridge {
         const modelRegistry = this.modelsService ? await this.modelsService.getRegistry() : undefined;
 
         const sessionManager = await SessionManager.continueRecent(projectPath);
+
+        // Subscribe to devServer events to keep the agent's prompt in sync with real ports
+        if (this.devServerManager && !this.devServerUnsubscribe) {
+          this.devServerUnsubscribe = this.devServerManager.onEvent((event) => {
+            if (event.type === "preview_ready" && event.project_path && this.activeProjectPath) {
+              const resolvedEvent = path.resolve(event.project_path);
+              const resolvedActive = path.resolve(this.activeProjectPath);
+              if (resolvedEvent === resolvedActive && event.url) {
+                this.handlePreviewReady(event.url);
+              }
+            }
+          });
+        }
+
         const devServer = this.devServerManager?.getServerInfo(projectPath);
         const previewPort = devServer?.port ?? 3000;
         const previewUrl = devServer?.url ?? `http://127.0.0.1:${previewPort}`;
-        const appendSystemPrompt = [
-          `# Managed Development Server & Live Preview Environment`,
-          `- A managed Vite dev server is ALREADY active for this project at ${previewUrl}.`,
-          `- Automatic Hot Module Replacement (HMR) is active: writing or editing files in src/ immediately updates the live preview iframe.`,
-          `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server).`,
-          `- DO NOT alter port settings in vite.config.js or package.json.`,
-        ].join("\n");
-
+        this.currentPreviewUrl = previewUrl;
+        const appendSystemPrompt = this.buildPreviewSystemPrompt(previewUrl);
         const { session, setToolUIContext } = await createAgentSession({
           cwd: projectPath,
           modelPattern: this.activeModel,
@@ -128,11 +146,12 @@ export class SessionBridge {
         this.session = session;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));
 
-        setToolUIContext?.({
+        ensureThemeSync();
+        const uiContext: ExtensionUIContext = {
           timeoutStartsOnPresentation: true,
-          select: async (title, options, dialogOptions) => {
+          select: async (title: string, options: ExtensionUISelectItem[], dialogOptions?: ExtensionUIDialogOptions) => {
             const id = `sel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-            const optionLabels = options.map(opt => (typeof opt === "string" ? opt : opt.label));
+            const optionLabels = options.map((opt) => (typeof opt === "string" ? opt : opt.label));
             const isApproval = optionLabels.includes("Approve") && optionLabels.includes("Deny");
             const timestamp = new Date().toISOString();
 
@@ -168,19 +187,23 @@ export class SessionBridge {
             signal?.addEventListener("abort", onAbort, { once: true });
 
             this.pendingUiRequests.set(id, {
-              resolve: (val: any) => {
+              resolve: (val: unknown) => {
                 cleanup();
-                const selected = typeof val === "string" ? val : val?.label ?? String(val ?? "");
+                const selected = typeof val === "string"
+                  ? val
+                  : (val && typeof val === "object" && "label" in val && typeof (val as { label: unknown }).label === "string"
+                      ? (val as { label: string }).label
+                      : String(val ?? ""));
                 resolve(selected || undefined);
               },
-              reject: (err: any) => {
+              reject: (err: unknown) => {
                 cleanup();
-                reject(err);
+                reject(err instanceof Error ? err : new Error(String(err)));
               },
             });
             return promise;
           },
-          confirm: async (title, message, dialogOptions) => {
+          confirm: async (title: string, message: string, _dialogOptions?: ExtensionUIDialogOptions) => {
             const id = `conf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
             const timestamp = new Date().toISOString();
             this.send({
@@ -194,18 +217,18 @@ export class SessionBridge {
 
             const { promise, resolve, reject } = Promise.withResolvers<boolean>();
             this.pendingUiRequests.set(id, {
-              resolve: (val: any) => {
+              resolve: (val: unknown) => {
                 this.pendingUiRequests.delete(id);
                 resolve(val === "Approve" || val === "Yes" || val === true);
               },
-              reject: (err: any) => {
+              reject: (err: unknown) => {
                 this.pendingUiRequests.delete(id);
-                reject(err);
+                reject(err instanceof Error ? err : new Error(String(err)));
               },
             });
             return promise;
           },
-          askDialog: async (questions, dialogOptions) => {
+          askDialog: async (questions: ExtensionAskDialogQuestion[], _dialogOptions?: ExtensionUIDialogOptions) => {
             const id = `ask_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
             const timestamp = new Date().toISOString();
             const primaryQ = questions[0];
@@ -214,61 +237,75 @@ export class SessionBridge {
               type: "ask_human",
               id,
               question: primaryQ?.question ?? "Please clarify:",
-              options: primaryQ?.options?.map(o => o.label) ?? [],
-              questions: questions.map(q => ({
+              options: primaryQ?.options?.map((o) => o.label) ?? [],
+              questions: questions.map((q) => ({
                 id: q.id,
                 question: q.question,
                 header: q.header,
-                options: q.options.map(o => o.label),
+                options: q.options.map((o) => o.label),
                 multi: Boolean(q.multi),
                 recommended: q.recommended,
               })),
               timestamp,
             });
-            const { promise, resolve, reject } = Promise.withResolvers<any>();
+            const { promise, resolve, reject } = Promise.withResolvers<ExtensionAskDialogResult | undefined>();
             this.pendingUiRequests.set(id, {
-              resolve: (val: any) => {
+              resolve: (val: unknown) => {
                 this.pendingUiRequests.delete(id);
-                const answerList = Array.isArray(val)
-                  ? val
+                const answerList: string[] = Array.isArray(val)
+                  ? val.map(String)
                   : typeof val === "string"
                   ? [val]
-                  : val?.label
-                  ? [val.label]
-                  : [];
+                  : (val && typeof val === "object" && "label" in val && typeof (val as { label: unknown }).label === "string"
+                      ? [(val as { label: string }).label]
+                      : []);
 
                 resolve({
                   kind: "submit",
-                  results: questions.map(q => ({
+                  results: questions.map((q) => ({
                     id: q.id,
                     question: q.question,
-                    options: q.options.map(o => o.label),
+                    options: q.options.map((o) => o.label),
                     multi: q.multi ?? false,
                     selectedOptions: answerList.length > 0 ? answerList : [q.options[q.recommended ?? 0]?.label ?? ""],
-                    customInput: typeof val === "string" && !q.options.some(o => o.label === val) ? val : undefined,
+                    customInput: typeof val === "string" && !q.options.some((o) => o.label === val) ? val : undefined,
                     timedOut: false,
                   })),
                 });
               },
-              reject: (err: any) => {
+              reject: (err: unknown) => {
                 this.pendingUiRequests.delete(id);
-                reject(err);
+                reject(err instanceof Error ? err : new Error(String(err)));
               },
             });
             return promise;
           },
           input: async () => undefined,
-          notify: (msg, type) => this.send({ type: "notice", message: msg, level: type }),
+          notify: (msg: string, type?: "info" | "warning" | "error") => this.send({ type: "notice", message: msg, level: type }),
           onTerminalInput: () => () => {},
           setStatus: () => {},
-          setWorkingMessage: msg => this.send({ type: "status", content: msg || "Running" }),
+          setWorkingMessage: (msg?: string) => this.send({ type: "status", content: msg || "Running" }),
           setWidget: () => {},
           setFooter: () => {},
           setHeader: () => {},
           setTitle: () => {},
-          custom: async () => undefined as any,
+          custom: async <T>() => {
+            throw new Error("Custom UI not supported in web bridge");
+          },
+          setEditorText: () => {},
+          pasteToEditor: () => {},
+          getEditorText: () => "",
           editor: async () => undefined,
-        }, true);
+          addAutocompleteProvider: () => {},
+          setEditorComponent: () => {},
+          theme: tuiTheme,
+          getAllThemes: async () => [],
+          getTheme: async () => undefined,
+          setTheme: async () => ({ success: true }),
+          getToolsExpanded: () => false,
+          setToolsExpanded: () => {},
+        };
+        setToolUIContext?.(uiContext, true);
 
         console.log(`[SessionBridge] Initialized AgentSession for ${projectPath} with model ${session.model?.id}`);
         this.emitContextTelemetry();
@@ -286,6 +323,15 @@ export class SessionBridge {
   async prompt(promptText: string, attachments?: PromptAttachments): Promise<void> {
     if (this.initPromise) {
       await this.initPromise;
+    }
+
+    // Ensure the latest preview server URL is synchronized before dispatching prompt
+    if (this.activeProjectPath && this.devServerManager) {
+      const activeDevServer = this.devServerManager.getServerInfo(this.activeProjectPath);
+      const activeUrl = activeDevServer?.url || this.currentPreviewUrl;
+      if (activeUrl && activeUrl !== this.currentPreviewUrl) {
+        this.handlePreviewReady(activeUrl);
+      }
     }
 
     const session = this.session;
@@ -358,7 +404,7 @@ export class SessionBridge {
     }
   }
 
-  resolveUiRequest(id: string, response: any): boolean {
+  resolveUiRequest(id: string, response: unknown): boolean {
     const pending = this.pendingUiRequests.get(id);
     if (pending) {
       pending.resolve(response);
@@ -630,6 +676,49 @@ export class SessionBridge {
       this.unsubscribe = null;
       await this.session.dispose().catch(() => {});
       this.session = null;
+    }
+    this.devServerUnsubscribe?.();
+    this.devServerUnsubscribe = null;
+  }
+
+  private buildPreviewSystemPrompt(previewUrl: string): string {
+    return [
+      `# Managed Development Server & Live Preview Environment`,
+      `- A managed Vite dev server is ALREADY active for this project at ${previewUrl}.`,
+      `- Automatic Hot Module Replacement (HMR) is active: writing or editing files in src/ immediately updates the live preview iframe.`,
+      `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server).`,
+      `- DO NOT alter port settings in vite.config.js or package.json.`,
+    ].join("\n");
+  }
+
+  private handlePreviewReady(newUrl: string): void {
+    if (this.currentPreviewUrl === newUrl) return;
+    this.currentPreviewUrl = newUrl;
+    console.log(`[SessionBridge] Updated live preview URL to ${newUrl}`);
+
+    const agent = this.session?.agent;
+    if (agent) {
+      try {
+        const currentPrompts: string[] = agent.state?.systemPrompt ?? [];
+        const newPromptSection = this.buildPreviewSystemPrompt(newUrl);
+
+        let replaced = false;
+        const updated = currentPrompts.map((p) => {
+          if (p.includes("# Managed Development Server & Live Preview Environment")) {
+            replaced = true;
+            return newPromptSection;
+          }
+          return p;
+        });
+
+        if (!replaced) {
+          updated.push(newPromptSection);
+        }
+
+        agent.setSystemPrompt(updated);
+      } catch (err) {
+        console.warn("[SessionBridge] Could not update agent system prompt dynamically:", err);
+      }
     }
   }
   private emitContextTelemetry(): void {

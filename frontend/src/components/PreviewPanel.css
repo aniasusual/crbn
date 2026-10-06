@@ -1,38 +1,40 @@
 /* ==========================================================================
    80degrees — PreviewPanel Styling
-   Museum-Grade Studio Glass, Refined Browser Chrome,
-   Precision Address Bar, Editorial Typography & Subtle Framing
+   Pure Glassmorphic Surface, Ambient Light Refraction & Zero Boundaries
    ========================================================================== */
 
 .preview-panel {
+  width: 100%;
   height: 100%;
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: rgba(18, 18, 22, 0.78);
-  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%, rgba(18, 18, 26, 0.35) 100%);
+  border-radius: 0;
   overflow: hidden;
   border: none;
-  box-shadow: 
-    0 24px 60px -12px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(32px) saturate(190%);
-  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  box-shadow: none;
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   position: relative;
   box-sizing: border-box;
 }
 
-/* Header Bar */
+/* Header Bar — Glassmorphic Frosted Strip */
 .preview-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 16px;
   height: 44px;
-  background: rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
+  border: none;
   border-bottom: none;
+  box-shadow: none;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   user-select: none;
   flex-shrink: 0;
 }
@@ -56,6 +58,8 @@
   height: 9px;
   border-radius: 50%;
   opacity: 0.75;
+  border: none;
+  box-shadow: none;
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
@@ -67,33 +71,38 @@
   opacity: 0.95;
 }
 
-/* Port Status Tag matching .degrees-model-pill */
+/* Port Status Glass Pill */
 .preview-panel__status-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 28px;
-  padding: 0 9px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   border-radius: 7px;
   font-size: 11.5px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
   font-family: var(--font-mono, monospace);
   font-variant-numeric: tabular-nums;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: all 0.12s ease;
 }
 
 .preview-panel__status-pill:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
 }
 
 .preview-panel__status-pill--booting {
   background: rgba(245, 158, 11, 0.08);
-  border-color: rgba(245, 158, 11, 0.22);
+  border: none;
+  box-shadow: none;
   color: #fbbf24;
 }
 
@@ -102,13 +111,15 @@
   height: 5px;
   border-radius: 50%;
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  border: none;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .preview-panel__status-pill--booting .preview-panel__pulse-dot {
   background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  border: none;
+  box-shadow: none;
   animation: degrees-pulse 1.4s infinite ease-in-out;
 }
 
@@ -125,12 +136,13 @@
 .preview-panel__api-label {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.4);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border: none;
+  border-left: none;
   padding-left: 6px;
   margin-left: 2px;
 }
 
-/* Center URL Address Bar matching .degrees-timelines__search-box */
+/* Center URL Address Bar — Frosted Glass Capsule */
 .preview-panel__address-bar {
   flex: 1;
   max-width: 380px;
@@ -139,23 +151,26 @@
   align-items: center;
   gap: 8px;
   padding: 0 10px;
-  background: rgba(18, 18, 22, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.22);
+  border: none;
+  box-shadow: none;
   border-radius: 6px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   cursor: pointer;
   transition: all 0.14s ease;
 }
 
 .preview-panel__address-bar:hover {
-  background: rgba(22, 22, 28, 0.95);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.32);
+  border: none;
+  box-shadow: none;
 }
 
 .preview-panel__address-icon {
   display: flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.45);
   flex-shrink: 0;
 }
 
@@ -163,7 +178,7 @@
   flex: 1;
   font-size: 11.5px;
   font-family: var(--font-mono, monospace);
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.78);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -183,7 +198,7 @@
   color: #ffffff;
 }
 
-/* Right Action Buttons matching .degrees-toolbar-btn */
+/* Right Action Buttons — Frosted Glass Controls */
 .preview-panel__actions {
   display: flex;
   align-items: center;
@@ -198,23 +213,27 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: none;
   border-radius: 7px;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .preview-panel__action-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.16);
-  transform: translateY(-1px);
+  transform: scale(1.05);
 }
 
 .preview-panel__action-btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 /* Frame Container & Iframe */
@@ -224,7 +243,9 @@
   height: 100%;
   min-height: 0;
   position: relative;
-  background: #111115;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .preview-panel__frame {
@@ -235,11 +256,16 @@
   background: transparent;
 }
 
-/* Empty State — Editorial Museum Grade */
+/* Empty State — Glassmorphic */
 .preview-panel--empty {
   justify-content: center;
   align-items: center;
-  background: rgba(18, 18, 22, 0.85);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(16, 16, 24, 0.5) 100%);
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
 }
 
 .preview-panel__empty-content {
@@ -303,7 +329,7 @@
   letter-spacing: -0.01em;
 }
 
-/* Dev Server Booting Loader matching .degrees-spinner */
+/* Dev Server Booting Loader — Glassmorphic Modal */
 .preview-panel__booting {
   position: absolute;
   inset: 0;
@@ -311,7 +337,11 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: rgba(18, 18, 22, 0.96);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(16, 16, 24, 0.65) 100%);
+  backdrop-filter: blur(40px) saturate(210%);
+  -webkit-backdrop-filter: blur(40px) saturate(210%);
+  border: none;
+  box-shadow: none;
   gap: 12px;
   z-index: 10;
   text-align: center;

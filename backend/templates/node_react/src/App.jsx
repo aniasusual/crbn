@@ -36,7 +36,7 @@ export default function App() {
 
         {/* Readable Subtitle */}
         <p className="degrees-description">
-          Your preview is working. The agent will build your app here — thanks for your patienceeeeee.
+          Your preview is working. The agent will build your app here — thanks for your patience.
         </p>
 
         {/* Elegant Modern Loader */}

@@ -257,6 +257,18 @@ const _server = Bun.serve<WsData>({
               project.model = modelName;
               projectManager.saveMeta(project).catch(() => {});
             }
+            // 1. Boot dev server for live preview FIRST so port is allocated & known
+            const devServer = await devServerManager.startDevServer(project.path).catch(err => {
+              console.error("[WebSocket] Failed to start dev server:", err);
+              return null;
+            });
+            if (devServer) {
+              project.port = devServer.port;
+              project.status = "running";
+              projectManager.saveMeta(project).catch(() => {});
+            }
+
+            // 2. Open project session (now devServerManager.getServerInfo has the real port & url)
             await bridge.openProject(project.path, modelName);
 
             ws.send(JSON.stringify({ type: "project_opened", project }));
@@ -267,11 +279,6 @@ const _server = Bun.serve<WsData>({
                 messages: history.ui_events,
               }),
             );
-
-            // Boot dev server for live preview
-            devServerManager.startDevServer(project.path).catch(err => {
-              console.error("[WebSocket] Failed to start dev server:", err);
-            });
             return;
           }
 
@@ -286,11 +293,15 @@ const _server = Bun.serve<WsData>({
         if (action === "restart_preview") {
           if (ws.data.activeProjectName) {
             const project = await projectManager.getProject(ws.data.activeProjectName);
-            await devServerManager.restartDevServer(project.path);
+            const newInfo = await devServerManager.restartDevServer(project.path);
+            if (newInfo) {
+              project.port = newInfo.port;
+              project.status = "running";
+              projectManager.saveMeta(project).catch(() => {});
+            }
           }
           return;
         }
-
         if (action === "close_project") {
           await bridge.stop();
           return;
