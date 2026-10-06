@@ -17,34 +17,8 @@
   right: 0;
   top: 0;
   z-index: 10;
-  background-color: #ffffff;
-}
-
-.ilp-image-container {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  z-index: 20;
-  mix-blend-mode: difference;
-}
-
-.ilp-image-box {
-  position: absolute;
-  left: 36%;
-  top: 50%;
-  transform: translateY(-50%);
-  visibility: hidden;
-  will-change: clip-path, opacity;
-  z-index: 10;
-  overflow: hidden;
-}
-
-.ilp-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
 }
 
 .ilp-table-wrap {
@@ -108,6 +82,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  position: relative;
+  z-index: 35;
 }
 
 .ilp-action-btn {
@@ -116,22 +92,28 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
   transition: all 0.12s ease;
+  pointer-events: auto;
+  position: relative;
+  z-index: 40;
 }
 
 .ilp-action-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
+  transform: scale(1.08);
 }
 
+
 .ilp-action-btn--delete:hover {
-  border-color: rgba(239, 68, 68, 0.3);
-  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }
 
@@ -155,16 +137,9 @@
 
 .ilp-mobile-info {
   display: flex;
-  width: 50%;
+  width: 100%;
   flex-direction: column;
   justify-content: space-between;
-  gap: 12px;
-  padding: 16px;
-}
-
-.ilp-mobile-image-wrap {
-  position: relative;
-  aspect-ratio: 3/4;
-  height: 100%;
-  width: 50%;
+  gap: 8px;
+  padding: 14px 16px;
 }

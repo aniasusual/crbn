@@ -60,18 +60,7 @@ export default function WelcomeView({
   }, [projects, timelineSearch]);
 
   const timelineItems = useMemo(() => {
-    const artPool = [
-      'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1574169208507-84376144848b?w=600&h=800&fit=crop',
-      'https://images.unsplash.com/photo-1604076913837-52ab5f0e2f20?w=600&h=800&fit=crop',
-    ];
-
-    return filteredProjects.map((p, idx) => {
+    return filteredProjects.map((p) => {
       const modelName = p.model ? p.model.split('/').pop() || 'gemini-3.8-flash' : 'gemini-3.8-flash';
       const statusLabel = p.status === 'running' ? `LIVE :${p.port || 3000}` : 'LOCAL';
       const dateLabel = p.last_opened
@@ -82,7 +71,6 @@ export default function WelcomeView({
         client: p.name,
         platform: modelName.toUpperCase(),
         services: `${statusLabel} · ${dateLabel}`,
-        img: artPool[idx % artPool.length],
         data: p,
       };
     });
@@ -112,11 +100,14 @@ export default function WelcomeView({
     fetchProjects();
   }, []);
 
-  const handleDeleteProject = async (e, name) => {
-    e.stopPropagation();
+  const handleDeleteProject = async (arg1, arg2) => {
+    const e = (arg1 && typeof arg1 === 'object' && 'stopPropagation' in arg1) ? arg1 : ((arg2 && typeof arg2 === 'object' && 'stopPropagation' in arg2) ? arg2 : null);
+    const name = typeof arg1 === 'string' ? arg1 : (typeof arg2 === 'string' ? arg2 : '');
+    if (e) e.stopPropagation();
+    if (!name) return;
     if (!window.confirm(`Delete project "${name}"? This removes its files.`)) return;
     try {
-      await fetch(`${API_BASE_URL}/api/projects/${name}`, { method: 'DELETE' });
+      await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(name)}`, { method: 'DELETE' });
       onDeleteProject?.(name);
       fetchProjects();
     } catch (err) {
@@ -124,10 +115,13 @@ export default function WelcomeView({
     }
   };
 
-  const handleOpenInFinder = async (e, name) => {
-    e.stopPropagation();
+  const handleOpenInFinder = async (arg1, arg2) => {
+    const e = (arg1 && typeof arg1 === 'object' && 'stopPropagation' in arg1) ? arg1 : ((arg2 && typeof arg2 === 'object' && 'stopPropagation' in arg2) ? arg2 : null);
+    const name = typeof arg1 === 'string' ? arg1 : (typeof arg2 === 'string' ? arg2 : '');
+    if (e) e.stopPropagation();
+    if (!name) return;
     try {
-      await fetch(`${API_BASE_URL}/api/projects/${name}/open-in-finder`, { method: 'POST' });
+      await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(name)}/open-in-finder`, { method: 'POST' });
     } catch (err) {
       console.error('Failed to open project in finder', err);
     }

@@ -8,16 +8,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(18, 18, 22, 0.78);
+  background: rgba(16, 16, 24, 0.48);
+  border: none;
   border-bottom: none;
-  box-shadow: none;
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  height: 40px;
+  backdrop-filter: blur(36px) saturate(200%);
+  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  height: 44px;
+  min-height: 44px;
   user-select: none;
   overflow: hidden;
   flex-shrink: 0;
-  padding: 0 14px 0 10px;
+  padding: 6px 16px;
+  margin: 0;
   position: relative;
   z-index: 20;
 }
@@ -37,12 +39,13 @@
 .tab-bar__tabs-scroll {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   overflow-x: auto;
   overflow-y: hidden;
   height: 100%;
   scrollbar-width: none;
-  padding: 4px 0;
+  padding: 2px 4px;
+  margin: 0;
 }
 
 .tab-bar__tabs-scroll::-webkit-scrollbar {
@@ -54,10 +57,11 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0 10px;
-  height: 28px;
+  padding: 0 12px;
+  height: 30px;
+  margin: 0;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
@@ -102,6 +106,8 @@
 /* Home / Projects Pinned Tab */
 .tab-bar__tab--home {
   min-width: auto;
+  padding: 0 12px;
+  margin: 0;
   background: rgba(255, 255, 255, 0.035);
   border: none;
 }
@@ -240,21 +246,22 @@
   height: 28px;
   border-radius: 7px;
   background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.45);
   cursor: pointer;
   padding: 0;
   transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
-  margin-left: 2px;
+  margin: 0;
 }
 
 .tab-bar__new-btn:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.14);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
   transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .tab-bar__new-btn:active {

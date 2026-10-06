@@ -1,16 +1,15 @@
 /* =========================================================
    80degrees — Models & Providers Modal
-   Museum-Grade Studio Glass Design, Deep Charcoal Surfaces,
-   Editorial Typography, Studio Orange Accent & Tabular Metrics
+   Liquid Glass Surface, Pure Translucency & Zero Borders / Zero Shadows
    ========================================================= */
 
 .notion-modal__backdrop {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  background: rgba(10, 10, 14, 0.76);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  background: rgba(6, 6, 10, 0.45);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -35,20 +34,17 @@
   height: 84vh;
   min-height: 540px;
   max-height: 840px;
-  background: rgba(20, 20, 26, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 
-    0 32px 84px -16px rgba(0, 0, 0, 0.85),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 24px 0 rgba(255, 255, 255, 0.02);
-  border-radius: 20px;
+  background: rgba(18, 18, 26, 0.58);
+  border: none;
+  box-shadow: none;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   color: var(--app-text, #ffffff);
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
-  backdrop-filter: blur(36px) saturate(190%);
-  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
   position: relative;
   box-sizing: border-box;
 }
@@ -59,8 +55,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  border-bottom: none;
+  background: rgba(255, 255, 255, 0.025);
   flex-shrink: 0;
 }
 
@@ -100,8 +97,9 @@
   font-size: 11px;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   padding: 2px 8px;
   border-radius: 6px;
   font-variant-numeric: tabular-nums;
@@ -109,8 +107,9 @@
 }
 
 .notion-modal__close-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.5);
   width: 28px;
   height: 28px;
@@ -123,17 +122,19 @@
 }
 
 .notion-modal__close-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
   transform: scale(1.04);
 }
 
-/* Global Search Bar matching .degrees-timelines__search-box */
+/* Global Search Bar */
 .notion-modal__search-bar {
   padding: 12px 22px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(14, 14, 18, 0.5);
+  border: none;
+  border-bottom: none;
+  background: rgba(0, 0, 0, 0.16);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -149,6 +150,7 @@
   background: transparent;
   border: none;
   outline: none;
+  box-shadow: none;
   font-size: 13.5px;
   color: #ffffff;
   font-family: inherit;
@@ -161,8 +163,9 @@
 }
 
 .notion-modal__search-clear {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.45);
   width: 22px;
   height: 22px;
@@ -177,6 +180,8 @@
 .notion-modal__search-clear:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
 }
 
 /* Feedback Banners */
@@ -186,24 +191,26 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border: none;
+  box-shadow: none;
 }
 
 .notion-modal__banner--error {
   color: #f87171;
   background: rgba(248, 113, 113, 0.09);
-  border-color: rgba(248, 113, 113, 0.22);
+  border: none;
 }
 
 .notion-modal__banner--success {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.09);
-  border-color: rgba(74, 222, 128, 0.22);
+  border: none;
 }
 
 .notion-modal__banner button {
   background: transparent;
   border: none;
+  box-shadow: none;
   color: inherit;
   cursor: pointer;
   padding: 2px 4px;
@@ -221,8 +228,9 @@
 .notion-modal__sidebar {
   width: 240px;
   flex-shrink: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(14, 14, 18, 0.6);
+  border: none;
+  border-right: none;
+  background: rgba(0, 0, 0, 0.14);
   display: flex;
   flex-direction: column;
 }
@@ -254,7 +262,8 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border: none;
+  border-bottom: none;
 }
 
 .notion-modal__quick-btn {
@@ -264,7 +273,8 @@
   justify-content: space-between;
   padding: 6px 11px;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
+  box-shadow: none;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.65);
   font-size: 12px;
@@ -276,12 +286,15 @@
 
 .notion-modal__quick-btn:hover {
   background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.95);
 }
 
 .notion-modal__quick-btn.active {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
   font-weight: 550;
 }
@@ -297,14 +310,17 @@
   height: 5px;
   border-radius: 50%;
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  border: none;
+  box-shadow: none;
 }
 
 .notion-modal__chip {
   font-size: 10px;
   padding: 1px 5px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.5);
   font-family: var(--font-mono, monospace);
   font-variant-numeric: tabular-nums;
@@ -317,19 +333,23 @@
 .notion-modal__provider-search-input {
   width: 100%;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  box-shadow: none;
   border-radius: 6px;
   padding: 5px 9px;
   font-size: 11.5px;
   color: #ffffff;
   outline: none;
   font-family: inherit;
-  transition: border-color 0.12s ease;
+  transition: background 0.12s ease;
 }
 
 .notion-modal__provider-search-input:focus {
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.28);
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 .notion-modal__provider-list {
@@ -348,7 +368,8 @@
   justify-content: space-between;
   padding: 6px 10px;
   background: transparent;
-  border: 1px solid transparent;
+  border: none;
+  box-shadow: none;
   border-radius: 7px;
   color: rgba(255, 255, 255, 0.6);
   font-size: 12px;
@@ -359,13 +380,16 @@
 }
 
 .notion-modal__provider-item:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.95);
 }
 
 .notion-modal__provider-item.active {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
   font-weight: 550;
 }
@@ -382,12 +406,15 @@
   height: 4.5px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.2);
+  border: none;
+  box-shadow: none;
   flex-shrink: 0;
 }
 
 .notion-modal__provider-dot--ready {
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
+  border: none;
+  box-shadow: none;
 }
 
 .notion-modal__provider-name {
@@ -415,7 +442,8 @@
 
 .notion-modal__list-header {
   padding: 12px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border: none;
+  border-bottom: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -446,10 +474,11 @@
   gap: 8px;
 }
 
-/* Model Cards — Glassmorphic Capsule with 12px Radii */
+/* Model Cards — Frosted Liquid Glass Pills */
 .notion-model-card {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  box-shadow: none;
   border-radius: 12px;
   padding: 12px 16px;
   display: flex;
@@ -460,25 +489,26 @@
   -webkit-backdrop-filter: blur(20px);
   transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
-  box-shadow: none;
 }
 
 .notion-model-card:hover {
-  background: rgba(255, 255, 255, 0.065);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.075);
+  border: none;
+  box-shadow: none;
   transform: translateY(-1px);
 }
 
-/* Selected Active Model Card with Studio Orange Glass Accent */
+/* Selected Active Model Card with Soft Orange Tint */
 .notion-model-card--selected {
-  border-color: rgba(249, 115, 22, 0.45);
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.14) 0%, rgba(234, 88, 12, 0.07) 100%);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+  border: none;
+  box-shadow: none;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.22) 0%, rgba(234, 88, 12, 0.12) 100%);
 }
 
 .notion-model-card--selected:hover {
-  border-color: rgba(249, 115, 22, 0.6);
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.18) 0%, rgba(234, 88, 12, 0.1) 100%);
+  border: none;
+  box-shadow: none;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.28) 0%, rgba(234, 88, 12, 0.16) 100%);
 }
 
 .notion-model-card__body {
@@ -508,9 +538,10 @@
   font-weight: 500;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: none;
+  box-shadow: none;
 }
 
 .notion-model-card__badge {
@@ -518,9 +549,10 @@
   font-weight: 500;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: none;
+  box-shadow: none;
 }
 
 .notion-model-card__id-row code {
@@ -558,8 +590,8 @@
   font-size: 11px;
   font-weight: 600;
   border: none;
+  box-shadow: none;
   letter-spacing: 0.01em;
-  box-shadow: 0 2px 8px rgba(234, 88, 12, 0.4);
 }
 
 .notion-model-card__locked-indicator {
@@ -568,8 +600,9 @@
   gap: 5px;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: none;
   padding: 4px 9px;
   border-radius: 6px;
   transition: all 0.12s ease;
@@ -578,10 +611,11 @@
 .notion-model-card:hover .notion-model-card__locked-indicator {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.16);
+  border: none;
+  box-shadow: none;
 }
 
-/* Buttons — Solid White CTA matching .degrees-cta-btn */
+/* Buttons — Clean Borderless & Shadowless */
 .notion-btn {
   display: inline-flex;
   align-items: center;
@@ -592,6 +626,8 @@
   font-size: 12px;
   font-weight: 550;
   border-radius: 7px;
+  border: none;
+  box-shadow: none;
   cursor: pointer;
   transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -601,19 +637,18 @@
   background: #ffffff;
   color: #0c0c0e;
   border: none;
+  box-shadow: none;
   font-weight: 600;
   font-size: 12px;
   letter-spacing: -0.015em;
   padding: 0 13px;
-  box-shadow: 
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .notion-btn--select:hover {
   background: #f4f4f7;
+  border: none;
+  box-shadow: none;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.25);
 }
 
 .notion-btn--select:active {
@@ -624,16 +659,17 @@
   background: #ffffff;
   color: #0c0c0e;
   border: none;
+  box-shadow: none;
   font-weight: 600;
   height: 32px;
   border-radius: 7px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .notion-btn--primary:hover:not(:disabled) {
   background: #f4f4f7;
+  border: none;
+  box-shadow: none;
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.25);
 }
 
 .notion-btn--primary:active:not(:disabled) {
@@ -643,26 +679,30 @@
 .notion-btn--primary:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+  border: none;
   box-shadow: none;
 }
 
 .notion-btn--secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  border: none;
+  box-shadow: none;
   height: 32px;
   border-radius: 7px;
 }
 
 .notion-btn--secondary:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .notion-btn--tiny-disconnect {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.5);
   font-size: 11px;
   padding: 3px 9px;
@@ -670,8 +710,9 @@
 }
 
 .notion-btn--tiny-disconnect:hover {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.25);
+  background: rgba(239, 68, 68, 0.15);
+  border: none;
+  box-shadow: none;
   color: #ef4444;
 }
 
@@ -679,8 +720,9 @@
   width: 100%;
   padding: 9px;
   margin: 6px 0;
-  background: rgba(255, 255, 255, 0.045);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.65);
   border-radius: 8px;
   font-variant-numeric: tabular-nums;
@@ -689,17 +731,19 @@
 }
 
 .notion-btn--load-more:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
+  border: none;
+  box-shadow: none;
   color: #ffffff;
 }
 
-/* Focused Provider Unlock Dialog */
+/* Focused Provider Unlock Dialog — Liquid Glass Card */
 .notion-unlock-dialog__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 14, 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(6, 6, 10, 0.5);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -711,18 +755,16 @@
 .notion-unlock-dialog__card {
   width: 100%;
   max-width: 440px;
-  background: rgba(22, 22, 28, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
+  background: rgba(20, 20, 28, 0.75);
+  border: none;
+  box-shadow: none;
+  border-radius: 20px;
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 
-    0 32px 80px -16px rgba(0, 0, 0, 0.9),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(36px);
-  -webkit-backdrop-filter: blur(36px);
+  backdrop-filter: blur(48px);
+  -webkit-backdrop-filter: blur(48px);
 }
 
 .notion-unlock-dialog__header-text {
@@ -777,7 +819,9 @@
 .notion-unlock-dialog__env-tag code {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
   padding: 1px 5px;
   border-radius: 4px;
   font-family: var(--font-mono, monospace);
@@ -786,20 +830,23 @@
 .notion-unlock-dialog__input {
   width: 100%;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+  border: none;
+  box-shadow: none;
   border-radius: 8px;
   padding: 9px 12px;
   font-size: 13px;
   font-family: var(--font-mono, monospace);
   color: #ffffff;
   outline: none;
-  transition: border-color 0.14s ease, background 0.14s ease;
+  transition: background 0.14s ease;
 }
 
 .notion-unlock-dialog__input:focus {
-  border-color: rgba(249, 115, 22, 0.5);
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.35);
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 .notion-unlock-dialog__vault-note {
