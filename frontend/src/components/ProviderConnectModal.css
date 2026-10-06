@@ -1,0 +1,478 @@
+/* ============================================================================
+   Glassmorphic Provider Connect Modal (Borderless & Minimalist)
+   ============================================================================ */
+
+.glass-connect-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: glass-fade-in 0.16s ease-out;
+}
+
+@keyframes glass-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.glass-connect-modal {
+  position: relative;
+  width: 100%;
+  max-width: 660px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(16, 18, 25, 0.88);
+  backdrop-filter: blur(48px) saturate(180%);
+  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  border: none;
+  outline: none;
+  box-shadow: 0 40px 100px -10px rgba(0, 0, 0, 0.85);
+  border-radius: 18px;
+  overflow: hidden;
+  animation: glass-zoom-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ffffff;
+}
+
+@keyframes glass-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.glass-connect-modal__glow {
+  position: absolute;
+  top: -140px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 420px;
+  height: 220px;
+  background: radial-gradient(circle, rgba(129, 140, 248, 0.14) 0%, rgba(99, 102, 241, 0.04) 50%, transparent 75%);
+  pointer-events: none;
+  filter: blur(48px);
+}
+
+/* Header */
+.glass-connect-modal__header {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 24px 26px 18px 26px;
+  background: rgba(255, 255, 255, 0.015);
+  border: none;
+}
+
+.glass-connect-modal__header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+}
+
+.glass-connect-modal__header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
+}
+
+.glass-connect-modal__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.glass-connect-modal__subtitle {
+  margin: 3px 0 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: -0.01em;
+}
+
+.glass-connect-modal__close-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.12s ease;
+}
+
+.glass-connect-modal__close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* Banner Notifications */
+.glass-connect-banner {
+  margin: 10px 26px 0 26px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+}
+
+.glass-connect-banner--error {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+}
+
+.glass-connect-banner--success {
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+/* Provider List */
+.glass-connect-modal__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.glass-connect-modal__list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.glass-connect-modal__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+/* Provider Card */
+.glass-connect-card {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  transition: all 0.14s ease;
+  overflow: hidden;
+}
+
+.glass-connect-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.glass-connect-card--connected {
+  background: rgba(34, 197, 94, 0.035);
+}
+
+.glass-connect-card--active {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.glass-connect-card__main {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  gap: 14px;
+}
+
+.glass-connect-card__badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.glass-connect-card__badge-dot--active {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+.glass-connect-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.glass-connect-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.glass-connect-card__name {
+  font-size: 13.5px;
+  font-weight: 550;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+
+.glass-connect-card__live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 550;
+  text-transform: uppercase;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.12);
+  border: none;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 2px;
+}
+
+.glass-connect-card__pulse-dot {
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.glass-connect-card__plan-desc {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 2px;
+  font-weight: 450;
+}
+
+.glass-connect-card__models {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.glass-connect-card__email {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 3px;
+}
+
+.glass-connect-card__email code {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+/* Action Buttons */
+.glass-connect-card__actions {
+  flex-shrink: 0;
+}
+
+.glass-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 550;
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+
+.glass-connect-btn--connect {
+  background: #ffffff;
+  color: #0b0c10;
+}
+
+.glass-connect-btn--connect:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.12);
+}
+
+.glass-connect-btn__arrow {
+  transition: transform 0.12s ease;
+  font-size: 11px;
+}
+
+.glass-connect-btn--connect:hover .glass-connect-btn__arrow {
+  transform: translateX(2px);
+}
+
+.glass-connect-btn--disconnect {
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: none;
+}
+
+.glass-connect-btn--disconnect:hover {
+  background: rgba(239, 68, 68, 0.18);
+}
+
+.glass-connect-btn--cancel {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.65);
+  border: none;
+}
+
+.glass-connect-btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* In-Flight Tray */
+.glass-connect-card__tray {
+  padding: 12px 16px 13px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.glass-connect-tray__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 450;
+}
+
+.glass-connect-tray__spinner {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: glass-spin 0.7s linear infinite;
+}
+
+@keyframes glass-spin {
+  to { transform: rotate(360deg); }
+}
+
+.glass-connect-tray__code-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  border-radius: 6px;
+}
+
+.glass-connect-tray__code {
+  font-family: var(--font-mono, monospace);
+  font-size: 13.5px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+}
+
+.glass-connect-tray__copy-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.glass-connect-tray__copy-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.glass-connect-tray__instructions {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.glass-connect-tray__links {
+  display: flex;
+  gap: 10px;
+}
+
+.glass-connect-tray__link {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.glass-connect-tray__link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* GCP Project ID Drawer */
+.glass-connect-card__gcp-box {
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.glass-connect-gcp-title {
+  font-size: 12px;
+  font-weight: 550;
+  color: #ffffff;
+}
+
+.glass-connect-gcp-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.glass-connect-gcp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.glass-connect-gcp-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  outline: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 11.5px;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+}
+
+.glass-connect-gcp-input:focus {
+  background: rgba(255, 255, 255, 0.09);
+}
+

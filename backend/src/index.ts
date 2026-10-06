@@ -23,7 +23,18 @@ interface WsData {
   activeProjectName?: string;
   unsubscribeDevServer?: () => void;
   messageQueue?: Promise<void>;
+  send?: (msg: Record<string, unknown>) => void;
 }
+
+const activeSockets = new Set<(msg: Record<string, unknown>) => void>();
+
+// Broadcast OAuth session state changes in real-time to all connected frontend clients
+modelsService.oauthManager.onSessionUpdate((session) => {
+  const payload = { type: "oauth_update", session };
+  for (const send of activeSockets) {
+    send(payload);
+  }
+});
 
 const _server = Bun.serve<WsData>({
   port: PORT,
@@ -90,6 +101,71 @@ const _server = Bun.serve<WsData>({
       try {
         await modelsService.removeApiKey(provider);
         return Response.json({ status: "deleted", provider }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+    // Auth: List OAuth Providers
+    if (url.pathname === "/api/auth/oauth/providers" && req.method === "GET") {
+      const providers = modelsService.oauthManager.getOAuthProviders();
+      return Response.json(providers, { headers: CORS_HEADERS });
+    }
+
+    // Auth: Start OAuth Sign-in Flow
+    if (url.pathname === "/api/auth/oauth/start" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { provider?: string; projectId?: string };
+        if (!body.provider) {
+          return Response.json({ detail: "Provider is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const session = await modelsService.oauthManager.startLogin(
+          body.provider,
+          undefined,
+          { projectId: body.projectId },
+        );
+        return Response.json(session, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Auth: Check OAuth Sign-in Status
+    if (url.pathname.startsWith("/api/auth/oauth/status/") && req.method === "GET") {
+      const provider = decodeURIComponent(url.pathname.replace("/api/auth/oauth/status/", ""));
+      const session = modelsService.oauthManager.getSession(provider);
+      return Response.json({ session }, { headers: CORS_HEADERS });
+    }
+
+    // Auth: Cancel in-flight OAuth Sign-in
+    if (url.pathname === "/api/auth/oauth/cancel" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { provider?: string };
+        if (!body.provider) {
+          return Response.json({ detail: "Provider is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const cancelled = modelsService.oauthManager.cancelSession(body.provider);
+        return Response.json({ status: cancelled ? "cancelled" : "not_found", provider: body.provider }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Auth: Log out of OAuth / Credentialed Provider
+    if (url.pathname.startsWith("/api/auth/oauth/") && req.method === "DELETE") {
+      const provider = decodeURIComponent(url.pathname.replace("/api/auth/oauth/", ""));
+      try {
+        await modelsService.oauthManager.logout(provider);
+        await modelsService.removeApiKey(provider);
+        return Response.json({ status: "logged_out", provider }, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },
@@ -198,6 +274,8 @@ const _server = Bun.serve<WsData>({
         }
       };
 
+      ws.data.send = send;
+      activeSockets.add(send);
       const bridge = new SessionBridge(send, modelsService, devServerManager);
       ws.data.bridge = bridge;
 
@@ -230,11 +308,56 @@ const _server = Bun.serve<WsData>({
       const bridge = ws.data.bridge;
       if (!bridge) return;
 
+      let data: Record<string, unknown>;
+      try {
+        const text = typeof messageRaw === "string" ? messageRaw : new TextDecoder().decode(messageRaw);
+        data = JSON.parse(text) as Record<string, unknown>;
+      } catch (err) {
+        console.error("[WebSocket] Failed to parse message JSON:", err);
+        return;
+      }
+
+      const action = data.action as string | undefined;
+
+      // Immediate out-of-band control actions:
+      // Must NEVER be queued behind long-running prompt execution (prevents deadlock).
+      if (action === "stop_agent") {
+        bridge.stop().catch(err => {
+          console.error("[WebSocket] Error stopping agent:", err);
+        });
+        return;
+      }
+
+      if (action === "tool_response" || action === "ask_response") {
+        const requestId = (data.id || data.request_id || data.tool_call_id) as string;
+        const response = data.response ?? data.answer ?? data.value;
+        if (requestId) {
+          bridge.resolveUiRequest(requestId, response);
+        }
+        return;
+      }
+
+      if (action === "command_approval") {
+        const requestId = (data.request_id || data.id || data.tool_call_id) as string;
+        const approved = Boolean(data.approved);
+        const choice = approved ? "Approve" : "Deny";
+        if (requestId) {
+          bridge.resolveUiRequest(requestId, choice);
+        }
+        return;
+      }
+
+      if (action === "stop_preview") {
+        if (ws.data.activeProjectName) {
+          projectManager.getProject(ws.data.activeProjectName).then(project => {
+            devServerManager.stopDevServer(project.path);
+          }).catch(() => {});
+        }
+        return;
+      }
+
       const processMessage = async () => {
         try {
-          const text = typeof messageRaw === "string" ? messageRaw : new TextDecoder().decode(messageRaw);
-          const data = JSON.parse(text) as Record<string, unknown>;
-          const action = data.action as string | undefined;
           if (action === "open_project") {
             const projectName = (data.name as string) || "default";
             const previousProject = ws.data.activeProjectName;
@@ -282,13 +405,6 @@ const _server = Bun.serve<WsData>({
             return;
           }
 
-        if (action === "stop_preview") {
-          if (ws.data.activeProjectName) {
-            const project = await projectManager.getProject(ws.data.activeProjectName);
-            devServerManager.stopDevServer(project.path);
-          }
-          return;
-        }
 
         if (action === "restart_preview") {
           if (ws.data.activeProjectName) {
@@ -323,33 +439,8 @@ const _server = Bun.serve<WsData>({
           return;
         }
 
-        if (action === "stop_agent") {
-          await bridge.stop();
-          return;
-        }
         if (action === "list_checkpoints") {
           ws.send(JSON.stringify({ type: "checkpoint_timeline", steps: [], formatted: "No checkpoints yet." }));
-          return;
-        }
-
-        // Interactive tool clarification response
-        if (action === "tool_response" || action === "ask_response") {
-          const requestId = (data.id || data.request_id || data.tool_call_id) as string;
-          const response = data.response ?? data.answer ?? data.value;
-          if (requestId) {
-            bridge.resolveUiRequest(requestId, response);
-          }
-          return;
-        }
-
-        // Tool command approval / denial response
-        if (action === "command_approval") {
-          const requestId = (data.request_id || data.id || data.tool_call_id) as string;
-          const approved = Boolean(data.approved);
-          const choice = approved ? "Approve" : "Deny";
-          if (requestId) {
-            bridge.resolveUiRequest(requestId, choice);
-          }
           return;
         }
 
@@ -410,6 +501,9 @@ const _server = Bun.serve<WsData>({
     close(ws) {
       console.log("[WebSocket] Client disconnected");
       ws.data.unsubscribeDevServer?.();
+      if (ws.data.send) {
+        activeSockets.delete(ws.data.send);
+      }
       ws.data.bridge?.dispose().catch(() => {});
     },
   },

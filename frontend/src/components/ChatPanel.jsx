@@ -87,6 +87,7 @@ export default function ChatPanel({
   onApproveCommand,
   onDenyCommand,
   models = [],
+  providers = [],
   selectedModel,
   hardwareInfo,
   onSelectModel,
@@ -220,7 +221,28 @@ export default function ChatPanel({
     }, 50);
   };
 
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (isModelSelectorOpen) return;
+        if (selectedSubagentMsg) return;
+
+        if (isAgentRunning && onStopAgent) {
+          e.preventDefault();
+          onStopAgent();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [isAgentRunning, onStopAgent, isModelSelectorOpen, selectedSubagentMsg]);
+
   const handleKeyDown = (e) => {
+    if (e.key === 'Escape' && isAgentRunning && onStopAgent) {
+      e.preventDefault();
+      onStopAgent();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit(e);
@@ -494,14 +516,15 @@ export default function ChatPanel({
 
             <div className="chat-panel__input-footer-right">
               <span className="chat-panel__hint">
-                <kbd className="degrees-keycap">↵</kbd>
+                <kbd className="degrees-keycap">{isAgentRunning ? 'Esc' : '↵'}</kbd>
               </span>
               {isAgentRunning ? (
                 <button
                   type="button"
                   className="chat-panel__send chat-panel__send--stop"
                   onClick={onStopAgent}
-                  title="Stop agent"
+                  title="Stop agent (Esc)"
+                  aria-label="Stop agent"
                 >
                   <StopIcon />
                   <span>Stop</span>
@@ -529,6 +552,7 @@ export default function ChatPanel({
         onSelectModel={onSelectModel}
         hardwareInfo={hardwareInfo}
         models={models}
+        providers={providers}
         onRefreshModels={onRefreshModels}
       />
 

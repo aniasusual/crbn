@@ -1,9 +1,24 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { API_BASE_URL } from '../config';
 import './ModelSelector.css';
 
 const INITIAL_RENDER_COUNT = 60;
 const RENDER_BATCH_SIZE = 60;
+
+function getFriendlyOAuthTitle(providerId, loginName) {
+  if (providerId === 'anthropic') return 'Claude';
+  if (providerId === 'openai-codex') return 'ChatGPT';
+  if (providerId === 'github-copilot') return 'GitHub Copilot';
+  if (providerId === 'google-gemini-cli') return 'Google Cloud Code Assist';
+  if (providerId === 'google-antigravity') return 'Google Antigravity';
+  if (providerId === 'cursor') return 'Cursor';
+  if (providerId === 'devin') return 'Devin';
+  if (providerId === 'gitlab-duo' || providerId === 'gitlab-duo-agent') return 'GitLab Duo';
+  if (providerId === 'openrouter') return 'OpenRouter (PKCE)';
+  if (providerId === 'zai-coding-plan') return 'Z.AI GLM';
+  if (providerId === 'xai-oauth') return 'xAI Grok';
+  return loginName || 'Connect Account';
+}
 
 export default function ModelSelector({
   isOpen,
@@ -12,6 +27,7 @@ export default function ModelSelector({
   onSelectModel,
   _hardwareInfo,
   models = [],
+  providers = [],
   onRefreshModels,
 }) {
   const [selectedProvider, setSelectedProvider] = useState('all'); // 'all' | 'ready' | 'ollama' | <provider_id>
@@ -25,8 +41,44 @@ export default function ModelSelector({
   const [isSavingKey, setIsSavingKey] = useState(false);
   const [actionError, setActionError] = useState(null);
   const [actionSuccess, setActionSuccess] = useState(null);
+  const [providerCatalog, setProviderCatalog] = useState(providers || []);
+  const [oauthSession, setOauthSession] = useState(null);
+  const [isStartingOAuth, setIsStartingOAuth] = useState(false);
+  const [showApiKeyFallback, setShowApiKeyFallback] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
+  // Keep provider catalog synchronized with backend discovery
+  useEffect(() => {
+    if (providers && providers.length > 0) {
+      setProviderCatalog(providers);
+    } else {
+      fetch(`${API_BASE_URL}/api/system/models-and-hardware`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.providers) setProviderCatalog(data.providers);
+        })
+        .catch(() => {});
+    }
+  }, [providers]);
   const modelListRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (unlockTargetModel) {
+          setUnlockTargetModel(null);
+          setApiKeyInput('');
+          setActionError(null);
+        } else {
+          onClose();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, unlockTargetModel, onClose]);
 
   const handleProviderChange = (pId) => {
     setSelectedProvider(pId);
@@ -69,13 +121,24 @@ export default function ModelSelector({
       }
     }
 
-    const list = Array.from(map.values());
+    const list = Array.from(map.values()).map((entry) => {
+      const backendMeta = providerCatalog.find((p) => p.id === entry.id);
+      return {
+        ...entry,
+        supports_oauth: Boolean(backendMeta?.supports_oauth),
+        oauth_kind: backendMeta?.oauth_kind,
+        login_name: backendMeta?.login_name,
+        account_email: backendMeta?.account_email,
+        account_id: backendMeta?.account_id,
+        has_auth: entry.has_auth || Boolean(backendMeta?.has_auth),
+      };
+    });
     list.sort((a, b) => {
       if (a.has_auth !== b.has_auth) return a.has_auth ? -1 : 1;
       return a.label.localeCompare(b.label);
     });
     return list;
-  }, [models]);
+  }, [models, providerCatalog]);
 
   const readyModelsCount = useMemo(() => {
     return models.filter((m) => m.has_auth || m.installed).length;
@@ -132,11 +195,11 @@ export default function ModelSelector({
     }
   };
 
-  const handleSelect = (model) => {
+  const handleSelect = useCallback((model) => {
     const targetId = model.canonical_id || model.id;
     onSelectModel(targetId);
     onClose();
-  };
+  }, [onSelectModel, onClose]);
 
   const handleModelCardClick = (model) => {
     const isReady = Boolean(model.has_auth || model.installed);
@@ -193,19 +256,119 @@ export default function ModelSelector({
     }
   };
 
-  const handleRemoveApiKey = async (provider) => {
+  // ──────────────────────────────────────────────
+  // OAuth Handshake Operations
+  // ──────────────────────────────────────────────
+
+  const handleStartOAuth = async (providerId) => {
+    setIsStartingOAuth(true);
+    setActionError(null);
+    setActionSuccess(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/api-key/${encodeURIComponent(provider)}`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/oauth/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: providerId }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to start OAuth handshake');
+      }
+      const session = await response.json();
+      setOauthSession(session);
+
+      // Launch authorization page in system browser
+      const targetUrl = session.launchUrl || session.authUrl;
+      if (targetUrl) {
+        if (typeof window !== 'undefined' && window.require) {
+          try {
+            const { shell } = window.require('electron');
+            shell.openExternal(targetUrl);
+          } catch {
+            window.open(targetUrl, '_blank', 'noopener,noreferrer');
+          }
+        } else {
+          window.open(targetUrl, '_blank', 'noopener,noreferrer');
+        }
+      }
+    } catch (err) {
+      setActionError(`OAuth error: ${err.message}`);
+    } finally {
+      setIsStartingOAuth(false);
+    }
+  };
+
+  const handleCancelOAuth = async () => {
+    if (!oauthSession) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/oauth/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: oauthSession.provider }),
+      });
+    } catch {}
+    setOauthSession(null);
+  };
+
+  const handleDisconnectProvider = async (providerId) => {
+    if (!window.confirm(`Disconnect ${providerId}? This removes saved credentials.`)) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/oauth/${encodeURIComponent(providerId)}`, {
         method: 'DELETE',
       });
-      if (response.ok) {
-        setActionSuccess(`Disconnected ${provider}`);
+      if (res.ok) {
+        setActionSuccess(`Disconnected ${providerId}`);
         if (onRefreshModels) await onRefreshModels();
+        setUnlockTargetModel(null);
+        setOauthSession(null);
       }
     } catch (err) {
       setActionError(`Failed to disconnect: ${err.message}`);
     }
   };
+
+  // Poll active OAuth handshake until completion or cancellation
+  useEffect(() => {
+    if (
+      !oauthSession ||
+      oauthSession.status === 'completed' ||
+      oauthSession.status === 'failed' ||
+      oauthSession.status === 'cancelled'
+    ) {
+      return;
+    }
+
+    const provider = oauthSession.provider;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/auth/oauth/status/${encodeURIComponent(provider)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.session) {
+            setOauthSession(data.session);
+            if (data.session.status === 'completed') {
+              setActionSuccess(`Successfully connected ${provider}!`);
+              if (onRefreshModels) await onRefreshModels();
+              if (unlockTargetModel) {
+                const target = unlockTargetModel;
+                setTimeout(() => {
+                  setUnlockTargetModel(null);
+                  setOauthSession(null);
+                  handleSelect(target);
+                }, 900);
+              }
+            } else if (data.session.status === 'failed') {
+              setActionError(data.session.error || 'Authentication handshake failed');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('OAuth status poll error:', err);
+      }
+    }, 1200);
+
+    return () => clearInterval(interval);
+  }, [oauthSession, unlockTargetModel, onRefreshModels, handleSelect]);
 
   if (!isOpen) return null;
 
@@ -379,13 +542,20 @@ export default function ModelSelector({
                 </span>
               </span>
               {currentProviderInfo && currentProviderInfo.has_auth && (
-                <button
-                  className="notion-btn notion-btn--tiny-disconnect"
-                  onClick={() => handleRemoveApiKey(currentProviderInfo.id)}
-                  title="Remove saved API key"
-                >
-                  Disconnect
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {currentProviderInfo.account_email && (
+                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                      {currentProviderInfo.account_email}
+                    </span>
+                  )}
+                  <button
+                    className="notion-btn notion-btn--tiny-disconnect"
+                    onClick={() => handleDisconnectProvider(currentProviderInfo.id)}
+                    title="Remove saved credentials"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               )}
             </div>
 
@@ -501,77 +671,211 @@ export default function ModelSelector({
           </main>
         </div>
 
-        {/* Focused Provider Unlock Dialog */}
-        {unlockTargetModel && (
-          <div
-            className="notion-unlock-dialog__backdrop"
-            onClick={() => setUnlockTargetModel(null)}
-          >
+        {/* Focused Provider Unlock / OAuth Dialog */}
+        {unlockTargetModel && (() => {
+          const targetProviderMeta = providerStats.find((p) => p.id === unlockTargetModel.provider);
+          const supportsOAuth = Boolean(targetProviderMeta?.supports_oauth);
+          const oauthTitle = getFriendlyOAuthTitle(
+            unlockTargetModel.provider,
+            targetProviderMeta?.login_name || unlockTargetModel.provider_label
+          );
+          const isOAuthActive =
+            oauthSession &&
+            (oauthSession.status === 'awaiting_user' || oauthSession.status === 'exchanging');
+
+          const extractUserCode = (text) => {
+            if (!text) return null;
+            const match = text.match(/\b([A-Z0-9]{4,8}-[A-Z0-9]{4,8})\b/i);
+            return match ? match[1] : null;
+          };
+
+          const deviceCode = oauthSession?.instructions ? extractUserCode(oauthSession.instructions) : null;
+
+          return (
             <div
-              className="notion-unlock-dialog__card"
-              onClick={(e) => e.stopPropagation()}
+              className="notion-unlock-dialog__backdrop"
+              onClick={() => {
+                if (!isOAuthActive) {
+                  setUnlockTargetModel(null);
+                  setOauthSession(null);
+                }
+              }}
             >
-              <div className="notion-unlock-dialog__header">
-                <div className="notion-unlock-dialog__header-text">
-                  <h3 className="notion-unlock-dialog__title">
-                    Configure {unlockTargetModel.provider_label || unlockTargetModel.provider}
-                  </h3>
-                  <p className="notion-unlock-dialog__subtitle">
-                    Enter your API key to use <strong>{unlockTargetModel.name}</strong>. This unlocks all models under {unlockTargetModel.provider_label || unlockTargetModel.provider}.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveApiKey} className="notion-unlock-dialog__form">
-                <div className="notion-unlock-dialog__field">
-                  <div className="notion-unlock-dialog__field-header">
-                    <label className="notion-unlock-dialog__label">API Key</label>
-                    {unlockTargetModel.env_var && (
-                      <span className="notion-unlock-dialog__env-tag">
-                        <code>{unlockTargetModel.env_var}</code>
-                      </span>
-                    )}
+              <div
+                className="notion-unlock-dialog__card"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="notion-unlock-dialog__header">
+                  <div className="notion-unlock-dialog__header-text">
+                    <h3 className="notion-unlock-dialog__title">
+                      Connect {unlockTargetModel.provider_label || unlockTargetModel.provider}
+                    </h3>
+                    <p className="notion-unlock-dialog__subtitle">
+                      To use <strong>{unlockTargetModel.name}</strong>, connect your provider account.
+                    </p>
                   </div>
-                  <input
-                    type="password"
-                    className="notion-unlock-dialog__input"
-                    placeholder={`Enter ${unlockTargetModel.env_var || 'API key'}`}
-                    value={apiKeyInput}
-                    onChange={(e) => setApiKeyInput(e.target.value)}
-                    autoFocus
-                  />
                 </div>
 
-                <p className="notion-unlock-dialog__vault-note">
-                  Stored locally in your agent vault (<code>~/.omp/agent/agent.db</code>).
-                </p>
+                {/* OAuth / Subscription Sign-in Section */}
+                {supportsOAuth && (
+                  <div className="notion-unlock-dialog__oauth-section">
+                    <div className="notion-unlock-dialog__oauth-header">
+                      <span className="notion-unlock-dialog__oauth-title">
+                        Connect Account
+                      </span>
+                    </div>
+
+                    <p className="notion-unlock-dialog__oauth-desc">
+                      Sign in directly with your <strong>{oauthTitle}</strong> account without an API key.
+                    </p>
+
+                    {!oauthSession || oauthSession.status === 'cancelled' || oauthSession.status === 'failed' ? (
+                      <button
+                        type="button"
+                        className="notion-unlock-dialog__oauth-btn"
+                        onClick={() => handleStartOAuth(unlockTargetModel.provider)}
+                        disabled={isStartingOAuth}
+                      >
+                        <span>{isStartingOAuth ? 'Starting...' : `Sign in with ${oauthTitle}`}</span>
+                      </button>
+                    ) : isOAuthActive ? (
+                      <div className="notion-unlock-dialog__status-card">
+                        <div className="notion-unlock-dialog__status-header">
+                          <span className="notion-unlock-dialog__spinner" />
+                          <span>Waiting for browser authorization...</span>
+                        </div>
+
+                        {deviceCode && (
+                          <div className="notion-unlock-dialog__code-wrap">
+                            <span className="notion-unlock-dialog__code-val">{deviceCode}</span>
+                            <button
+                              type="button"
+                              className="notion-unlock-dialog__copy-code-btn"
+                              onClick={() => {
+                                navigator.clipboard.writeText(deviceCode);
+                                setCopiedCode(true);
+                                setTimeout(() => setCopiedCode(false), 2000);
+                              }}
+                            >
+                              {copiedCode ? 'Copied!' : 'Copy Code'}
+                            </button>
+                          </div>
+                        )}
+
+                        {oauthSession.instructions && (
+                          <p style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.6)', margin: 0 }}>
+                            {oauthSession.instructions}
+                          </p>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {(oauthSession.launchUrl || oauthSession.authUrl) && (
+                            <a
+                              href={oauthSession.launchUrl || oauthSession.authUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="notion-unlock-dialog__browser-btn"
+                            >
+                              Open Browser Sign-in ↗
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            className="notion-btn notion-btn--secondary"
+                            style={{ fontSize: '12px', padding: '6px 12px' }}
+                            onClick={handleCancelOAuth}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : oauthSession.status === 'completed' ? (
+                      <div style={{ padding: '10px', background: 'rgba(34,197,94,0.15)', borderRadius: '6px', color: '#4ade80', fontSize: '12.5px', fontWeight: '500' }}>
+                        Successfully connected. Selecting model...
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {supportsOAuth && (
+                  <div className="notion-unlock-dialog__divider">
+                    <span>or</span>
+                  </div>
+                )}
+
+                {/* API Key Form */}
+                {supportsOAuth && !showApiKeyFallback ? (
+                  <div style={{ textAlign: 'center' }}>
+                    <button
+                      type="button"
+                      className="notion-unlock-dialog__toggle-btn"
+                      onClick={() => setShowApiKeyFallback(true)}
+                    >
+                      <span>Enter manual API key instead ▼</span>
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSaveApiKey} className="notion-unlock-dialog__form">
+                    <div className="notion-unlock-dialog__field">
+                      <div className="notion-unlock-dialog__field-header">
+                        <label className="notion-unlock-dialog__label">API Key</label>
+                        {unlockTargetModel.env_var && (
+                          <span className="notion-unlock-dialog__env-tag">
+                            <code>{unlockTargetModel.env_var}</code>
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="password"
+                        className="notion-unlock-dialog__input"
+                        placeholder={`Enter ${unlockTargetModel.env_var || 'API key'}`}
+                        value={apiKeyInput}
+                        onChange={(e) => setApiKeyInput(e.target.value)}
+                        autoFocus={!supportsOAuth}
+                      />
+                    </div>
+
+                    <p className="notion-unlock-dialog__vault-note">
+                      Stored locally in your agent vault (<code>~/.omp/agent/agent.db</code>).
+                    </p>
+
+                    <div className="notion-unlock-dialog__actions">
+                      <button
+                        type="submit"
+                        className="notion-btn notion-btn--primary"
+                        disabled={isSavingKey || !apiKeyInput.trim()}
+                      >
+                        {isSavingKey ? 'Saving...' : 'Save API Key'}
+                      </button>
+                      <button
+                        type="button"
+                        className="notion-btn notion-btn--secondary"
+                        onClick={() => {
+                          setUnlockTargetModel(null);
+                          setOauthSession(null);
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 {actionError && (
-                  <div className="notion-modal__banner notion-modal__banner--error">
+                  <div className="notion-modal__banner notion-modal__banner--error" style={{ marginTop: '10px' }}>
                     <span>{actionError}</span>
                   </div>
                 )}
 
-                <div className="notion-unlock-dialog__actions">
-                  <button
-                    type="submit"
-                    className="notion-btn notion-btn--primary"
-                    disabled={isSavingKey || !apiKeyInput.trim()}
-                  >
-                    {isSavingKey ? 'Saving...' : 'Save and Select'}
-                  </button>
-                  <button
-                    type="button"
-                    className="notion-btn notion-btn--secondary"
-                    onClick={() => setUnlockTargetModel(null)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
+                {actionSuccess && (
+                  <div className="notion-modal__banner notion-modal__banner--success" style={{ marginTop: '10px' }}>
+                    <span>{actionSuccess}</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

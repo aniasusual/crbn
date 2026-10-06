@@ -6,6 +6,7 @@ import {
   ModelRegistry,
   type AuthStorage,
 } from "../../pi-harness/packages/coding-agent/src/index";
+import { OAuthManager, type OAuthProviderMetadata, type PendingOAuthSession } from "./oauth-manager";
 
 export interface HardwareInfo {
   os: string;
@@ -21,6 +22,12 @@ export interface ProviderMetadata {
   env_var: string | null;
   has_auth: boolean;
   model_count: number;
+  supports_oauth: boolean;
+  oauth_kind?: "oauth-code" | "device-code" | "custom" | "api-key";
+  login_name?: string;
+  account_email?: string;
+  account_id?: string;
+  org_name?: string;
 }
 
 export interface ModelCatalogEntry {
@@ -76,6 +83,14 @@ function formatContext(tokens: number | null | undefined): string {
 export class ModelsService {
   private registryPromise: Promise<ModelRegistry> | null = null;
   private authStoragePromise: Promise<AuthStorage> | null = null;
+  readonly oauthManager: OAuthManager;
+
+  constructor() {
+    this.oauthManager = new OAuthManager(
+      () => this.getAuthStorage(),
+      () => this.getRegistry(),
+    );
+  }
 
   async getAuthStorage(): Promise<AuthStorage> {
     if (!this.authStoragePromise) {
@@ -167,6 +182,8 @@ export class ModelsService {
 
     // 1. Determine auth status and build provider list
     const rawProviders = Object.keys(MODELS) as Array<keyof typeof MODELS>;
+    const oauthProviders = this.oauthManager.getOAuthProviders();
+    const authStorage = await this.getAuthStorage();
 
     for (const pid of rawProviders) {
       const pEntry = entries[pid] ?? providerEntry(pid);
@@ -174,6 +191,13 @@ export class ModelsService {
       const envVar = pEntry?.envVars?.[0] ?? null;
       const hasAuth = registry.hasConcreteAuth(pid);
       const modelsForP = Object.keys(MODELS[pid] || {});
+
+      const oauthMatch = oauthProviders.find(
+        (p) =>
+          (p.id === pid || p.storeCredentialsAs === pid) &&
+          (p.kind === "oauth-code" || p.kind === "device-code" || p.kind === "custom")
+      );
+      const identity = authStorage.oauth.identity(pid);
 
       providerAuthMap.set(pid, hasAuth);
 
@@ -183,8 +207,13 @@ export class ModelsService {
         env_var: envVar,
         has_auth: hasAuth,
         model_count: modelsForP.length,
+        supports_oauth: Boolean(oauthMatch),
+        oauth_kind: oauthMatch?.kind,
+        login_name: oauthMatch?.name,
+        account_email: identity?.email,
+        account_id: identity?.accountId,
+        org_name: identity?.orgName,
       });
-
       // 2. Add all bundled models for this provider
       const providerModelsMap = MODELS[pid] as Record<string, any>;
       for (const mId in providerModelsMap) {

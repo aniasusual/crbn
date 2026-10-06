@@ -3,6 +3,7 @@ import {
   createAgentSession,
   SessionManager,
   AgentRegistry,
+  USER_INTERRUPT_LABEL,
   type AgentSession,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
@@ -41,6 +42,7 @@ export class SessionBridge {
   private activeProjectPath: string | null = null;
   private activeModel: string = "gemini-2.5-flash";
   private isGenerating: boolean = false;
+  private wasStoppedByUser: boolean = false;
   private initPromise: Promise<void> | null = null;
   private activeToolCalls = new Map<string, { name: string; args: Record<string, unknown> }>();
   private activeTurns: Record<string, unknown>[] = [];
@@ -344,9 +346,11 @@ export class SessionBridge {
     }
 
     if (this.isGenerating) {
-      await session.abort().catch(() => {});
+      this.wasStoppedByUser = true;
+      await session.abort({ reason: USER_INTERRUPT_LABEL }).catch(() => {});
     }
 
+    this.wasStoppedByUser = false;
     this.isGenerating = true;
 
     // Record user message in UI events with any attached media
@@ -395,10 +399,12 @@ export class SessionBridge {
         images: images.length > 0 ? images : undefined,
       });
     } catch (err) {
-      this.send({
-        type: "status",
-        content: `Harness Error: ${err instanceof Error ? err.message : String(err)}`,
-      });
+      if (!this.wasStoppedByUser) {
+        this.send({
+          type: "status",
+          content: `Harness Error: ${err instanceof Error ? err.message : String(err)}`,
+        });
+      }
     } finally {
       this.isGenerating = false;
     }
@@ -427,13 +433,14 @@ export class SessionBridge {
     }
     this.pendingUiRequests.clear();
 
-    if (this.session && this.isGenerating) {
-      await this.session.abort().catch(() => {});
+    if (this.session) {
+      this.wasStoppedByUser = true;
       this.isGenerating = false;
       this.send({
         type: "status",
         content: "Stopped: Agent execution stopped by user.",
       });
+      await this.session.abort({ reason: USER_INTERRUPT_LABEL }).catch(() => {});
     }
   }
 
@@ -485,29 +492,34 @@ export class SessionBridge {
 
       case "message_end": {
         const msg = event.message;
-        if (msg && msg.role === "assistant" && Array.isArray(msg.content)) {
-          let text = "";
-          for (const block of msg.content) {
-            if (
-              block &&
-              typeof block === "object" &&
-              "type" in block &&
-              block.type === "text" &&
-              "text" in block &&
-              typeof block.text === "string"
-            ) {
-              text += block.text;
-            }
+        if (msg && msg.role === "assistant") {
+          if (msg.stopReason === "aborted") {
+            this.wasStoppedByUser = true;
           }
-          if (text.trim().length > 0) {
-            const assistantMsg: Record<string, unknown> = {
-              role: "assistant",
-              content: text,
-              timestamp,
-            };
-            this.activeTurns.push(assistantMsg);
-            if (this.activeProjectPath) {
-              ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg).catch(() => {});
+          if (Array.isArray(msg.content)) {
+            let text = "";
+            for (const block of msg.content) {
+              if (
+                block &&
+                typeof block === "object" &&
+                "type" in block &&
+                block.type === "text" &&
+                "text" in block &&
+                typeof block.text === "string"
+              ) {
+                text += block.text;
+              }
+            }
+            if (text.trim().length > 0) {
+              const assistantMsg: Record<string, unknown> = {
+                role: "assistant",
+                content: text,
+                timestamp,
+              };
+              this.activeTurns.push(assistantMsg);
+              if (this.activeProjectPath) {
+                ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg).catch(() => {});
+              }
             }
           }
         }
@@ -653,12 +665,22 @@ export class SessionBridge {
       }
 
       case "agent_end": {
+        const wasStopped = this.wasStoppedByUser;
+        this.wasStoppedByUser = false;
         this.isGenerating = false;
-        this.send({
-          type: "status",
-          content: "Done",
-          timestamp,
-        });
+        if (wasStopped) {
+          this.send({
+            type: "status",
+            content: "Stopped: Agent execution stopped by user.",
+            timestamp,
+          });
+        } else {
+          this.send({
+            type: "status",
+            content: "Done",
+            timestamp,
+          });
+        }
         this.emitContextTelemetry();
         break;
       }

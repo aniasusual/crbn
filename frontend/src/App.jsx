@@ -37,6 +37,7 @@ export default function App() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [hardwareInfo, setHardwareInfo] = useState(null);
   const [models, setModels] = useState([]);
+  const [providers, setProviders] = useState([]);
   const [globalDefaultModel, setGlobalDefaultModel] = useState(() => {
     return localStorage.getItem('80degrees_selected_model') || 'gemini-3.8-flash';
   });
@@ -84,6 +85,7 @@ export default function App() {
         const data = await response.json();
         setHardwareInfo(data.hardware);
         setModels(data.models || []);
+        setProviders(data.providers || []);
 
         // Validate or set default selected model
         if (data.models && data.models.length > 0) {
@@ -762,8 +764,21 @@ export default function App() {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'stop_agent' }));
     }
-    updateTab(activeTabId, { agentStatus: null });
+    updateTab(activeTabId, { agentStatus: null, pendingApproval: null });
   }, [activeTabId, updateTab]);
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        const tab = tabs.find((t) => t.id === activeTabId);
+        if (tab && (tab.agentStatus === 'generating' || tab.agentStatus === 'awaiting_human')) {
+          handleStopAgent();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [tabs, activeTabId, handleStopAgent]);
 
   const handleApproveCommand = useCallback(
     (requestId) => {
@@ -822,6 +837,7 @@ export default function App() {
           isTransitioning={isTransitioning}
           hardwareInfo={hardwareInfo}
           models={models}
+          providers={providers}
           selectedModel={globalDefaultModel}
           onSelectModel={(mId) => {
             setGlobalDefaultModel(mId);
@@ -853,6 +869,7 @@ export default function App() {
           onDenyCommand={handleDenyCommand}
           hardwareInfo={hardwareInfo}
           models={models}
+          providers={providers}
           selectedModel={activeTab.model}
           onSelectModel={handleSelectModel}
           onRefreshModels={fetchModelsAndHardware}

@@ -145,6 +145,73 @@
   letter-spacing: -0.01em;
 }
 
+/* Direction Banner above Input (Borderless & Minimal) */
+.degrees-welcome__oauth-direction {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: none;
+  border-radius: 12px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.degrees-welcome__oauth-direction:hover {
+  background: rgba(255, 255, 255, 0.065);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3);
+}
+.degrees-welcome__oauth-direction-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.degrees-welcome__oauth-sparkle {
+  color: #a5b4fc;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.degrees-welcome__oauth-text {
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 450;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.degrees-welcome__oauth-badge-btn {
+  font-size: 11px;
+  font-weight: 550;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.14s ease;
+}
+
+.degrees-welcome__oauth-direction:hover .degrees-welcome__oauth-badge-btn {
+  background: #ffffff;
+  color: #0b0c10;
+}
+
 /* Timeline Composer */
 .degrees-welcome__form {
   width: 100%;

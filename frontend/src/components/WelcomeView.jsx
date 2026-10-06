@@ -1,5 +1,6 @@
 import { useState, useEffect, useId, useMemo } from 'react';
 import ModelSelector from './ModelSelector';
+import ProviderConnectModal from './ProviderConnectModal';
 import AttachmentRibbon from './AttachmentRibbon';
 import { ShaderBackground } from '@/components/ui/repeat-start';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
@@ -15,6 +16,7 @@ export default function WelcomeView({
   isTransitioning = false,
   hardwareInfo,
   models = [],
+  providers = [],
   selectedModel,
   onSelectModel,
   onRefreshModels,
@@ -29,6 +31,7 @@ export default function WelcomeView({
   const [projectName, setProjectName] = useState('');
   const [isGeneratingName, setIsGeneratingName] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const textareaId = useId();
 
   const {
@@ -201,6 +204,20 @@ export default function WelcomeView({
                 A creative studio for full-stack software. Describe your concept in natural language; we'll compose, build, and run it locally.
               </p>
             </header>
+
+            {/* Direction banner for users without an API key */}
+            <div
+              className="degrees-welcome__oauth-direction"
+              onClick={() => setIsConnectModalOpen(true)}
+              title="Connect Claude, ChatGPT, Copilot and more"
+            >
+              <div className="degrees-welcome__oauth-direction-left">
+                <span className="degrees-welcome__oauth-text">
+                  No API key required — connect Claude, ChatGPT, Copilot and more
+                </span>
+              </div>
+              <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>
+            </div>
 
             {/* Main Creative Input Box (Timeline Composer) */}
             <form
@@ -468,6 +485,15 @@ export default function WelcomeView({
         onSelectModel={onSelectModel}
         hardwareInfo={hardwareInfo}
         models={models}
+        providers={providers}
+        onRefreshModels={onRefreshModels}
+      />
+
+      {/* Glassmorphic Provider Connect Modal */}
+      <ProviderConnectModal
+        isOpen={isConnectModalOpen}
+        onClose={() => setIsConnectModalOpen(false)}
+        providers={providers}
         onRefreshModels={onRefreshModels}
       />
     </div>

@@ -8,6 +8,7 @@ export default function WorkspaceView({
   onSendMessage,
   onToolResponse,
   isConnected,
+  isAgentRunning,
   agentStatus = null,
   onClearStatus,
   previewData,
@@ -21,6 +22,7 @@ export default function WorkspaceView({
   onDenyCommand,
   hardwareInfo,
   models = [],
+  providers = [],
   selectedModel,
   onSelectModel,
   onRefreshModels,
@@ -93,12 +95,14 @@ export default function WorkspaceView({
             onSendMessage={onSendMessage}
             onToolResponse={onToolResponse}
             isConnected={isConnected}
+            isAgentRunning={isAgentRunning ?? (agentStatus === 'generating')}
             agentStatus={agentStatus}
             onClearStatus={onClearStatus}
             pendingApproval={pendingApproval}
             onApproveCommand={onApproveCommand}
             onDenyCommand={onDenyCommand}
             models={models}
+            providers={providers}
             selectedModel={selectedModel}
             hardwareInfo={hardwareInfo}
             onSelectModel={onSelectModel}
