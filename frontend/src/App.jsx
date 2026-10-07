@@ -689,6 +689,37 @@ export default function App() {
     },
     [globalDefaultModel, handleOpenProject]
   );
+  // Handle Cloning and Building on a GitHub Repository
+  const handleConnectAndBuild = useCallback(
+    async (repo, prompt, attachments, targetBranch) => {
+      try {
+        setIsTransitioning(true);
+        const branchToUse = targetBranch || repo.default_branch;
+        const response = await fetch(`${API_BASE_URL}/api/github/clone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            full_name: repo.full_name,
+            branch: branchToUse,
+            model: globalDefaultModel,
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to clone repository');
+        }
+        setWelcomePrompt('');
+        handleOpenProject(data, prompt, attachments);
+        setIsTransitioning(false);
+      } catch (err) {
+        console.error('Failed to clone and build on repository:', err);
+        alert(`Failed to clone and build on repository: ${err instanceof Error ? err.message : String(err)}`);
+        setIsTransitioning(false);
+      }
+    },
+    [globalDefaultModel, handleOpenProject]
+  );
+
 
   // Handle Closing a Tab
   const handleCloseTab = useCallback(
@@ -914,7 +945,7 @@ export default function App() {
   );
 
   const handleBranchFromStep = useCallback(
-    (stepId, branchName) => {
+    (stepId, branchName, fromBranch) => {
       if (!activeTabId) return;
       const ws = socketsRef.current.get(activeTabId);
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -923,6 +954,7 @@ export default function App() {
             action: 'create_branch',
             branch_name: branchName,
             from_step_id: stepId,
+            from_branch: fromBranch,
           })
         );
       }
@@ -949,6 +981,7 @@ export default function App() {
       {currentView === 'welcome' && (
         <WelcomeView
           onSubmit={handleCreateProject}
+          onConnectAndBuild={handleConnectAndBuild}
           onOpenProject={(proj) => handleOpenProject(proj)}
           onDeleteProject={handleDeleteProjectFromTabs}
           isTransitioning={isTransitioning}

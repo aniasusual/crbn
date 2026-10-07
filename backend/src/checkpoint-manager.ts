@@ -1,10 +1,6 @@
 import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
 import * as path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const pexecFile = promisify(execFile);
 export const CHECKPOINTS_FILENAME = ".80degrees_checkpoints.json";
 export const BRANCHES_FILENAME = ".80degrees_branches.json";
 
@@ -24,6 +20,7 @@ export interface ProjectBranch {
   source_step_id: string;
   source_commit: string;
   created_at: string;
+  parent_branch?: string | null;
   leaf_entry_id?: string | null;
 }
 
@@ -43,20 +40,35 @@ export class CheckpointManager {
   /**
    * Run a git command in the target project directory.
    */
-  private static async runGit(projectPath: string, args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  private static async runGit(
+    projectPath: string,
+    args: string[]
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     try {
-      const { stdout, stderr } = await pexecFile("git", args, {
+      const proc = Bun.spawn(["git", ...args], {
         cwd: projectPath,
-        maxBuffer: 10 * 1024 * 1024,
+        stdout: "pipe",
+        stderr: "pipe",
+        env: {
+          ...process.env,
+          PATH: `${process.env.PATH || ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+          GIT_TERMINAL_PROMPT: "0",
+        },
       });
-      return { stdout: (stdout || "").trim(), stderr: (stderr || "").trim(), exitCode: 0 };
-    } catch (err: unknown) {
-      const e = err as { stdout?: string; stderr?: string; code?: number; message?: string };
+
+      const stdoutPromise = new Response(proc.stdout).text().catch(() => "");
+      const stderrPromise = new Response(proc.stderr).text().catch(() => "");
+      const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+      await proc.exited;
+
       return {
-        stdout: (e.stdout || "").trim(),
-        stderr: (e.stderr || e.message || "").trim(),
-        exitCode: typeof e.code === "number" ? e.code : 1,
+        stdout: stdout.trim(),
+        stderr: stderr.trim(),
+        exitCode: proc.exitCode ?? 0,
       };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { stdout: "", stderr: msg, exitCode: 1 };
     }
   }
 
@@ -122,10 +134,27 @@ export class CheckpointManager {
     try {
       const raw = await fs.readFile(filePath, "utf-8");
       const data = JSON.parse(raw) as CheckpointsPayload;
-      return Array.isArray(data.steps) ? data.steps : [];
-    } catch {
-      return [];
+      if (Array.isArray(data.steps) && data.steps.length > 0) {
+        return data.steps;
+      }
+    } catch {}
+
+    // If file still doesn't exist or had empty steps but .git exists, seed from HEAD
+    if (fsSync.existsSync(path.join(projectPath, ".git"))) {
+      const hashRes = await this.runGit(projectPath, ["rev-parse", "HEAD"]);
+      const initialHash = hashRes.stdout || "init";
+      const initialStep: CheckpointStep = {
+        step_id: "step_0",
+        step_number: 0,
+        commit_hash: initialHash,
+        prompt: "Initial Repository State",
+        timestamp: new Date().toISOString(),
+      };
+      await this.saveCheckpoints(projectPath, [initialStep]);
+      return [initialStep];
     }
+
+    return [];
   }
 
   /**
@@ -264,19 +293,23 @@ export class CheckpointManager {
     const initialHash = steps[0]?.commit_hash || "init";
     const now = new Date().toISOString();
 
+    const branchListRes = await this.runGit(projectPath, ["branch", "--list", "--format=%(refname:short)"]);
+    const rawBranchNames = branchListRes.stdout
+      ? branchListRes.stdout.split("\n").map((b) => b.trim()).filter(Boolean)
+      : [currentGit || "main"];
+    const allNames = Array.from(new Set([currentGit || "main", ...rawBranchNames]));
+
     const initialPayload: BranchStatePayload = {
-      active_branch: "main",
-      branches: [
-        {
-          id: "b_main",
-          name: "main",
-          git_branch: currentGit || "main",
-          source_step_id: "step_0",
-          source_commit: initialHash,
-          created_at: now,
-          leaf_entry_id: steps[steps.length - 1]?.entry_id ?? null,
-        },
-      ],
+      active_branch: currentGit || "main",
+      branches: allNames.map((bName, idx) => ({
+        id: `b_${bName}_${idx}`,
+        name: bName,
+        git_branch: bName,
+        source_step_id: "step_0",
+        source_commit: initialHash,
+        created_at: now,
+        leaf_entry_id: steps[steps.length - 1]?.entry_id ?? null,
+      })),
     };
 
     await this.saveBranches(projectPath, initialPayload);
@@ -335,6 +368,7 @@ export class CheckpointManager {
     branchName: string,
     fromStepId: string,
     leafEntryId?: string | null,
+    fromBranch?: string,
   ): Promise<ProjectBranch> {
     await this.ensureGitRepo(projectPath);
     const state = await this.getBranches(projectPath);
@@ -347,20 +381,41 @@ export class CheckpointManager {
       finalName = `${rawName}-${counter}`;
       counter++;
     }
+    const parentBranchName = fromBranch || state.active_branch || "main";
 
     // 1. Commit any in-flight changes on active branch so work isn't lost
     await this.commitPendingChanges(projectPath, `WIP on ${state.active_branch}`);
 
-    // 2. Resolve source commit from checkpoint
+    // 2. Resolve source commit from checkpoint or parent branch HEAD
     const steps = await this.getCheckpoints(projectPath);
-    const targetStep = steps.find((s) => s.step_id === fromStepId) || steps[steps.length - 1];
-    if (!targetStep?.commit_hash) {
-      throw new Error(`Target checkpoint "${fromStepId}" has no valid Git commit.`);
+    let targetStep = steps.find((s) => s.step_id === fromStepId);
+    let targetCommit: string | null = targetStep?.commit_hash || null;
+    let targetStepId = targetStep?.step_id || fromStepId;
+
+    if (!targetCommit && fromBranch) {
+      const parentBranchObj = state.branches.find(
+        (b) => b.name === fromBranch || b.git_branch === fromBranch
+      );
+      if (parentBranchObj) {
+        const revRes = await this.runGit(projectPath, ["rev-parse", parentBranchObj.git_branch]);
+        if (revRes.exitCode === 0 && revRes.stdout) {
+          targetCommit = revRes.stdout;
+        }
+      }
     }
 
+    if (!targetCommit) {
+      const fallback = steps[steps.length - 1];
+      targetCommit = fallback?.commit_hash || null;
+      targetStepId = fallback?.step_id || "step_0";
+    }
+
+    if (!targetCommit) {
+      throw new Error(`Target checkpoint "${fromStepId}" has no valid Git commit.`);
+    }
     // 3. Create and checkout the Git branch
     const gitBranch = this.sanitizeGitBranchName(finalName);
-    const checkoutRes = await this.runGit(projectPath, ["checkout", "-b", gitBranch, targetStep.commit_hash]);
+    const checkoutRes = await this.runGit(projectPath, ["checkout", "-b", gitBranch, targetCommit]);
     if (checkoutRes.exitCode !== 0) {
       const fallback = await this.runGit(projectPath, ["checkout", gitBranch]);
       if (fallback.exitCode !== 0) {
@@ -372,12 +427,12 @@ export class CheckpointManager {
       id: `b_${Date.now()}`,
       name: finalName,
       git_branch: gitBranch,
-      source_step_id: targetStep.step_id,
-      source_commit: targetStep.commit_hash,
+      source_step_id: targetStepId,
+      source_commit: targetCommit,
       created_at: new Date().toISOString(),
-      leaf_entry_id: leafEntryId ?? targetStep.entry_id ?? null,
+      parent_branch: parentBranchName,
+      leaf_entry_id: leafEntryId ?? null,
     };
-
     state.branches.push(newBranch);
     state.active_branch = finalName;
     await this.saveBranches(projectPath, state);
@@ -487,8 +542,8 @@ export class CheckpointManager {
     const allCheckpoints = await this.getCheckpoints(projectPath);
 
     const enriched = branchState.branches.map((b) => {
-      let parentBranch: string | null = null;
-      if (b.name !== "main") {
+      let parentBranch: string | null = b.parent_branch || null;
+      if (!parentBranch && b.name !== "main") {
         for (const candidate of branchState.branches) {
           if (candidate.name === b.name) continue;
           if (new Date(candidate.created_at).getTime() <= new Date(b.created_at).getTime()) {
@@ -496,15 +551,20 @@ export class CheckpointManager {
           }
         }
       }
+      parentBranch = parentBranch || (b.name === "main" ? null : "main");
 
       const childBranches = branchState.branches
-        .filter((other) => other.name !== b.name && other.source_step_id && other.source_commit === b.source_commit)
+        .filter(
+          (other) =>
+            other.name !== b.name &&
+            (other.parent_branch === b.name || other.parent_branch === b.git_branch)
+        )
         .map((other) => other.name);
 
       return {
         ...b,
         is_active: b.name === branchState.active_branch,
-        parent_branch_name: b.name === "main" ? null : (parentBranch || "main"),
+        parent_branch_name: b.name === "main" ? null : parentBranch,
         child_branch_names: childBranches,
       };
     });

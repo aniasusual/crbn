@@ -1,6 +1,7 @@
 import { useState, useEffect, useId, useMemo } from 'react';
 import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
+import GitHubConnectModal from './GitHubConnectModal';
 import AttachmentRibbon from './AttachmentRibbon';
 import { ShaderBackground } from '@/components/ui/repeat-start';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
@@ -8,8 +9,37 @@ import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './WelcomeView.css';
 
+const GitHubIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+    <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+  </svg>
+);
+
+const StarIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+
+const BranchIcon = () => (
+  <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="6" y1="3" x2="6" y2="15" />
+    <circle cx="18" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M18 9a9 9 0 0 1-9 9" />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+);
+
 export default function WelcomeView({
   onSubmit,
+  onConnectAndBuild,
   onOpenProject,
   onDeleteProject,
   isExiting = false,
@@ -32,6 +62,20 @@ export default function WelcomeView({
   const [isGeneratingName, setIsGeneratingName] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isGitHubConnectModalOpen, setIsGitHubConnectModalOpen] = useState(false);
+
+  // GitHub Integration State
+  const [githubStatus, setGithubStatus] = useState(null);
+  const [githubRepos, setGithubRepos] = useState([]);
+  const [isLoadingGithubRepos, setIsLoadingGithubRepos] = useState(false);
+  const [activeWelcomeTab, setActiveWelcomeTab] = useState('timelines'); // 'timelines' | 'github'
+  const [repoSearch, setRepoSearch] = useState('');
+  const [repoVisibilityFilter, setRepoVisibilityFilter] = useState('all'); // 'all' | 'public' | 'private'
+  const [selectedRepo, setSelectedRepo] = useState(null);
+  const [repoBranches, setRepoBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState('main');
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+
   const textareaId = useId();
 
   const {
@@ -51,6 +95,98 @@ export default function WelcomeView({
   const [projects, setProjects] = useState([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [timelineSearch, setTimelineSearch] = useState('');
+
+  // Fetch local projects
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/projects`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch projects', err);
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  };
+
+  // Fetch GitHub connection status
+  const fetchGithubStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/github/status`);
+      if (res.ok) {
+        const data = await res.json();
+        setGithubStatus(data);
+        if (data.connected) {
+          fetchGithubRepos();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch GitHub status:', err);
+    }
+  };
+
+  // Fetch user's GitHub repositories
+  const fetchGithubRepos = async () => {
+    try {
+      setIsLoadingGithubRepos(true);
+      const res = await fetch(`${API_BASE_URL}/api/github/repos`);
+      if (res.ok) {
+        const data = await res.json();
+        setGithubRepos(Array.isArray(data.repos) ? data.repos : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch GitHub repos:', err);
+    } finally {
+      setIsLoadingGithubRepos(false);
+    }
+  };
+  // Fetch branches when selected repo changes
+  useEffect(() => {
+    if (!selectedRepo) {
+      setRepoBranches([]);
+      setSelectedBranch('main');
+      return;
+    }
+
+    const defaultB = selectedRepo.default_branch || 'main';
+    setSelectedBranch(defaultB);
+    setRepoBranches([defaultB]);
+
+    let isMounted = true;
+    setIsLoadingBranches(true);
+    fetch(`${API_BASE_URL}/api/github/repo-branches?repo=${encodeURIComponent(selectedRepo.full_name)}`)
+      .then((res) => (res.ok ? res.json() : { branches: [defaultB] }))
+      .then((data) => {
+        if (!isMounted) return;
+        const list = Array.isArray(data.branches) && data.branches.length > 0
+          ? data.branches
+          : [defaultB];
+        setRepoBranches(list);
+        if (list.includes(defaultB)) {
+          setSelectedBranch(defaultB);
+        } else {
+          setSelectedBranch(list[0]);
+        }
+      })
+      .catch((err) => {
+        console.warn('Failed to load branches:', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingBranches(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedRepo]);
+
+
+  useEffect(() => {
+    fetchProjects();
+    fetchGithubStatus();
+  }, []);
 
   const filteredProjects = useMemo(() => {
     if (!timelineSearch.trim()) return projects;
@@ -78,30 +214,32 @@ export default function WelcomeView({
       };
     });
   }, [filteredProjects]);
+
+  // Filtered GitHub Repositories
+  const filteredGithubRepos = useMemo(() => {
+    let list = githubRepos;
+    if (repoVisibilityFilter === 'public') {
+      list = list.filter((r) => !r.private);
+    } else if (repoVisibilityFilter === 'private') {
+      list = list.filter((r) => r.private);
+    }
+
+    if (!repoSearch.trim()) return list;
+    const q = repoSearch.toLowerCase().trim();
+    return list.filter((r) => {
+      const nameMatch = r.name?.toLowerCase().includes(q) || r.full_name?.toLowerCase().includes(q);
+      const descMatch = r.description?.toLowerCase().includes(q);
+      const langMatch = r.language?.toLowerCase().includes(q);
+      return Boolean(nameMatch || descMatch || langMatch);
+    });
+  }, [githubRepos, repoSearch, repoVisibilityFilter]);
+
   const currentModelObj = models.find(
     (m) => m.id === selectedModel || m.canonical_id === selectedModel
   ) || {
     name: selectedModel || 'gemini-3.8-flash',
     compatibility_label: 'Optimal',
   };
-
-  const fetchProjects = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/projects`);
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch projects', err);
-    } finally {
-      setIsLoadingProjects(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
 
   const handleDeleteProject = async (arg1, arg2) => {
     const e = (arg1 && typeof arg1 === 'object' && 'stopPropagation' in arg1) ? arg1 : ((arg2 && typeof arg2 === 'object' && 'stopPropagation' in arg2) ? arg2 : null);
@@ -130,11 +268,31 @@ export default function WelcomeView({
     }
   };
 
+  // Submit Handler: routes to selected repo build or standard project creation
   const handleInitialSubmit = async (e) => {
     e.preventDefault();
     const value = prompt.trim();
-    if (!value && attachments.length === 0) return;
+    if (!value && attachments.length === 0 && !selectedRepo) return;
 
+    // Case 1: Building on a selected GitHub repository
+    if (selectedRepo) {
+      const images = attachments
+        .filter((a) => a.type === 'image')
+        .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
+      const files = attachments
+        .filter((a) => a.type === 'file')
+        .map((a) => ({ name: a.name, content: a.content, size: a.size }));
+
+      if (onConnectAndBuild) {
+        onConnectAndBuild(selectedRepo, prompt.trim(), { images, files }, selectedBranch);
+      } else {
+        onSubmit(prompt.trim(), selectedRepo.name, { images, files });
+      }
+      clearAttachments();
+      return;
+    }
+
+    // Case 2: Standard scratch project creation
     setIsNaming(true);
     setIsGeneratingName(true);
 
@@ -172,6 +330,14 @@ export default function WelcomeView({
     clearAttachments();
   };
 
+  const handleSelectRepo = (repo) => {
+    setSelectedRepo(repo);
+    // Scroll composer into view
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const textarea = document.getElementById(textareaId);
+    if (textarea) textarea.focus();
+  };
+
   const exiting = isExiting || isTransitioning;
 
   return (
@@ -185,13 +351,42 @@ export default function WelcomeView({
       <div className="degrees-welcome__content">
         {!isNaming ? (
           <>
-            {/* Header & Editorial Wordmark */}
+            {/* Top Bar with GitHub Connect & Model Auth */}
+            <div className="degrees-welcome__top-bar">
+              {githubStatus?.connected && githubStatus?.user ? (
+                <button
+                  type="button"
+                  className="degrees-github-pill"
+                  onClick={() => setIsGitHubConnectModalOpen(true)}
+                  title={`Connected as @${githubStatus.user.login} — Click to manage`}
+                >
+                  <img
+                    src={githubStatus.user.avatar_url}
+                    alt={githubStatus.user.login}
+                    className="degrees-github-avatar"
+                  />
+                  <span className="degrees-github-login">@{githubStatus.user.login}</span>
+                  <span className="degrees-github-dot" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="degrees-github-connect-btn"
+                  onClick={() => setIsGitHubConnectModalOpen(true)}
+                  title="Connect GitHub account"
+                >
+                  <GitHubIcon size={14} />
+                  <span>Connect GitHub</span>
+                </button>
+              )}
+            </div>
+
             {/* Header & Official 80degrees Logo */}
             <header className="degrees-welcome__header">
               <div className="degrees-logo-container">
                 <img
                   src="/logo-white.png"
-                  alt="80degrees"
+                  alt="crbn"
                   className="degrees-logo-img"
                 />
               </div>
@@ -201,7 +396,7 @@ export default function WelcomeView({
               </h1>
 
               <p className="degrees-welcome__subtitle">
-                A creative studio for full-stack software. Describe your concept in natural language and choose a model; we'll compose, build, and run it.
+                A creative studio for full-stack software. Describe your concept or connect any GitHub repo; we'll compose, build, and run it.
               </p>
             </header>
 
@@ -213,7 +408,7 @@ export default function WelcomeView({
             >
               <div className="degrees-welcome__oauth-direction-left">
                 <span className="degrees-welcome__oauth-text">
-                  No API key?  No problem — connect Claude, ChatGPT, Copilot and more
+                  No API key? No problem — connect Claude, ChatGPT, Copilot and more
                 </span>
               </div>
               <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>
@@ -242,8 +437,51 @@ export default function WelcomeView({
               <div
                 className={`degrees-composer ${
                   isDragging ? 'degrees-composer--dragging' : ''
-                }`}
+                } ${selectedRepo ? 'degrees-composer--has-target' : ''}`}
               >
+                {/* Selected GitHub Repo Target Ribbon */}
+                {selectedRepo && (
+                  <div className="degrees-composer__target-ribbon">
+                    <div className="degrees-composer__target-left">
+                      <span className="degrees-composer__target-badge">
+                        <GitHubIcon size={12} /> Target Repo
+                      </span>
+                      <span className="degrees-composer__target-name">{selectedRepo.full_name}</span>
+                      <div className="degrees-composer__target-branch-wrap" title="Select branch to build on">
+                        <BranchIcon />
+                        {isLoadingBranches ? (
+                          <span className="degrees-composer__target-branch-loading">...</span>
+                        ) : repoBranches.length > 1 ? (
+                          <select
+                            className="degrees-composer__target-branch-select"
+                            value={selectedBranch}
+                            onChange={(e) => setSelectedBranch(e.target.value)}
+                          >
+                            {repoBranches.map((b) => (
+                              <option key={b} value={b}>
+                                {b}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="degrees-composer__target-branch-text">{selectedBranch}</span>
+                        )}
+                      </div>
+                      <span className="degrees-composer__target-vis">
+                        {selectedRepo.private ? 'Private' : 'Public'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="degrees-composer__deselect-btn"
+                      onClick={() => setSelectedRepo(null)}
+                      title="Deselect repository (build new from scratch)"
+                    >
+                      ✕ Clear target
+                    </button>
+                  </div>
+                )}
+
                 {/* Uploaded Attachments Preview */}
                 {attachments && attachments.length > 0 && (
                   <div className="degrees-composer__attachments">
@@ -254,7 +492,11 @@ export default function WelcomeView({
                 <textarea
                   id={textareaId}
                   className="degrees-composer__textarea"
-                  placeholder="Describe an application, interface, or creative tool you'd like to build..."
+                  placeholder={
+                    selectedRepo
+                      ? `What would you like to build or change in ${selectedRepo.name}? Describe changes, features, or fixes...`
+                      : "Describe an application, interface, or creative tool you'd like to build..."
+                  }
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
@@ -307,9 +549,9 @@ export default function WelcomeView({
                     <button
                       type="submit"
                       className="degrees-cta-btn"
-                      disabled={!prompt.trim() && attachments.length === 0}
+                      disabled={!prompt.trim() && attachments.length === 0 && !selectedRepo}
                     >
-                      <span>Start building</span>
+                      <span>{selectedRepo ? 'Build on repo' : 'Start building'}</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                         <polyline points="12 5 19 12 12 19"></polyline>
@@ -320,93 +562,274 @@ export default function WelcomeView({
               </div>
             </form>
 
-            {/* Recent Timelines Section — Clean Editorial List Format */}
+            {/* Segmented Section: Recent Timelines vs GitHub Repositories */}
             <section className="degrees-timelines">
               <div className="degrees-timelines__header">
-                <div className="degrees-timelines__title-group">
-                  <h2 className="degrees-timelines__title">Recent Timelines</h2>
-                  {projects.length > 0 && (
-                    <span className="degrees-timelines__count">
-                      {timelineSearch.trim()
-                        ? `${filteredProjects.length} of ${projects.length}`
-                        : projects.length}
-                    </span>
-                  )}
+                {/* Segmented Switcher */}
+                <div className="degrees-welcome-nav-tabs">
+                  <button
+                    type="button"
+                    className={`degrees-welcome-nav-tab ${
+                      activeWelcomeTab === 'timelines' ? 'degrees-welcome-nav-tab--active' : ''
+                    }`}
+                    onClick={() => setActiveWelcomeTab('timelines')}
+                  >
+                    <span>Recent Timelines</span>
+                    {projects.length > 0 && (
+                      <span className="degrees-welcome-tab-badge">{projects.length}</span>
+                    )}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`degrees-welcome-nav-tab ${
+                      activeWelcomeTab === 'github' ? 'degrees-welcome-nav-tab--active' : ''
+                    }`}
+                    onClick={() => {
+                      setActiveWelcomeTab('github');
+                      if (!githubStatus?.connected) {
+                        setIsGitHubConnectModalOpen(true);
+                      } else if (githubRepos.length === 0) {
+                        fetchGithubRepos();
+                      }
+                    }}
+                  >
+                    <GitHubIcon size={13} />
+                    <span>GitHub Repositories</span>
+                    {githubStatus?.connected && githubRepos.length > 0 && (
+                      <span className="degrees-welcome-tab-badge">{githubRepos.length}</span>
+                    )}
+                  </button>
                 </div>
 
+                {/* Search Bar on Right */}
                 <div className="degrees-timelines__header-right">
-                  <div className="degrees-timelines__search-box">
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="degrees-timelines__search-icon"
-                    >
-                      <circle cx="11" cy="11" r="8"></circle>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
-                    <input
-                      type="text"
-                      className="degrees-timelines__search-input"
-                      placeholder="Search timelines..."
-                      value={timelineSearch}
-                      onChange={(e) => setTimelineSearch(e.target.value)}
-                      spellCheck={false}
-                    />
-                    {timelineSearch && (
-                      <button
-                        type="button"
-                        className="degrees-timelines__search-clear"
-                        onClick={() => setTimelineSearch('')}
-                        title="Clear search"
-                        aria-label="Clear search"
+                  {activeWelcomeTab === 'timelines' ? (
+                    <div className="degrees-timelines__search-box">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="degrees-timelines__search-icon"
                       >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                    )}
-                  </div>
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      </svg>
+                      <input
+                        type="text"
+                        className="degrees-timelines__search-input"
+                        placeholder="Search timelines..."
+                        value={timelineSearch}
+                        onChange={(e) => setTimelineSearch(e.target.value)}
+                        spellCheck={false}
+                      />
+                      {timelineSearch && (
+                        <button
+                          type="button"
+                          className="degrees-timelines__search-clear"
+                          onClick={() => setTimelineSearch('')}
+                          title="Clear search"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="degrees-github-search-group">
+                      {/* Visibility Filters */}
+                      <div className="degrees-github-filters">
+                        <button
+                          type="button"
+                          className={`degrees-filter-chip ${
+                            repoVisibilityFilter === 'all' ? 'degrees-filter-chip--active' : ''
+                          }`}
+                          onClick={() => setRepoVisibilityFilter('all')}
+                        >
+                          All
+                        </button>
+                        <button
+                          type="button"
+                          className={`degrees-filter-chip ${
+                            repoVisibilityFilter === 'public' ? 'degrees-filter-chip--active' : ''
+                          }`}
+                          onClick={() => setRepoVisibilityFilter('public')}
+                        >
+                          Public
+                        </button>
+                        <button
+                          type="button"
+                          className={`degrees-filter-chip ${
+                            repoVisibilityFilter === 'private' ? 'degrees-filter-chip--active' : ''
+                          }`}
+                          onClick={() => setRepoVisibilityFilter('private')}
+                        >
+                          Private
+                        </button>
+                      </div>
+
+                      <div className="degrees-timelines__search-box">
+                        <input
+                          type="text"
+                          className="degrees-timelines__search-input"
+                          placeholder="Filter repositories..."
+                          value={repoSearch}
+                          onChange={(e) => setRepoSearch(e.target.value)}
+                          spellCheck={false}
+                        />
+                        {repoSearch && (
+                          <button
+                            type="button"
+                            className="degrees-timelines__search-clear"
+                            onClick={() => setRepoSearch('')}
+                            title="Clear search"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {isLoadingProjects ? (
-                <div className="degrees-timelines__loading">
-                  <div className="degrees-spinner" />
-                  <span>Loading workspaces...</span>
-                </div>
-              ) : filteredProjects.length > 0 ? (
-                <div className="degrees-timelines__interactive-wrap">
-                  <InteractiveListPreview
-                    items={timelineItems}
-                    onItemClick={(item) => onOpenProject(item.data || item)}
-                    onOpenFinder={handleOpenInFinder}
-                    onDeleteProject={handleDeleteProject}
-                  />
-                </div>
+              {/* TAB 1: Recent Timelines View */}
+              {activeWelcomeTab === 'timelines' ? (
+                isLoadingProjects ? (
+                  <div className="degrees-timelines__loading">
+                    <div className="degrees-spinner" />
+                    <span>Loading workspaces...</span>
+                  </div>
+                ) : filteredProjects.length > 0 ? (
+                  <div className="degrees-timelines__interactive-wrap">
+                    <InteractiveListPreview
+                      items={timelineItems}
+                      onItemClick={(item) => onOpenProject(item.data || item)}
+                      onOpenFinder={handleOpenInFinder}
+                      onDeleteProject={handleDeleteProject}
+                    />
+                  </div>
+                ) : (
+                  <div className="degrees-timelines__empty">
+                    {timelineSearch.trim() ? (
+                      <div className="degrees-timelines__empty-search">
+                        <span>No workspaces matching &ldquo;{timelineSearch}&rdquo;</span>
+                        <button
+                          type="button"
+                          className="degrees-timelines__clear-btn"
+                          onClick={() => setTimelineSearch('')}
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    ) : (
+                      <p>No workspaces created yet. Enter an idea above or connect a GitHub repository to start building.</p>
+                    )}
+                  </div>
+                )
               ) : (
-                <div className="degrees-timelines__empty">
-                  {timelineSearch.trim() ? (
-                    <div className="degrees-timelines__empty-search">
-                      <span>No workspaces matching &ldquo;{timelineSearch}&rdquo;</span>
-                      <button
-                        type="button"
-                        className="degrees-timelines__clear-btn"
-                        onClick={() => setTimelineSearch('')}
-                      >
-                        Clear search
-                      </button>
+                /* TAB 2: GitHub Repositories View */
+                !githubStatus?.connected ? (
+                  <div className="degrees-github-connect-cta">
+                    <div className="degrees-github-cta-icon">
+                      <GitHubIcon size={32} />
                     </div>
-                  ) : (
-                    <p>No workspaces created yet. Enter an idea above to start building.</p>
-                  )}
-                </div>
+                    <h3 className="degrees-github-cta-title">Connect your GitHub account</h3>
+                    <p className="degrees-github-cta-desc">
+                      Link GitHub to see all your public and private repositories, start building directly on existing codebases, and push commits seamlessly.
+                    </p>
+                    <button
+                      type="button"
+                      className="degrees-github-cta-btn"
+                      onClick={() => setIsGitHubConnectModalOpen(true)}
+                    >
+                      <GitHubIcon size={16} />
+                      <span>Connect GitHub Account</span>
+                    </button>
+                  </div>
+                ) : isLoadingGithubRepos ? (
+                  <div className="degrees-timelines__loading">
+                    <div className="degrees-spinner" />
+                    <span>Loading your repositories from GitHub...</span>
+                  </div>
+                ) : filteredGithubRepos.length > 0 ? (
+                  <div className="degrees-github-repo-grid">
+                    {filteredGithubRepos.map((repo) => {
+                      const isSelected = selectedRepo?.full_name === repo.full_name;
+                      return (
+                        <div
+                          key={repo.id}
+                          className={`degrees-github-repo-card ${
+                            isSelected ? 'degrees-github-repo-card--selected' : ''
+                          }`}
+                          onClick={() => handleSelectRepo(repo)}
+                        >
+                          <div className="degrees-github-repo-header">
+                            <div className="degrees-github-repo-title-row">
+                              {repo.private ? <LockIcon /> : null}
+                              <span className="degrees-github-repo-name">{repo.name}</span>
+                              <span className="degrees-github-repo-owner">/{repo.owner}</span>
+                            </div>
+                            <span
+                              className={`degrees-github-vis-badge ${
+                                repo.private ? 'degrees-github-vis-badge--private' : ''
+                              }`}
+                            >
+                              {repo.private ? 'Private' : 'Public'}
+                            </span>
+                          </div>
+
+                          <p className="degrees-github-repo-desc">
+                            {repo.description || 'No description provided'}
+                          </p>
+
+                          <div className="degrees-github-repo-meta">
+                            <div className="degrees-github-repo-meta-left">
+                              {repo.language && (
+                                <span className="degrees-github-lang">
+                                  <span className="degrees-github-lang-dot" />
+                                  {repo.language}
+                                </span>
+                              )}
+                              {repo.stargazers_count > 0 && (
+                                <span className="degrees-github-stars">
+                                  <StarIcon /> {repo.stargazers_count}
+                                </span>
+                              )}
+                              <span className="degrees-github-branch">
+                                <BranchIcon /> {repo.default_branch}
+                              </span>
+                            </div>
+
+                            <div className="degrees-github-repo-actions">
+
+                              <button
+                                type="button"
+                                className={`degrees-repo-select-btn ${
+                                  isSelected ? 'degrees-repo-select-btn--active' : ''
+                                }`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectRepo(repo);
+                                }}
+                              >
+                                {isSelected ? 'Target Active' : 'Select & Build'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="degrees-timelines__empty">
+                    <p>No repositories found matching your filter criteria.</p>
+                  </div>
+                )
               )}
             </section>
           </>
@@ -416,7 +839,7 @@ export default function WelcomeView({
             <div className="degrees-logo-container degrees-logo-container--naming">
               <img
                 src="/logo-white.png"
-                alt="80degrees"
+                alt="crbn"
                 className="degrees-logo-img degrees-logo-img--small"
               />
             </div>
@@ -495,6 +918,21 @@ export default function WelcomeView({
         onClose={() => setIsConnectModalOpen(false)}
         providers={providers}
         onRefreshModels={onRefreshModels}
+      />
+
+      {/* GitHub Connect Modal */}
+      <GitHubConnectModal
+        isOpen={isGitHubConnectModalOpen}
+        onClose={() => setIsGitHubConnectModalOpen(false)}
+        onConnected={(user) => {
+          setGithubStatus({ connected: true, user });
+          fetchGithubRepos();
+        }}
+        onDisconnected={() => {
+          setGithubStatus({ connected: false, user: null });
+          setGithubRepos([]);
+          setSelectedRepo(null);
+        }}
       />
     </div>
   );
