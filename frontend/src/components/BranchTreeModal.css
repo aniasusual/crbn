@@ -1,15 +1,15 @@
 /* ==========================================================================
    80degrees — BranchTreeModal (Graph Data Structure Tree) Styling
-   Minimalist Glassmorphism, Zero Curved Corners (Sharp Architecture), Restrained Tone
+   Clean Glassmorphic Surface, Zero Box-Shadows & Subtle Boundary Curvature
    ========================================================================== */
 
 .branch-tree-backdrop {
   position: fixed;
   inset: 0;
   z-index: 100000;
-  background: rgba(4, 4, 6, 0.72);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -27,21 +27,19 @@
   }
 }
 
-/* Sharp, Elegant Minimalist Modal (Size Compacted, No Rounded Corners) */
+/* Modal Surface: Gentle 12px Boundary Curve, No Box Shadows */
 .branch-tree-modal {
   width: min(1080px, 86vw);
   height: 76vh;
   max-height: 76vh;
   display: flex;
   flex-direction: column;
-  background: rgba(14, 14, 18, 0.94);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 40%, rgba(20, 20, 32, 0.58) 100%);
   border: none;
-  border-radius: 0;
-  box-shadow: 
-    0 24px 64px -12px rgba(0, 0, 0, 0.88),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(36px);
-  -webkit-backdrop-filter: blur(36px);
+  border-radius: 12px;
+  box-shadow: none;
+  backdrop-filter: blur(48px) saturate(210%);
+  -webkit-backdrop-filter: blur(48px) saturate(210%);
   overflow: hidden;
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   color: #f1f5f9;
@@ -61,15 +59,15 @@
   }
 }
 
-/* Header — Minimalist Translucent Strip */
+/* Header — Minimalist Translucent Strip, Zero Shadows */
 .branch-tree__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 18px 24px 16px 24px;
-  background: rgba(255, 255, 255, 0.02);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 100%);
   border: none;
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  box-shadow: none;
   flex-shrink: 0;
 }
 
@@ -99,18 +97,20 @@
   padding: 2px 8px;
   background: rgba(255, 255, 255, 0.06);
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.85);
   font-size: 11px;
   font-family: var(--font-mono, monospace);
   font-weight: 500;
+  box-shadow: none;
 }
 
 .branch-tree__active-dot {
   width: 5px;
   height: 5px;
-  border-radius: 0;
+  border-radius: 50%;
   background: #38bdf8;
+  box-shadow: none;
 }
 
 .branch-tree__subtitle {
@@ -127,10 +127,11 @@
   height: 28px;
   background: rgba(255, 255, 255, 0.04);
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all 0.12s ease;
+  box-shadow: none;
 }
 
 .branch-tree__close-btn:hover {
@@ -138,15 +139,15 @@
   color: #ffffff;
 }
 
-/* Nav & Legend Strip */
+/* Nav & Legend Strip — Zero Shadows */
 .branch-tree__nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 24px;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.02);
   border: none;
-  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  box-shadow: none;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
   flex-shrink: 0;
@@ -169,7 +170,8 @@
 .branch-tree__legend-dot {
   width: 6px;
   height: 6px;
-  border-radius: 0;
+  border-radius: 50%;
+  box-shadow: none;
 }
 
 /* Canvas Area */
@@ -178,7 +180,9 @@
   position: relative;
   overflow: hidden;
   cursor: grab;
-  background: rgba(10, 10, 14, 0.5);
+  background: 
+    radial-gradient(ellipse 60% 45% at 25% 25%, rgba(56, 189, 248, 0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 55% at 75% 75%, rgba(168, 85, 247, 0.06) 0%, transparent 70%);
 }
 
 .branch-tree__body--panning {
@@ -220,7 +224,7 @@
     opacity: 0.8;
   }
   50% {
-    r: 10;
+    r: 9;
     opacity: 0.2;
   }
   100% {
@@ -234,17 +238,15 @@
   transform-origin: center;
 }
 
-/* Graph Node (Vertex) Card — Sharp, Glassmorphic & Borderless */
+/* Graph Node (Vertex) Card — Subtle 8px Curve, Translucent Glass, No Box Shadow */
 .branch-tree__node {
   position: absolute;
   width: 250px;
   height: 94px;
-  background: rgba(255, 255, 255, 0.035);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.025) 100%);
   border: none;
-  border-radius: 0;
-  box-shadow: 
-    0 12px 28px -6px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: none;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   padding: 12px 14px;
@@ -253,7 +255,7 @@
   flex-direction: column;
   justify-content: space-between;
   z-index: 2;
-  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+  transition: background 0.14s ease, transform 0.14s ease;
   cursor: grab;
 }
 
@@ -261,27 +263,21 @@
   cursor: grabbing !important;
   z-index: 100 !important;
   opacity: 0.95;
-  background: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 
-    0 24px 48px -8px rgba(0, 0, 0, 0.8),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
   transition: none !important;
 }
 
 .branch-tree__node:hover:not(.branch-tree__node--dragging) {
-  background: rgba(255, 255, 255, 0.055);
-  box-shadow: 
-    0 16px 36px -8px rgba(0, 0, 0, 0.7),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.13) 0%, rgba(255, 255, 255, 0.04) 100%);
+  box-shadow: none;
   transform: translateY(-2px);
   z-index: 10;
 }
 
 .branch-tree__node--active {
-  background: rgba(255, 255, 255, 0.06) !important;
-  box-shadow: 
-    0 16px 36px -6px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 0 #38bdf8 !important;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16) 0%, rgba(255, 255, 255, 0.04) 100%) !important;
+  box-shadow: none !important;
 }
 
 /* Ports */
@@ -292,9 +288,10 @@
   transform: translateX(-50%);
   width: 6px;
   height: 6px;
-  border-radius: 0;
+  border-radius: 50%;
   background: #38bdf8;
   border: none;
+  box-shadow: none;
   z-index: 5;
 }
 
@@ -305,9 +302,10 @@
   transform: translateX(-50%);
   width: 6px;
   height: 6px;
-  border-radius: 0;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.4);
   border: none;
+  box-shadow: none;
   z-index: 5;
 }
 
@@ -328,9 +326,10 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 6px;
-  border-radius: 0;
+  border-radius: 4px;
   background: rgba(255, 255, 255, 0.06);
   border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.85);
   font-family: var(--font-mono, monospace);
 }
@@ -343,8 +342,9 @@
   font-weight: 600;
   font-family: var(--font-mono, monospace);
   padding: 2px 6px;
-  border-radius: 0;
+  border-radius: 4px;
   border: none;
+  box-shadow: none;
   max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -400,12 +400,13 @@
   padding: 0 7px;
   background: rgba(255, 255, 255, 0.06);
   border: none;
-  border-radius: 0;
+  border-radius: 5px;
   color: rgba(255, 255, 255, 0.85);
   font-size: 10.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.12s ease;
+  box-shadow: none;
 }
 
 .branch-tree__btn-branch:hover {
@@ -420,12 +421,13 @@
   padding: 0 8px;
   background: #2563eb;
   border: none;
-  border-radius: 0;
+  border-radius: 5px;
   color: #ffffff;
   font-size: 10.5px;
   font-weight: 550;
   cursor: pointer;
   transition: background 0.12s ease;
+  box-shadow: none;
 }
 
 .branch-tree__btn-switch:hover {
@@ -438,20 +440,20 @@
   inset: 0;
   background: rgba(14, 14, 18, 0.98);
   border: none;
-  border-radius: 0;
+  border-radius: 8px;
   padding: 10px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   z-index: 20;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+  box-shadow: none;
 }
 
 .branch-tree__inline-input {
   width: 100%;
   background: rgba(0, 0, 0, 0.35);
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   padding: 6px 8px;
   color: #ffffff;
   font-size: 11px;
@@ -459,6 +461,7 @@
   outline: none;
   box-sizing: border-box;
   caret-color: #ffffff;
+  box-shadow: none;
 }
 
 .branch-tree__inline-btns {
@@ -473,10 +476,11 @@
   padding: 0 8px;
   background: rgba(255, 255, 255, 0.05);
   border: none;
-  border-radius: 0;
+  border-radius: 5px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 10.5px;
   cursor: pointer;
+  box-shadow: none;
 }
 
 .branch-tree__inline-cancel:hover {
@@ -489,11 +493,12 @@
   padding: 0 10px;
   background: #2563eb;
   border: none;
-  border-radius: 0;
+  border-radius: 5px;
   color: #ffffff;
   font-size: 10.5px;
   font-weight: 550;
   cursor: pointer;
+  box-shadow: none;
 }
 
 .branch-tree__inline-confirm:hover {
@@ -512,7 +517,7 @@
 }
 
 /* ──────────────────────────────────────────────────────────
-   Floating Minimal HUD Controls: Zoom, Pan, Fit, Reset
+   Floating Minimal HUD Controls: Zoom, Pan, Fit, Reset (Zero Shadows)
    ────────────────────────────────────────────────────────── */
 .branch-tree__hud {
   position: absolute;
@@ -521,13 +526,11 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  background: rgba(14, 14, 18, 0.9);
+  background: rgba(255, 255, 255, 0.08);
   border: none;
-  border-radius: 0;
+  border-radius: 8px;
   padding: 3px;
-  box-shadow: 
-    0 16px 36px -8px rgba(0, 0, 0, 0.75),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  box-shadow: none;
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   z-index: 1000;
@@ -541,12 +544,13 @@
   height: 26px;
   background: rgba(255, 255, 255, 0.04);
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.8);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.12s ease;
+  box-shadow: none;
 }
 
 .branch-tree__hud-btn:hover {
@@ -580,12 +584,13 @@
   padding: 0 8px;
   background: rgba(255, 255, 255, 0.04);
   border: none;
-  border-radius: 0;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.7);
   font-size: 10.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.12s ease;
+  box-shadow: none;
 }
 
 .branch-tree__hud-text-btn:hover {
