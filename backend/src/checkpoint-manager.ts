@@ -1,8 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
 import * as path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
+const pexecFile = promisify(execFile);
 export const CHECKPOINTS_FILENAME = ".80degrees_checkpoints.json";
+export const BRANCHES_FILENAME = ".80degrees_branches.json";
 
 export interface CheckpointStep {
   step_id: string;
@@ -11,6 +15,21 @@ export interface CheckpointStep {
   prompt: string;
   timestamp: string;
   entry_id?: string | null;
+}
+
+export interface ProjectBranch {
+  id: string;
+  name: string;
+  git_branch: string;
+  source_step_id: string;
+  source_commit: string;
+  created_at: string;
+  leaf_entry_id?: string | null;
+}
+
+export interface BranchStatePayload {
+  active_branch: string;
+  branches: ProjectBranch[];
 }
 
 export interface CheckpointsPayload {
@@ -25,19 +44,20 @@ export class CheckpointManager {
    * Run a git command in the target project directory.
    */
   private static async runGit(projectPath: string, args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-    const proc = Bun.spawn(["git", ...args], {
-      cwd: projectPath,
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-
-    return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+    try {
+      const { stdout, stderr } = await pexecFile("git", args, {
+        cwd: projectPath,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+      return { stdout: (stdout || "").trim(), stderr: (stderr || "").trim(), exitCode: 0 };
+    } catch (err: unknown) {
+      const e = err as { stdout?: string; stderr?: string; code?: number; message?: string };
+      return {
+        stdout: (e.stdout || "").trim(),
+        stderr: (e.stderr || e.message || "").trim(),
+        exitCode: typeof e.code === "number" ? e.code : 1,
+      };
+    }
   }
 
   /**
@@ -57,6 +77,8 @@ export class CheckpointManager {
           "*.log",
           ".80degrees_chat.json", // Don't track chat history in git commits to avoid self-conflicts
           ".80degrees_checkpoints.json",
+          ".80degrees_branches.json",
+          ".80degrees_meta.json",
         ].join("\n") + "\n";
         await fs.writeFile(gitignorePath, defaultIgnore, "utf-8");
       }
@@ -216,6 +238,279 @@ export class CheckpointManager {
       success: true,
       targetStep,
       remainingSteps,
+    };
+  }
+
+  /**
+   * Get all branches and active branch for a project.
+   */
+  static async getBranches(projectPath: string): Promise<BranchStatePayload> {
+    await this.ensureGitRepo(projectPath);
+    const filePath = path.join(projectPath, BRANCHES_FILENAME);
+
+    if (fsSync.existsSync(filePath)) {
+      try {
+        const raw = await fs.readFile(filePath, "utf-8");
+        const data = JSON.parse(raw) as BranchStatePayload;
+        if (Array.isArray(data.branches) && data.branches.length > 0) {
+          return data;
+        }
+      } catch {}
+    }
+
+    // Default initial branch state
+    const currentGit = await this.getCurrentGitBranch(projectPath);
+    const steps = await this.getCheckpoints(projectPath);
+    const initialHash = steps[0]?.commit_hash || "init";
+    const now = new Date().toISOString();
+
+    const initialPayload: BranchStatePayload = {
+      active_branch: "main",
+      branches: [
+        {
+          id: "b_main",
+          name: "main",
+          git_branch: currentGit || "main",
+          source_step_id: "step_0",
+          source_commit: initialHash,
+          created_at: now,
+          leaf_entry_id: steps[steps.length - 1]?.entry_id ?? null,
+        },
+      ],
+    };
+
+    await this.saveBranches(projectPath, initialPayload);
+    return initialPayload;
+  }
+
+  /**
+   * Persist branches metadata to disk.
+   */
+  static async saveBranches(projectPath: string, payload: BranchStatePayload): Promise<void> {
+    const filePath = path.join(projectPath, BRANCHES_FILENAME);
+    await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf-8");
+  }
+
+  /**
+   * Get the active Git branch name on disk.
+   */
+  static async getCurrentGitBranch(projectPath: string): Promise<string> {
+    const res = await this.runGit(projectPath, ["rev-parse", "--abbrev-ref", "HEAD"]);
+    return res.stdout || "main";
+  }
+
+  /**
+   * Sanitize user input into a safe, valid Git branch ref.
+   */
+  static sanitizeGitBranchName(name: string): string {
+    const cleaned = (name || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "-")
+      .replace(/-+/g, "-")
+      .slice(0, 40);
+    const base = cleaned || "experiment";
+    return base === "main" || base.startsWith("b-") ? base : `b-${base}`;
+  }
+
+  /**
+   * Commit any pending uncommitted changes on current branch before switching.
+   */
+  static async commitPendingChanges(projectPath: string, message?: string): Promise<string | null> {
+    const statusRes = await this.runGit(projectPath, ["status", "--porcelain"]);
+    if (statusRes.stdout.trim().length > 0) {
+      await this.runGit(projectPath, ["add", "-A"]);
+      const msg = message || `WIP: Auto-commit before branch transition at ${new Date().toISOString()}`;
+      await this.runGit(projectPath, ["commit", "-m", msg]);
+    }
+    const hashRes = await this.runGit(projectPath, ["rev-parse", "HEAD"]);
+    return hashRes.stdout || null;
+  }
+
+  /**
+   * Create a new branch from a given checkpoint step and switch to it.
+   */
+  static async createBranch(
+    projectPath: string,
+    branchName: string,
+    fromStepId: string,
+    leafEntryId?: string | null,
+  ): Promise<ProjectBranch> {
+    await this.ensureGitRepo(projectPath);
+    const state = await this.getBranches(projectPath);
+    const cleanedName = branchName.trim() || `exp-${Date.now().toString().slice(-4)}`;
+
+    // Check for duplicate name
+    if (state.branches.some((b) => b.name.toLowerCase() === cleanedName.toLowerCase())) {
+      throw new Error(`Branch with name "${cleanedName}" already exists.`);
+    }
+
+    // 1. Commit any in-flight changes on active branch so work isn't lost
+    await this.commitPendingChanges(projectPath, `WIP on ${state.active_branch}`);
+
+    // 2. Resolve source commit from checkpoint
+    const steps = await this.getCheckpoints(projectPath);
+    const targetStep = steps.find((s) => s.step_id === fromStepId) || steps[steps.length - 1];
+    if (!targetStep?.commit_hash) {
+      throw new Error(`Target checkpoint "${fromStepId}" has no valid Git commit.`);
+    }
+
+    // 3. Create and checkout the Git branch
+    const gitBranch = this.sanitizeGitBranchName(cleanedName);
+    const checkoutRes = await this.runGit(projectPath, ["checkout", "-b", gitBranch, targetStep.commit_hash]);
+    if (checkoutRes.exitCode !== 0) {
+      // If branch already exists in git, try checkout
+      const fallback = await this.runGit(projectPath, ["checkout", gitBranch]);
+      if (fallback.exitCode !== 0) {
+        throw new Error(`Failed to create Git branch "${gitBranch}": ${checkoutRes.stderr}`);
+      }
+    }
+
+    const newBranch: ProjectBranch = {
+      id: `b_${Date.now()}`,
+      name: cleanedName,
+      git_branch: gitBranch,
+      source_step_id: targetStep.step_id,
+      source_commit: targetStep.commit_hash,
+      created_at: new Date().toISOString(),
+      leaf_entry_id: leafEntryId ?? targetStep.entry_id ?? null,
+    };
+
+    state.branches.push(newBranch);
+    state.active_branch = cleanedName;
+    await this.saveBranches(projectPath, state);
+
+    console.log(`[CheckpointManager] Created & switched to branch "${cleanedName}" (${gitBranch}) from ${targetStep.step_id}`);
+    return newBranch;
+  }
+
+  /**
+   * Switch to an existing branch.
+   */
+  static async switchBranch(projectPath: string, branchName: string): Promise<ProjectBranch> {
+    await this.ensureGitRepo(projectPath);
+    const state = await this.getBranches(projectPath);
+    const target = state.branches.find((b) => b.name.toLowerCase() === branchName.toLowerCase());
+
+    if (!target) {
+      throw new Error(`Branch "${branchName}" not found in project.`);
+    }
+
+    if (state.active_branch === target.name) {
+      return target;
+    }
+
+    // 1. Commit any in-flight changes on the current branch
+    await this.commitPendingChanges(projectPath, `WIP on ${state.active_branch}`);
+
+    // 2. Checkout target Git branch (with main/master fallback)
+    let checkoutRes = await this.runGit(projectPath, ["checkout", target.git_branch]);
+    if (checkoutRes.exitCode !== 0 && target.git_branch === "main") {
+      checkoutRes = await this.runGit(projectPath, ["checkout", "master"]);
+      if (checkoutRes.exitCode === 0) {
+        target.git_branch = "master";
+      }
+    } else if (checkoutRes.exitCode !== 0 && target.git_branch === "master") {
+      checkoutRes = await this.runGit(projectPath, ["checkout", "main"]);
+      if (checkoutRes.exitCode === 0) {
+        target.git_branch = "main";
+      }
+    }
+
+    if (checkoutRes.exitCode !== 0) {
+      throw new Error(`Git checkout failed for "${target.git_branch}": ${checkoutRes.stderr}`);
+    }
+
+    // 3. Update active branch
+    state.active_branch = target.name;
+    await this.saveBranches(projectPath, state);
+
+    console.log(`[CheckpointManager] Switched active branch to "${target.name}" (${target.git_branch})`);
+    return target;
+  }
+
+  /**
+   * Delete an existing non-active branch.
+   */
+  static async deleteBranch(projectPath: string, branchName: string): Promise<void> {
+    await this.ensureGitRepo(projectPath);
+    const state = await this.getBranches(projectPath);
+    const target = state.branches.find((b) => b.name.toLowerCase() === branchName.toLowerCase());
+
+    if (!target) {
+      throw new Error(`Branch "${branchName}" not found.`);
+    }
+    if (target.name === "main") {
+      throw new Error("Cannot delete main branch.");
+    }
+    if (target.name === state.active_branch) {
+      throw new Error("Cannot delete currently active branch. Switch to another branch first.");
+    }
+
+    // Delete git branch
+    await this.runGit(projectPath, ["branch", "-D", target.git_branch]);
+
+    state.branches = state.branches.filter((b) => b.id !== target.id);
+    await this.saveBranches(projectPath, state);
+    console.log(`[CheckpointManager] Deleted branch "${branchName}" (${target.git_branch})`);
+  }
+
+  /**
+   * Update the recorded pi-harness leaf pointer for a branch.
+   */
+  static async updateBranchLeaf(projectPath: string, branchName: string, leafEntryId: string): Promise<void> {
+    try {
+      const state = await this.getBranches(projectPath);
+      const b = state.branches.find((x) => x.name === branchName);
+      if (b) {
+        b.leaf_entry_id = leafEntryId;
+        await this.saveBranches(projectPath, state);
+      }
+    } catch {}
+  }
+
+  /**
+   * Get full branch tree graph with parent/child links and checkpoint steps.
+   */
+  static async getBranchTree(projectPath: string): Promise<{
+    active_branch: string;
+    branches: (ProjectBranch & {
+      is_active: boolean;
+      parent_branch_name: string | null;
+      child_branch_names: string[];
+    })[];
+    all_checkpoints: CheckpointStep[];
+  }> {
+    const branchState = await this.getBranches(projectPath);
+    const allCheckpoints = await this.getCheckpoints(projectPath);
+
+    const enriched = branchState.branches.map((b) => {
+      let parentBranch: string | null = null;
+      if (b.name !== "main") {
+        for (const candidate of branchState.branches) {
+          if (candidate.name === b.name) continue;
+          if (new Date(candidate.created_at).getTime() <= new Date(b.created_at).getTime()) {
+            parentBranch = candidate.name;
+          }
+        }
+      }
+
+      const childBranches = branchState.branches
+        .filter((other) => other.name !== b.name && other.source_step_id && other.source_commit === b.source_commit)
+        .map((other) => other.name);
+
+      return {
+        ...b,
+        is_active: b.name === branchState.active_branch,
+        parent_branch_name: b.name === "main" ? null : (parentBranch || "main"),
+        child_branch_names: childBranches,
+      };
+    });
+
+    return {
+      active_branch: branchState.active_branch,
+      branches: enriched,
+      all_checkpoints: allCheckpoints,
     };
   }
 }

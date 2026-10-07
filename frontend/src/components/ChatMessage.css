@@ -506,6 +506,133 @@ omp-tool-view .tv-diff,
   transform: translateY(0);
 }
 
+.chat-msg__branch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  background: rgba(96, 165, 250, 0.16);
+  border: none;
+  color: #93c5fd;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-left: 2px;
+}
+
+.chat-msg__branch-btn:hover {
+  background: rgba(96, 165, 250, 0.28);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.chat-msg__branch-btn:active {
+  transform: translateY(0);
+}
+
+.chat-msg__branch-modal {
+  width: 100%;
+  max-width: 480px;
+  background: rgba(18, 18, 26, 0.92);
+  border: none;
+  border-radius: 20px;
+  box-shadow: 
+    0 32px 72px -12px rgba(0, 0, 0, 0.85),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 0 24px 0 rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  padding: 24px 26px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: rewind-modal-in 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.chat-msg__branch-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: none;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  transition: background 0.15s ease;
+}
+
+.chat-msg__branch-field:focus-within {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.chat-msg__branch-icon {
+  color: #60a5fa;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.chat-msg__branch-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: var(--font-mono, monospace);
+  letter-spacing: -0.01em;
+  caret-color: #ffffff;
+}
+
+.chat-msg__branch-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.chat-msg__branch-cancel-btn {
+  height: 32px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.chat-msg__branch-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.chat-msg__branch-submit-btn {
+  height: 32px;
+  padding: 0 16px;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 550;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.chat-msg__branch-submit-btn:hover {
+  background: #3b82f6;
+}
+
 /* Subagent cards in main chat */
 .chat-msg--subagent-card .chat-msg__box,
 .chat-msg--subagent-result .chat-msg__box {

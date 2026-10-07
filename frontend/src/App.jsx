@@ -248,6 +248,14 @@ export default function App() {
             return;
           }
 
+          if (data.type === 'branch_state') {
+            updateTab(tabId, {
+              activeBranch: data.active_branch || 'main',
+              branches: Array.isArray(data.branches) ? data.branches : [],
+            });
+            return;
+          }
+
           if (data.type === 'rewind_completed') {
             updateTab(tabId, (t) => ({
               agentStatus: null,
@@ -563,6 +571,8 @@ export default function App() {
           checkpointTimeline: [],
           pendingApproval: null,
           lastChangeTimestamp: 0,
+          activeBranch: 'main',
+          branches: [],
           isConnected: false,
         }));
         setTabs(initialized);
@@ -639,6 +649,8 @@ export default function App() {
         checkpointTimeline: [],
         pendingApproval: null,
         lastChangeTimestamp: 0,
+        activeBranch: 'main',
+        branches: [],
         isConnected: false,
       };
       setTabs((prev) => [...prev, newTab]);
@@ -861,6 +873,63 @@ export default function App() {
     updateTab(activeTabId, { previewData: null });
   }, [activeTabId, updateTab]);
 
+  const handleSelectBranch = useCallback(
+    (branchName) => {
+      if (!activeTabId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'switch_branch', branch_name: branchName }));
+      }
+    },
+    [activeTabId]
+  );
+
+  const handleCreateBranch = useCallback(
+    (branchName, fromStepId) => {
+      if (!activeTabId || !activeTab) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const lastStep = activeTab.checkpointTimeline?.[activeTab.checkpointTimeline.length - 1]?.step_id;
+        ws.send(
+          JSON.stringify({
+            action: 'create_branch',
+            branch_name: branchName,
+            from_step_id: fromStepId || lastStep || 'step_0',
+          })
+        );
+      }
+    },
+    [activeTabId, activeTab]
+  );
+
+  const handleDeleteBranch = useCallback(
+    (branchName) => {
+      if (!activeTabId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'delete_branch', branch_name: branchName }));
+      }
+    },
+    [activeTabId]
+  );
+
+  const handleBranchFromStep = useCallback(
+    (stepId, branchName) => {
+      if (!activeTabId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(
+          JSON.stringify({
+            action: 'create_branch',
+            branch_name: branchName,
+            from_step_id: stepId,
+          })
+        );
+      }
+    },
+    [activeTabId]
+  );
+
   return (
     <div className="app-container">
       {/* Unified Top Tab Bar with Home tab and Context Gauge */}
@@ -928,6 +997,12 @@ export default function App() {
           onRewindToStep={handleRewindToStep}
           input={activeTab.inputText || ''}
           onInputChange={(val) => updateTab(activeTab.id, { inputText: val })}
+          activeBranch={activeTab.activeBranch || 'main'}
+          branches={activeTab.branches || []}
+          onSelectBranch={handleSelectBranch}
+          onCreateBranch={handleCreateBranch}
+          onDeleteBranch={handleDeleteBranch}
+          onBranchFromStep={handleBranchFromStep}
         />
       )}
     </div>

@@ -33,6 +33,12 @@ export default function WorkspaceView({
   onRewindToStep = null,
   input,
   onInputChange,
+  activeBranch = 'main',
+  branches = [],
+  onSelectBranch,
+  onCreateBranch,
+  onDeleteBranch,
+  onBranchFromStep,
 }) {
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
@@ -67,9 +73,11 @@ export default function WorkspaceView({
     if (!isDragging.current) return;
 
     // Account for the 16px padding on the left of the workspace
-    let newWidth = e.clientX - 16;
-    if (newWidth < 300) newWidth = 300;
-    if (newWidth > window.innerWidth - 300) newWidth = window.innerWidth - 300;
+    let newWidth = e.clientX;
+    const minWidth = Math.max(300, window.innerWidth * 0.2);
+    const maxWidth = Math.min(window.innerWidth - 300, window.innerWidth * 0.8);
+    if (newWidth < minWidth) newWidth = minWidth;
+    if (newWidth > maxWidth) newWidth = maxWidth;
 
     if (leftPanelRef.current) {
       leftPanelRef.current.style.width = `${newWidth}px`;
@@ -89,7 +97,7 @@ export default function WorkspaceView({
   return (
     <div className="workspace-container">
       <div className="workspace">
-        <div className="workspace__left" ref={leftPanelRef} style={{ width: '400px' }}>
+        <div className="workspace__left" ref={leftPanelRef} style={{ width: '40%' }}>
           <ChatPanel
             messages={messages}
             onSendMessage={onSendMessage}
@@ -115,6 +123,12 @@ export default function WorkspaceView({
             input={input}
             onInputChange={onInputChange}
             projectName={projectName || _projectName}
+            activeBranch={activeBranch}
+            branches={branches}
+            onSelectBranch={onSelectBranch}
+            onCreateBranch={onCreateBranch}
+            onDeleteBranch={onDeleteBranch}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
 

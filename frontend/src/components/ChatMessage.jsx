@@ -111,6 +111,15 @@ const CameraIcon = () => (
   </svg>
 );
 
+const BranchIcon = () => (
+  <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="6" y1="3" x2="6" y2="15" />
+    <circle cx="18" cy="6" r="3" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M18 9a9 9 0 0 1-9 9" />
+  </svg>
+);
+
 const CompactionDividerCard = ({ message, onOpenDebug }) => {
   const [expanded, setExpanded] = useState(false);
   const shortSummary = message.short_summary || 'Compacted history';
@@ -380,10 +389,28 @@ const AskHumanQuestionItem = ({ questionData, onSelectOption }) => {
   );
 };
 
-const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, onRewindToStep }) => {
+const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, onRewindToStep, onBranchFromStep }) => {
   const [copied, setCopied] = useState(false);
   const [isRewindModalOpen, setIsRewindModalOpen] = useState(false);
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [branchNameInput, setBranchNameInput] = useState('');
 
+  const handleBranchClick = (e) => {
+    e.stopPropagation();
+    if (onBranchFromStep && stepId) {
+      setBranchNameInput(`exp-${stepId.replace(/^step_/, '')}`);
+      setIsBranchModalOpen(true);
+    }
+  };
+
+  const handleBranchSubmit = (e) => {
+    e.preventDefault();
+    const trimmed = branchNameInput.trim();
+    if (trimmed && onBranchFromStep && stepId) {
+      onBranchFromStep(stepId, trimmed);
+      setIsBranchModalOpen(false);
+    }
+  };
   const handleCopy = (e) => {
     e.stopPropagation();
     if (contentToCopy) {
@@ -439,6 +466,71 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
           <span>Rewind</span>
         </button>
       )}
+      {stepId && onBranchFromStep && (
+        <button
+          className="chat-msg__branch-btn"
+          onClick={handleBranchClick}
+          title={`Branch workspace from ${stepId}`}
+        >
+          <BranchIcon />
+          <span>Branch</span>
+        </button>
+      )}
+
+      {/* Branch Modal rendered via Portal */}
+      {isBranchModalOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="chat-msg__rewind-backdrop"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsBranchModalOpen(false);
+            }}
+          >
+            <div className="chat-msg__branch-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="chat-msg__rewind-header">
+                <h3 className="chat-msg__rewind-title">Branch Workspace</h3>
+                <p className="chat-msg__rewind-desc">
+                  Create a new branch from this turn ({stepId}) to experiment with different features or ideas. Your current branch and progress will remain untouched.
+                </p>
+              </div>
+
+              <form onSubmit={handleBranchSubmit}>
+                <div className="chat-msg__branch-field">
+                  <span className="chat-msg__branch-icon">
+                    <BranchIcon />
+                  </span>
+                  <input
+                    autoFocus
+                    className="chat-msg__branch-input"
+                    placeholder="Branch name (e.g. exp-dark-mode)..."
+                    value={branchNameInput}
+                    onChange={(e) => setBranchNameInput(e.target.value)}
+                  />
+                </div>
+
+                <div className="chat-msg__rewind-footer" style={{ marginTop: '14px', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="chat-msg__branch-cancel-btn"
+                    onClick={() => setIsBranchModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="chat-msg__branch-submit-btn"
+                    disabled={!branchNameInput.trim()}
+                  >
+                    Create & Switch
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* 2-Option Rewind Rollback Modal rendered via Portal onto body */}
       {isRewindModalOpen &&
@@ -515,7 +607,7 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
 /**
  * ChatMessage — Renders a single chat message bubble with Notion minimalism and LLM payload debugging.
  */
-export default function ChatMessage({ message, isActive, onOpenSubagent, onSelectOption, onToolResponse, onRewindToStep }) {
+export default function ChatMessage({ message, isActive, onOpenSubagent, onSelectOption, onToolResponse, onRewindToStep, onBranchFromStep }) {
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!message.collapsed);
   useEffect(() => {
@@ -586,6 +678,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -631,6 +724,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
               onOpenDebug={openDebug}
               stepId={message.step_id}
               onRewindToStep={onRewindToStep}
+              onBranchFromStep={onBranchFromStep}
             />
           </div>
         );
@@ -834,6 +928,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -868,6 +963,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
               onOpenDebug={openDebug}
               stepId={message.step_id}
               onRewindToStep={onRewindToStep}
+              onBranchFromStep={onBranchFromStep}
             />
           </div>
         );
@@ -972,6 +1068,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -996,6 +1093,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -1035,6 +1133,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -1145,6 +1244,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -1192,6 +1292,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );
@@ -1216,6 +1317,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
             onOpenDebug={openDebug}
             stepId={message.step_id}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         </div>
       );

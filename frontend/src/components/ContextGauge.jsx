@@ -3,8 +3,8 @@ import './ContextGauge.css';
 
 export default function ContextGauge({ telemetry, placement = 'top' }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverAlign, setPopoverAlign] = useState('left');
   const containerRef = useRef(null);
-
   // Close on outside click
   useEffect(() => {
     const handleOutsideClick = (e) => {
@@ -27,6 +27,20 @@ export default function ContextGauge({ telemetry, placement = 'top' }) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
+  // Check boundary to prevent popover clipping on narrow chat panels
+  useEffect(() => {
+    if (isOpen && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const parent = containerRef.current.closest('.chat-panel') || document.body;
+      const parentRect = parent.getBoundingClientRect();
+      if (rect.left + 265 > parentRect.right) {
+        setPopoverAlign('right');
+      } else {
+        setPopoverAlign('left');
+      }
+    }
   }, [isOpen]);
 
   const totalTokens = telemetry?.total_tokens ?? 0;
@@ -80,7 +94,7 @@ export default function ContextGauge({ telemetry, placement = 'top' }) {
       </button>
 
       {isOpen && (
-        <div className="context-gauge__popover">
+        <div className={`context-gauge__popover ${popoverAlign === 'right' ? 'context-gauge__popover--align-right' : ''}`}>
           <div className="context-gauge__arrow" />
           <div className="context-gauge__popover-header">
             <span className="context-gauge__popover-title">Context Window</span>

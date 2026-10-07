@@ -275,6 +275,95 @@ const _server = Bun.serve<WsData>({
       }
     }
 
+    // Projects: List Branches
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/branches$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const branchState = await CheckpointManager.getBranches(project.path);
+        return Response.json(branchState, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Branch Tree Graph
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/branch-tree$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const tree = await CheckpointManager.getBranchTree(project.path);
+        return Response.json(tree, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Create Branch
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/branches$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const body = (await req.json()) as { branch_name?: string; from_step_id?: string };
+        if (!body.branch_name || !body.from_step_id) {
+          return Response.json({ detail: "branch_name and from_step_id are required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const branch = await CheckpointManager.createBranch(project.path, body.branch_name, body.from_step_id);
+        return Response.json(branch, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Switch Branch
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/branches\/switch$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const body = (await req.json()) as { branch_name?: string };
+        if (!body.branch_name) {
+          return Response.json({ detail: "branch_name is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const branch = await CheckpointManager.switchBranch(project.path, body.branch_name);
+        return Response.json(branch, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Delete Branch
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/branches\/[^/]+$/) && req.method === "DELETE") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const branchName = decodeURIComponent(parts[5]);
+      try {
+        const project = await projectManager.getProject(projectName);
+        await CheckpointManager.deleteBranch(project.path, branchName);
+        return Response.json({ status: "deleted", branch: branchName }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
     // Projects: Rewind to Step
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/rewind$/) && req.method === "POST") {
       const parts = url.pathname.split("/");
@@ -505,6 +594,40 @@ const _server = Bun.serve<WsData>({
           projectManager.getProject(ws.data.activeProjectName).then(project => {
             devServerManager.stopDevServer(project.path);
           }).catch(() => {});
+        }
+        return;
+      }
+
+      if (action === "create_branch") {
+        const branchName = (data.branch_name || data.name) as string;
+        const fromStepId = (data.from_step_id || data.step_id) as string;
+        if (branchName && fromStepId) {
+          bridge.createBranch(branchName, fromStepId).catch(err => {
+            console.error("[WebSocket] Error creating branch:", err);
+            send({ type: "error", message: err instanceof Error ? err.message : String(err) });
+          });
+        }
+        return;
+      }
+
+      if (action === "switch_branch") {
+        const branchName = (data.branch_name || data.name) as string;
+        if (branchName) {
+          bridge.switchBranch(branchName).catch(err => {
+            console.error("[WebSocket] Error switching branch:", err);
+            send({ type: "error", message: err instanceof Error ? err.message : String(err) });
+          });
+        }
+        return;
+      }
+
+      if (action === "delete_branch") {
+        const branchName = (data.branch_name || data.name) as string;
+        if (branchName) {
+          bridge.deleteBranch(branchName).catch(err => {
+            console.error("[WebSocket] Error deleting branch:", err);
+            send({ type: "error", message: err instanceof Error ? err.message : String(err) });
+          });
         }
         return;
       }

@@ -41,6 +41,7 @@ export class SessionBridge {
   private session: AgentSession | null = null;
   private unsubscribe: (() => void) | null = null;
   private activeProjectPath: string | null = null;
+  private activeBranchName: string = "main";
   private activeModel: string = "gemini-2.5-flash";
   private isGenerating: boolean = false;
   private wasStoppedByUser: boolean = false;
@@ -108,14 +109,24 @@ export class SessionBridge {
       this.activeProjectPath = projectPath;
       this.activeToolCalls.clear();
 
-      // Load persisted chat history for this project
-      const history = await ChatHistoryManager.loadHistory(projectPath);
+      // Load branch state and persisted chat history for active branch
+      const branchState = await CheckpointManager.getBranches(projectPath).catch(() => null);
+      if (branchState) {
+        this.activeBranchName = branchState.active_branch || "main";
+      }
+      const history = await ChatHistoryManager.loadHistory(projectPath, this.activeBranchName);
       this.activeTurns = [...history.ui_events];
       CheckpointManager.ensureGitRepo(projectPath).catch(() => {});
       CheckpointManager.getCheckpoints(projectPath).then((steps) => {
         this.send({ type: "checkpoint_timeline", steps });
       }).catch(() => {});
-
+      if (branchState) {
+        this.send({
+          type: "branch_state",
+          active_branch: branchState.active_branch,
+          branches: branchState.branches,
+        });
+      }
       try {
         const authStorage = this.modelsService ? await this.modelsService.getAuthStorage() : undefined;
         const modelRegistry = this.modelsService ? await this.modelsService.getRegistry() : undefined;
@@ -376,7 +387,7 @@ export class SessionBridge {
 
     this.activeTurns.push(userMsg);
     if (this.activeProjectPath) {
-      await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg);
+      await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName);
     }
 
     this.send({
@@ -551,6 +562,109 @@ export class SessionBridge {
     }
   }
 
+  async createBranch(branchName: string, fromStepId: string): Promise<boolean> {
+    if (!this.activeProjectPath) return false;
+    if (this.isGenerating) {
+      throw new Error("Cannot create branch while agent is generating");
+    }
+
+    const projectPath = this.activeProjectPath;
+    const currentBranch = this.activeBranchName;
+    const leafId = this.session?.sessionManager?.getLeafId?.() ?? null;
+
+    const newBranch = await CheckpointManager.createBranch(projectPath, branchName, fromStepId, leafId);
+    this.activeBranchName = newBranch.name;
+
+    const branchEvents = await ChatHistoryManager.branchHistory(
+      projectPath,
+      currentBranch,
+      newBranch.name,
+      fromStepId,
+    );
+    this.activeTurns = [...branchEvents];
+
+    if (this.session && newBranch.leaf_entry_id) {
+      if (this.session.sessionManager?.getEntry?.(newBranch.leaf_entry_id)) {
+        await this.session.navigateTree(newBranch.leaf_entry_id, { summarize: false }).catch(() => {});
+      }
+    }
+
+    const branchState = await CheckpointManager.getBranches(projectPath);
+    this.send({
+      type: "branch_state",
+      active_branch: branchState.active_branch,
+      branches: branchState.branches,
+    });
+    this.send({
+      type: "chat_history_loaded",
+      project: path.basename(projectPath),
+      messages: this.activeTurns,
+    });
+    this.send({
+      type: "file_changed",
+      file: "*",
+      timestamp: Date.now(),
+    });
+    return true;
+  }
+
+  async switchBranch(branchName: string): Promise<boolean> {
+    if (!this.activeProjectPath) return false;
+    if (this.isGenerating) {
+      throw new Error("Cannot switch branch while agent is generating");
+    }
+
+    const projectPath = this.activeProjectPath;
+    const currentBranch = this.activeBranchName;
+    const leafId = this.session?.sessionManager?.getLeafId?.() ?? null;
+
+    if (leafId) {
+      await CheckpointManager.updateBranchLeaf(projectPath, currentBranch, leafId);
+    }
+
+    const target = await CheckpointManager.switchBranch(projectPath, branchName);
+    this.activeBranchName = target.name;
+
+    const history = await ChatHistoryManager.loadHistory(projectPath, target.name);
+    this.activeTurns = [...history.ui_events];
+
+    if (this.session && target.leaf_entry_id) {
+      if (this.session.sessionManager?.getEntry?.(target.leaf_entry_id)) {
+        await this.session.navigateTree(target.leaf_entry_id, { summarize: false }).catch(() => {});
+      }
+    }
+
+    const branchState = await CheckpointManager.getBranches(projectPath);
+    this.send({
+      type: "branch_state",
+      active_branch: branchState.active_branch,
+      branches: branchState.branches,
+    });
+    this.send({
+      type: "chat_history_loaded",
+      project: path.basename(projectPath),
+      messages: this.activeTurns,
+    });
+    this.send({
+      type: "file_changed",
+      file: "*",
+      timestamp: Date.now(),
+    });
+    return true;
+  }
+
+  async deleteBranch(branchName: string): Promise<boolean> {
+    if (!this.activeProjectPath) return false;
+    await CheckpointManager.deleteBranch(this.activeProjectPath, branchName);
+    const branchState = await CheckpointManager.getBranches(this.activeProjectPath);
+    this.send({
+      type: "branch_state",
+      active_branch: branchState.active_branch,
+      branches: branchState.branches,
+    });
+    return true;
+  }
+
   private handleSessionEvent(event: AgentSessionEvent): void {
     const timestamp = new Date().toISOString();
 
@@ -601,7 +715,7 @@ export class SessionBridge {
               };
               this.activeTurns.push(assistantMsg);
               if (this.activeProjectPath) {
-                ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg).catch(() => {});
+                ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg, this.activeBranchName).catch(() => {});
               }
             }
           }
@@ -622,7 +736,7 @@ export class SessionBridge {
         };
         this.activeTurns.push(toolCallMsg);
         if (this.activeProjectPath) {
-          ChatHistoryManager.appendEvent(this.activeProjectPath, toolCallMsg).catch(() => {});
+          ChatHistoryManager.appendEvent(this.activeProjectPath, toolCallMsg, this.activeBranchName).catch(() => {});
         }
 
         this.send(toolCallMsg);
@@ -683,7 +797,7 @@ export class SessionBridge {
         };
         this.activeTurns.push(toolResultMsg);
         if (this.activeProjectPath) {
-          ChatHistoryManager.appendEvent(this.activeProjectPath, toolResultMsg).catch(() => {});
+          ChatHistoryManager.appendEvent(this.activeProjectPath, toolResultMsg, this.activeBranchName).catch(() => {});
         }
 
         this.send(toolResultMsg);
@@ -781,7 +895,10 @@ export class SessionBridge {
                 if (this.activeTurns.length > 0) {
                   const lastMsg = this.activeTurns[this.activeTurns.length - 1];
                   lastMsg.step_id = checkpoint.step_id;
-                  await ChatHistoryManager.saveHistory(this.activeProjectPath!, this.activeTurns);
+                  await ChatHistoryManager.saveHistory(this.activeProjectPath!, this.activeTurns, this.activeBranchName);
+                  if (leafId) {
+                    await CheckpointManager.updateBranchLeaf(this.activeProjectPath!, this.activeBranchName, leafId);
+                  }
                 }
                 const steps = await CheckpointManager.getCheckpoints(this.activeProjectPath!);
                 this.send({

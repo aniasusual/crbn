@@ -1,0 +1,408 @@
+/* ==========================================================================
+   80degrees — BranchTreeModal Styling
+   Museum-Grade Studio Canvas, Full-Bleed Glassmorphism, Interactive Tree Graph
+   ========================================================================== */
+
+.branch-tree-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(8, 8, 12, 0.72);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  animation: branch-tree-fade 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes branch-tree-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.branch-tree-modal {
+  width: 100%;
+  max-width: 920px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(18, 18, 26, 0.94);
+  border: none;
+  border-radius: 24px;
+  box-shadow: 
+    0 36px 84px -16px rgba(0, 0, 0, 0.9),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 0 32px 0 rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(44px) saturate(200%);
+  -webkit-backdrop-filter: blur(44px) saturate(200%);
+  overflow: hidden;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+  color: #f1f5f9;
+  user-select: none;
+  animation: branch-tree-scale 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes branch-tree-scale {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Header */
+.branch-tree__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.branch-tree__header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.branch-tree__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.branch-tree__title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.branch-tree__active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  background: rgba(96, 165, 250, 0.14);
+  border-radius: 6px;
+  color: #93c5fd;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+}
+
+.branch-tree__active-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+}
+
+.branch-tree__subtitle {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: -0.01em;
+}
+
+.branch-tree__close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.branch-tree__close-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Tree Body Scroll Area */
+.branch-tree__body {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  gap: 24px;
+  min-height: 280px;
+}
+
+.branch-tree__body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.branch-tree__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+}
+
+/* Branch Column Card */
+.branch-tree__column {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.025);
+  border-radius: 16px;
+  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  box-sizing: border-box;
+  gap: 14px;
+  position: relative;
+  transition: background 0.15s ease;
+}
+
+.branch-tree__column--active {
+  background: rgba(96, 165, 250, 0.05) !important;
+  box-shadow: 
+    0 12px 32px -8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px 0 rgba(96, 165, 250, 0.3) !important;
+}
+
+/* Column Header */
+.branch-tree__col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.branch-tree__col-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.branch-tree__col-icon {
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.branch-tree__col-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.branch-tree__switch-btn {
+  height: 24px;
+  padding: 0 9px;
+  background: rgba(96, 165, 250, 0.14);
+  border: none;
+  border-radius: 6px;
+  color: #93c5fd;
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+}
+
+.branch-tree__switch-btn:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* Timeline Cards */
+.branch-tree__timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+}
+
+.branch-tree__timeline::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 11px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 1px;
+}
+
+.branch-tree__step-node {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+}
+
+.branch-tree__step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(30, 30, 42, 0.95);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.branch-tree__step-node--head .branch-tree__step-dot {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+}
+
+.branch-tree__step-card {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.12s ease;
+}
+
+.branch-tree__step-card:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.branch-tree__step-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  font-family: var(--font-mono, monospace);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.branch-tree__step-hash {
+  color: #60a5fa;
+}
+
+.branch-tree__step-prompt {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.branch-tree__step-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.branch-tree__branch-step-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  background: rgba(96, 165, 250, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: #93c5fd;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.branch-tree__branch-step-btn:hover {
+  background: rgba(96, 165, 250, 0.25);
+  color: #ffffff;
+}
+
+/* Inline Create Branch input under step */
+.branch-tree__inline-form {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.branch-tree__inline-input {
+  width: 100%;
+  padding: 5px 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.branch-tree__inline-btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.branch-tree__inline-confirm {
+  height: 22px;
+  padding: 0 8px;
+  background: #2563eb;
+  border: none;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.branch-tree__inline-cancel {
+  height: 22px;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+
+/* Empty / Loading State */
+.branch-tree__loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+}

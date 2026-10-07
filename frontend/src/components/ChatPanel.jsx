@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
+import BranchSelector from './BranchSelector';
+import BranchTreeModal from './BranchTreeModal';
 import ChatMessage from './ChatMessage';
 import CommandApproval from './CommandApproval';
 import ModelSelector from './ModelSelector';
@@ -99,7 +101,14 @@ export default function ChatPanel({
   onRewindToStep = null,
   input: controlledInput,
   onInputChange,
+  projectName = '',
   _projectName = '',
+  activeBranch = 'main',
+  branches = [],
+  onSelectBranch,
+  _onCreateBranch,
+  onDeleteBranch,
+  onBranchFromStep,
 }) {
   const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
@@ -120,6 +129,7 @@ export default function ChatPanel({
   } = useMediaAttachments();
   const [selectedSubagentMsg, setSelectedSubagentMsg] = useState(null);
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
+  const [isTreeModalOpen, setIsTreeModalOpen] = useState(false);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const isUserScrolledRef = useRef(false);
@@ -262,6 +272,22 @@ export default function ChatPanel({
 
   return (
     <div className="chat-panel">
+      <div className="chat-panel__header">
+        <div className="chat-panel__header-left">
+          <span className="chat-panel__project-title">{projectName || _projectName || 'Workspace'}</span>
+        </div>
+        <div className="chat-panel__header-right">
+          <BranchSelector
+            activeBranch={activeBranch}
+            branches={branches}
+            onSelectBranch={onSelectBranch}
+            onDeleteBranch={onDeleteBranch}
+            onOpenTreeView={() => setIsTreeModalOpen(true)}
+            disabled={Boolean(isAgentRunning)}
+          />
+        </div>
+      </div>
+
 
       <div
         className="chat-panel__messages"
@@ -283,6 +309,7 @@ export default function ChatPanel({
               }
             }}
             onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
           />
         ))}
         {/* Loader in chat area when agent is working and response has not started streaming yet */}
@@ -564,6 +591,16 @@ export default function ChatPanel({
           isActive={isAgentRunning}
         />
       )}
+
+      {/* Complete Branch & Checkpoint Tree Modal */}
+      <BranchTreeModal
+        isOpen={isTreeModalOpen}
+        onClose={() => setIsTreeModalOpen(false)}
+        projectName={projectName || _projectName}
+        activeBranch={activeBranch}
+        onSelectBranch={onSelectBranch}
+        onBranchFromStep={onBranchFromStep}
+      />
     </div>
   );
 }

@@ -10,15 +10,16 @@ export interface ChatStoragePayload {
   project_name: string;
   created_at: string;
   updated_at: string;
+  active_branch?: string;
+  branches?: Record<string, Record<string, unknown>[]>;
   ui_events: Record<string, unknown>[];
 }
-
 export class ChatHistoryManager {
   static getChatFilePath(projectPath: string): string {
     return path.join(projectPath, CHAT_FILENAME);
   }
 
-  static async loadHistory(projectPath: string): Promise<ChatStoragePayload> {
+  static async loadHistory(projectPath: string, branchName?: string): Promise<ChatStoragePayload> {
     const filePath = this.getChatFilePath(projectPath);
     const projectName = path.basename(projectPath);
     const now = new Date().toISOString();
@@ -26,10 +27,14 @@ export class ChatHistoryManager {
     if (!fsSync.existsSync(filePath)) {
       const recovered = await this.recoverFromSession(projectPath);
       const payload: ChatStoragePayload = {
-        version: 2,
+        version: 3,
         project_name: projectName,
         created_at: now,
         updated_at: now,
+        active_branch: branchName || "main",
+        branches: {
+          [branchName || "main"]: recovered,
+        },
         ui_events: recovered,
       };
       if (recovered.length > 0) {
@@ -41,54 +46,116 @@ export class ChatHistoryManager {
     try {
       const raw = await fs.readFile(filePath, "utf-8");
       const data = JSON.parse(raw);
+      const branches: Record<string, Record<string, unknown>[]> = data.branches || {};
       let uiEvents = Array.isArray(data.ui_events) ? data.ui_events : [];
-      if (uiEvents.length === 0) {
-        const recovered = await this.recoverFromSession(projectPath);
-        if (recovered.length > 0) {
-          uiEvents = recovered;
-          await this.saveHistory(projectPath, uiEvents).catch(() => {});
+      const targetBranch = branchName || data.active_branch || "main";
+
+      // Ensure target branch has an array
+      if (!branches[targetBranch]) {
+        if (targetBranch === "main" && uiEvents.length > 0) {
+          branches["main"] = uiEvents;
+        } else if (uiEvents.length > 0 && Object.keys(branches).length === 0) {
+          branches[targetBranch] = uiEvents;
+        } else {
+          branches[targetBranch] = [];
         }
       }
+
+      const branchEvents = branches[targetBranch] || uiEvents;
       return {
-        version: data.version ?? 2,
+        version: data.version ?? 3,
         project_name: data.project_name ?? projectName,
         created_at: data.created_at ?? now,
         updated_at: data.updated_at ?? now,
-        ui_events: uiEvents,
+        active_branch: targetBranch,
+        branches,
+        ui_events: branchEvents,
       };
     } catch {
       const recovered = await this.recoverFromSession(projectPath);
       return {
-        version: 2,
+        version: 3,
         project_name: projectName,
         created_at: now,
         updated_at: now,
+        active_branch: branchName || "main",
+        branches: {
+          [branchName || "main"]: recovered,
+        },
         ui_events: recovered,
       };
     }
   }
 
-  static async saveHistory(projectPath: string, uiEvents: Record<string, unknown>[]): Promise<void> {
+  static async saveHistory(
+    projectPath: string,
+    uiEvents: Record<string, unknown>[],
+    branchName?: string,
+  ): Promise<void> {
     const filePath = this.getChatFilePath(projectPath);
     const projectName = path.basename(projectPath);
     const now = new Date().toISOString();
 
+    let currentBranches: Record<string, Record<string, unknown>[]> = {};
+    let activeBranch = branchName || "main";
+
+    if (fsSync.existsSync(filePath)) {
+      try {
+        const raw = await fs.readFile(filePath, "utf-8");
+        const parsed = JSON.parse(raw);
+        currentBranches = parsed.branches || {};
+        if (!branchName) activeBranch = parsed.active_branch || "main";
+      } catch {}
+    }
+
+    currentBranches[activeBranch] = uiEvents;
+
     const payload: ChatStoragePayload = {
-      version: 2,
+      version: 3,
       project_name: projectName,
       created_at: now,
       updated_at: now,
-      ui_events: uiEvents,
+      active_branch: activeBranch,
+      branches: currentBranches,
+      ui_events: activeBranch === "main" ? uiEvents : (currentBranches["main"] || uiEvents),
     };
 
     await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf-8");
   }
 
-  static async appendEvent(projectPath: string, event: Record<string, unknown>): Promise<void> {
-    const history = await this.loadHistory(projectPath);
+  static async branchHistory(
+    projectPath: string,
+    sourceBranch: string,
+    newBranch: string,
+    fromStepId?: string,
+  ): Promise<Record<string, unknown>[]> {
+    const history = await this.loadHistory(projectPath, sourceBranch);
+    const sourceEvents = history.ui_events;
+    let cutoffIndex = sourceEvents.length - 1;
+
+    if (fromStepId && fromStepId !== "latest") {
+      for (let i = sourceEvents.length - 1; i >= 0; i--) {
+        const ev = sourceEvents[i];
+        if (ev.step_id === fromStepId || ev.id === fromStepId) {
+          cutoffIndex = i;
+          break;
+        }
+      }
+    }
+
+    const clonedEvents = sourceEvents.slice(0, cutoffIndex + 1);
+    await this.saveHistory(projectPath, clonedEvents, newBranch);
+    return clonedEvents;
+  }
+
+  static async appendEvent(
+    projectPath: string,
+    event: Record<string, unknown>,
+    branchName?: string,
+  ): Promise<void> {
+    const history = await this.loadHistory(projectPath, branchName);
     history.ui_events.push(event);
-    history.updated_at = new Date().toISOString();
-    await fs.writeFile(this.getChatFilePath(projectPath), JSON.stringify(history, null, 2), "utf-8");
+    await this.saveHistory(projectPath, history.ui_events, branchName || history.active_branch || "main");
   }
 
   static async clearHistory(projectPath: string): Promise<void> {
