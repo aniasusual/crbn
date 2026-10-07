@@ -1,21 +1,22 @@
 /* ==========================================================================
-   80degrees — Studio Workbench Styling
-   Minimalist & Architectural Precision Workspace
+   80degrees — Creative Studio Canvas Styling
+   Soothing, Velvety & Elegant Workspace for Creative Website Crafting
    ========================================================================== */
 
-.preview-studio {
-  --studio-bg: #0d0d11;
-  --studio-bar-bg: #121216;
-  --studio-canvas-mat: #0a0a0d;
-  --studio-line: rgba(255, 255, 255, 0.06);
-  --studio-line-subtle: rgba(255, 255, 255, 0.035);
-  --studio-line-hover: rgba(255, 255, 255, 0.14);
-  --studio-fg: #fbfbfc;
-  --studio-fg-dim: rgba(255, 255, 255, 0.58);
-  --studio-fg-muted: rgba(255, 255, 255, 0.34);
-  --studio-fg-faint: rgba(255, 255, 255, 0.18);
-  --studio-live: #22c55e;
-  --studio-boot: #f59e0b;
+.preview-sooth {
+  --sooth-bg: #101014;
+  --sooth-mat-bg: #0b0b0e;
+  --sooth-line: rgba(255, 255, 255, 0.055);
+  --sooth-line-soft: rgba(255, 255, 255, 0.035);
+  --sooth-line-hover: rgba(255, 255, 255, 0.12);
+  --sooth-fg: #f5f5f7;
+  --sooth-fg-dim: rgba(255, 255, 255, 0.6);
+  --sooth-fg-muted: rgba(255, 255, 255, 0.36);
+  --sooth-fg-faint: rgba(255, 255, 255, 0.18);
+  --sooth-live: #34d399;
+  --sooth-live-glow: rgba(52, 211, 153, 0.22);
+  --sooth-boot: #fbbf24;
+  --sooth-boot-glow: rgba(251, 191, 36, 0.22);
 
   width: 100%;
   height: 100%;
@@ -23,439 +24,347 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: var(--studio-bg);
+  background: var(--sooth-bg);
   overflow: hidden;
   position: relative;
   box-sizing: border-box;
+  padding: 10px;
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
 }
 
 /* ==========================================================================
-   Studio Horizon Bar
+   Floating Action Dock Positioned at Bottom Center
    ========================================================================== */
 
-.preview-studio__bar {
+.preview-sooth__dock-bottom-center {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  height: 40px;
-  background: var(--studio-bar-bg);
-  border-bottom: 1px solid var(--studio-line);
-  user-select: none;
-  flex-shrink: 0;
-  gap: 16px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.preview-studio__bar::-webkit-scrollbar {
-  display: none;
-}
-
-.preview-studio__group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.preview-studio__group--left {
-  flex-shrink: 0;
-}
-
-.preview-studio__group--center {
-  flex: 1;
   justify-content: center;
-  min-width: 0;
-}
-
-.preview-studio__group--right {
-  flex-shrink: 0;
-  justify-content: flex-end;
+  pointer-events: auto;
 }
 
 /* ==========================================================================
-   Navigation Tabs (Preview / Code)
+   Top Floating Status Pill
    ========================================================================== */
 
-.preview-studio__nav {
+.preview-sooth__top-badge {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.preview-sooth__badge-pill {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 2px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 6px;
-}
-
-.preview-studio__nav-tab {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 9px;
-  border: none;
-  background: transparent;
-  color: var(--studio-fg-muted);
-  font-size: 11.5px;
-  font-weight: 500;
-  font-family: inherit;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: color 0.12s ease, background-color 0.12s ease;
-  outline: none;
-  white-space: nowrap;
-}
-
-.preview-studio__nav-tab:hover {
-  color: var(--studio-fg);
-}
-
-.preview-studio__nav-tab--active {
-  background: rgba(255, 255, 255, 0.09) !important;
-  color: var(--studio-fg) !important;
-  font-weight: 600;
-}
-
-/* ==========================================================================
-   Quiet Telemetry
-   ========================================================================== */
-
-.preview-studio__telemetry {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  background: rgba(18, 18, 24, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
   font-size: 11px;
-  color: var(--studio-fg-muted);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  padding-left: 4px;
+  color: var(--sooth-fg-dim);
+  user-select: none;
 }
 
-.preview-studio__dot {
-  width: 5px;
-  height: 5px;
+.preview-sooth__badge-dot {
+  width: 5.5px;
+  height: 5.5px;
   border-radius: 50%;
-  background: var(--studio-live);
+  background: var(--sooth-live);
+  box-shadow: 0 0 8px var(--sooth-live-glow);
   flex-shrink: 0;
 }
 
-.preview-studio__dot--pulse {
-  background: var(--studio-boot);
-  animation: studio-dot-pulse 1.4s infinite ease-in-out;
+.preview-sooth__badge-dot--booting {
+  background: var(--sooth-boot);
+  box-shadow: 0 0 8px var(--sooth-boot-glow);
+  animation: sooth-dot-breathe 2.2s infinite ease-in-out;
 }
 
-@keyframes studio-dot-pulse {
-  0%, 100% { opacity: 0.9; transform: scale(1); }
-  50% { opacity: 0.3; transform: scale(0.85); }
+@keyframes sooth-dot-breathe {
+  0%, 100% { opacity: 0.95; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
 }
 
-.preview-studio__port {
+.preview-sooth__badge-port {
   letter-spacing: -0.01em;
+  font-weight: 500;
+  color: var(--sooth-fg);
 }
 
-.preview-studio__port-sub {
-  font-size: 10px;
-  color: var(--studio-fg-faint);
+.preview-sooth__badge-project {
+  font-size: 10.5px;
+  color: var(--sooth-fg-muted);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  padding-left: 7px;
   margin-left: 2px;
 }
 
 /* ==========================================================================
-   Center Viewport Controls & Indicators
+   Full-Height Curved Viewport Sanctuary
    ========================================================================== */
 
-.preview-studio__viewports {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.preview-studio__viewport-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 24px;
-  border: none;
-  background: transparent;
-  color: var(--studio-fg-muted);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  outline: none;
-}
-
-.preview-studio__viewport-btn:hover {
-  color: var(--studio-fg);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.preview-studio__viewport-btn--active {
-  color: var(--studio-fg) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
-}
-
-.preview-studio__dim-label {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 10.5px;
-  color: var(--studio-fg-muted);
-  font-variant-numeric: tabular-nums;
-  margin-left: 6px;
-  letter-spacing: -0.01em;
-}
-
-.preview-studio__project-crumb {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 11px;
-  color: var(--studio-fg-dim);
-  letter-spacing: -0.01em;
-}
-
-/* ==========================================================================
-   Right Actions & URL
-   ========================================================================== */
-
-.preview-studio__url-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 7px;
-  border: none;
-  background: rgba(255, 255, 255, 0.025);
-  border-radius: 4px;
-  color: var(--studio-fg-dim);
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  outline: none;
-  max-width: 240px;
-}
-
-.preview-studio__url-link:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--studio-fg);
-}
-
-.preview-studio__url-text {
+.preview-sooth__viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  letter-spacing: -0.01em;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 16px 40px -8px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: var(--sooth-mat-bg);
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
-.preview-studio__url-status {
-  display: flex;
-  align-items: center;
-  color: var(--studio-fg-muted);
-  flex-shrink: 0;
-}
-
-.preview-studio__url-link:hover .preview-studio__url-status {
-  color: var(--studio-fg);
-}
-
-.preview-studio__ghost-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.preview-studio__ghost-btn {
-  display: inline-flex;
+.preview-sooth__viewport--empty {
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 24px;
-  background: transparent;
-  border: none;
-  border-radius: 4px;
-  color: var(--studio-fg-muted);
-  cursor: pointer;
-  transition: all 0.12s ease;
-  outline: none;
-}
-
-.preview-studio__ghost-btn:hover {
-  color: var(--studio-fg);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.preview-studio__ghost-btn:active {
-  transform: scale(0.96);
-}
-
-.preview-studio__spin {
-  animation: studio-spin 0.45s linear infinite;
-}
-
-@keyframes studio-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
 }
 
 /* ==========================================================================
-   Surface: Code Inspector vs Studio Canvas
+   Body & Canvas Containers
    ========================================================================== */
 
-.preview-studio__body {
+.preview-sooth__body {
   flex: 1;
   width: 100%;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  padding-bottom: 74px; /* Room for bottom-center dock */
+  box-sizing: border-box;
 }
 
-.preview-studio__canvas {
+.preview-sooth__canvas {
   flex: 1;
   width: 100%;
   height: 100%;
   min-height: 0;
   position: relative;
-  background: var(--studio-bg);
+  background: var(--sooth-bg);
   display: flex;
   flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-.preview-studio__frame {
+.preview-sooth__frame {
   border: none;
   display: block;
   background: #ffffff;
 }
 
-.preview-studio__frame--fluid {
+.preview-sooth__frame--fluid {
   width: 100%;
   height: 100%;
   flex: 1;
+  border-radius: 18px;
+  overflow: hidden;
 }
 
-/* Framed Device Stage */
-.preview-studio__canvas--framed {
+/* Framed Studio Mat for Device Presets */
+.preview-sooth__canvas--framed {
   overflow: auto;
-  background: var(--studio-canvas-mat);
-  padding: 32px 24px;
+  background-color: var(--sooth-mat-bg);
+  background-image: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.02) 0%, transparent 65%);
+  padding: 36px 28px 96px 28px; /* Extra bottom padding so dock never overlaps */
   box-sizing: border-box;
 }
 
-.preview-studio__stage {
+.preview-sooth__stage {
   width: 100%;
   min-height: 100%;
   display: flex;
   justify-content: center;
   align-items: flex-start;
+  position: relative;
 }
 
-.preview-studio__chassis {
+/* Apple-Grade Floating Device Chassis */
+.preview-sooth__chassis {
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
+  border-radius: 14px;
   overflow: hidden;
   box-shadow:
-    0 24px 64px -12px rgba(0, 0, 0, 0.8),
-    0 2px 8px rgba(0, 0, 0, 0.4);
+    0 32px 80px -16px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.35);
   flex-shrink: 0;
-  transition: width 0.18s cubic-bezier(0.16, 1, 0.3, 1), height 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  transition:
+    width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.preview-studio__frame--contained {
+.preview-sooth__frame--contained {
   width: 100%;
   height: 100%;
   flex: 1;
 }
 
 /* ==========================================================================
-   Whisper State Messages (Booting & Standby)
+   Booting, Idle & Standby States
    ========================================================================== */
 
-.preview-studio__state-msg {
+.preview-sooth__calm-state {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--studio-bg);
+  background: var(--sooth-bg);
   gap: 10px;
-  padding: 24px;
+  padding: 28px;
   text-align: center;
   z-index: 10;
 }
 
-.preview-studio__loader-ring {
-  width: 18px;
-  height: 18px;
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--studio-fg);
-  border-radius: 50%;
-  animation: studio-spin 0.65s linear infinite;
-  margin-bottom: 2px;
+.preview-sooth__calm-icon {
+  color: var(--sooth-fg-faint);
+  margin-bottom: 4px;
 }
 
-.preview-studio__state-glyph {
-  color: var(--studio-fg-faint);
-  margin-bottom: 2px;
-}
-
-.preview-studio__state-title {
-  font-size: 13px;
+.preview-sooth__calm-title {
+  font-size: 14.5px;
   font-weight: 550;
-  color: var(--studio-fg);
-  letter-spacing: -0.01em;
+  color: var(--sooth-fg);
+  letter-spacing: -0.015em;
 }
 
-.preview-studio__state-desc {
-  font-size: 11.5px;
-  color: var(--studio-fg-muted);
-  line-height: 1.5;
-  max-width: 280px;
+.preview-sooth__calm-subtitle {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--sooth-fg-muted);
+  max-width: 300px;
 }
 
-.preview-studio__state-desc code {
-  color: var(--studio-fg);
-  background: rgba(255, 255, 255, 0.06);
-  padding: 1px 4px;
-  border-radius: 3px;
+.preview-sooth__calm-subtitle code {
+  color: var(--sooth-fg);
+  background: rgba(255, 255, 255, 0.07);
+  padding: 1px 5px;
+  border-radius: 4px;
   font-family: var(--font-mono, 'JetBrains Mono', monospace);
 }
 
-/* Clean Empty Standby Screen */
-.preview-studio--empty {
+/* Ethereal Breathing Halo for Warming Up Runtime */
+.preview-sooth__breathing-halo {
+  position: relative;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--studio-bg);
-  padding: 24px;
+  margin-bottom: 6px;
 }
 
-.preview-studio__standby-block {
+.preview-sooth__halo-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  animation: halo-breathe 2.4s ease-in-out infinite;
+}
+
+.preview-sooth__halo-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sooth-boot);
+  box-shadow: 0 0 16px var(--sooth-boot-glow);
+  animation: halo-core-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes halo-breathe {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.95;
+    border-color: rgba(251, 191, 36, 0.35);
+  }
+}
+
+@keyframes halo-core-glow {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+/* Creative Sanctuary Empty State */
+.preview-sooth--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sooth-bg);
+  padding: 10px;
+}
+
+.preview-sooth__sanctuary {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  max-width: 300px;
-  gap: 8px;
+  max-width: 320px;
+  gap: 10px;
 }
 
-.preview-studio__standby-glyph {
-  color: var(--studio-fg-faint);
-  margin-bottom: 4px;
+.preview-sooth__sanctuary-icon {
+  color: var(--sooth-fg-faint);
+  margin-bottom: 6px;
+  transition: color 0.2s ease;
 }
 
-.preview-studio__standby-headline {
-  font-size: 14px;
+.preview-sooth__sanctuary:hover .preview-sooth__sanctuary-icon {
+  color: var(--sooth-fg-muted);
+}
+
+.preview-sooth__sanctuary-title {
+  font-size: 16px;
   font-weight: 550;
-  color: var(--studio-fg);
-  letter-spacing: -0.015em;
+  color: var(--sooth-fg);
+  letter-spacing: -0.02em;
+  margin: 0;
 }
 
-.preview-studio__standby-subline {
-  font-size: 12px;
-  line-height: 1.55;
-  color: var(--studio-fg-muted);
+.preview-sooth__sanctuary-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--sooth-fg-muted);
   margin: 0;
 }
