@@ -233,12 +233,22 @@ export default function BranchTreeModal({
     const laneInfo = branchLanes.get(b.name);
     if (!laneInfo) return;
 
-    // Find parent source checkpoint where this branch sprouted from
-    const parentNode =
-      nodeMap.get(b.source_step_id) ||
-      nodes.find((n) => n.commitHash === b.source_commit?.slice(0, 7)) ||
-      nodes[0];
+    // Find parent node: if this branch branched from another child branch, link to that branch's node!
+    const parentBranchKey = b.parent_branch_name || b.parent_branch;
+    let parentNode = null;
 
+    if (parentBranchKey && parentBranchKey !== 'main') {
+      parentNode =
+        nodeMap.get(`branch-node-${parentBranchKey}`) ||
+        nodes.find((n) => n.branchName === parentBranchKey);
+    }
+
+    if (!parentNode) {
+      parentNode =
+        nodeMap.get(b.source_step_id) ||
+        nodes.find((n) => n.commitHash === b.source_commit?.slice(0, 7)) ||
+        nodes[0];
+    }
     const parentRow = parentNode ? parentNode.row : 0;
     const childCol = laneInfo.laneIndex;
     const childRow = parentRow + 1;
@@ -255,10 +265,10 @@ export default function BranchTreeModal({
       stepId: b.source_step_id || 'step_0',
       stepNumber: parentNode ? parentNode.stepNumber + 1 : 1,
       branchName: b.name,
+      parentBranch: parentBranchKey || 'main',
       color: laneInfo.color,
       commitHash: b.source_commit?.slice(0, 7) || 'HEAD',
-      prompt: `Branch: ${b.name} (forked from ${parentNode?.stepId || 'root'})`,
-      isHead: true,
+      prompt: `Branch: ${b.name}${parentBranchKey && parentBranchKey !== 'main' ? ` (forked from ${parentBranchKey})` : (parentNode?.stepId ? ` (forked from ${parentNode.stepId})` : '')}`,
       isActiveBranch: isCurrentActiveHead,
       col: childCol,
       row: childRow,
@@ -345,11 +355,11 @@ export default function BranchTreeModal({
     onClose();
   };
 
-  const handleBranchSubmit = (e, stepId) => {
+  const handleBranchSubmit = (e, stepId, fromBranch) => {
     e.preventDefault();
     const name = newBranchInput.trim();
     if (!name || !stepId) return;
-    onBranchFromStep?.(stepId, name);
+    onBranchFromStep?.(stepId, name, fromBranch);
     onClose();
   };
 
@@ -556,9 +566,8 @@ export default function BranchTreeModal({
                             className="branch-tree__btn-branch"
                             onClick={() => {
                               setBranchingNodeId(node.id);
-                              setNewBranchInput(`exp-${node.stepId.replace(/^step_/, '')}`);
+                              setNewBranchInput(`exp-${node.branchName !== 'main' ? node.branchName : node.stepId.replace(/^step_/, '')}`);
                             }}
-                            title="Branch out from this exact node"
                           >
                             <BranchIcon />
                             <span>Branch</span>
@@ -569,11 +578,11 @@ export default function BranchTreeModal({
                       {/* Inline Branch Creator overlay */}
                       {isBranchingThis && (
                         <form
-                          onSubmit={(e) => handleBranchSubmit(e, node.stepId)}
+                          onSubmit={(e) => handleBranchSubmit(e, node.stepId, node.branchName)}
                           className="branch-tree__inline-form"
                         >
                           <div style={{ fontSize: '11px', fontWeight: 600, color: '#93c5fd' }}>
-                            Branch from Step {node.stepNumber}
+                            Branch from {node.branchName !== 'main' ? node.branchName : `Step ${node.stepNumber}`}
                           </div>
                           <input
                             autoFocus
