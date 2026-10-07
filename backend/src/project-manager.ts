@@ -15,6 +15,75 @@ export interface ProjectInfo {
   last_opened: string;
 }
 
+export interface FileNode {
+  name: string;
+  path: string;
+  type: "file" | "directory";
+  size?: number;
+  children?: FileNode[];
+}
+
+const EXCLUDED_NAMES = new Set([
+  "node_modules",
+  ".git",
+  ".DS_Store",
+  "dist",
+  ".cache",
+  ".vite",
+]);
+
+const BINARY_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".ico",
+  ".bmp",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".eot",
+  ".otf",
+  ".mp4",
+  ".webm",
+  ".mp3",
+  ".wav",
+  ".ogg",
+  ".pdf",
+  ".zip",
+  ".tar",
+  ".gz",
+]);
+
+const MIME_TYPES: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".ico": "image/x-icon",
+  ".svg": "image/svg+xml",
+  ".bmp": "image/bmp",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+  ".ttf": "font/ttf",
+  ".eot": "application/vnd.ms-fontobject",
+  ".otf": "font/otf",
+  ".mp4": "video/mp4",
+  ".mp3": "audio/mpeg",
+  ".pdf": "application/pdf",
+  ".json": "application/json",
+  ".js": "application/javascript",
+  ".jsx": "application/javascript",
+  ".ts": "application/typescript",
+  ".tsx": "application/typescript",
+  ".css": "text/css",
+  ".html": "text/html",
+  ".md": "text/markdown",
+  ".txt": "text/plain",
+};
+
 export const META_FILENAME = ".80degrees_meta.json";
 export const CHAT_FILENAME = ".80degrees_chat.json";
 
@@ -258,5 +327,158 @@ export class ProjectManager {
         await fs.copyFile(srcPath, destPath);
       }
     }
+  }
+  private resolveSafePath(projectRoot: string, relativePath: string): string {
+    const cleanRel = (relativePath || "").replace(/^(\/|\\)+/, "");
+    const resolved = path.resolve(projectRoot, cleanRel);
+    const rootWithSep = projectRoot.endsWith(path.sep) ? projectRoot : projectRoot + path.sep;
+    if (resolved !== projectRoot && !resolved.startsWith(rootWithSep)) {
+      throw new Error("Access denied: path outside project directory");
+    }
+    return resolved;
+  }
+
+  private async buildFileTree(rootDir: string, currentDir: string): Promise<FileNode[]> {
+    const entries = await fs.readdir(currentDir, { withFileTypes: true });
+    const nodes: FileNode[] = [];
+
+    for (const entry of entries) {
+      if (EXCLUDED_NAMES.has(entry.name)) continue;
+      if (entry.name.startsWith(".80degrees_")) continue;
+
+      const fullPath = path.join(currentDir, entry.name);
+      const relPath = path.relative(rootDir, fullPath);
+
+      if (entry.isDirectory()) {
+        const children = await this.buildFileTree(rootDir, fullPath);
+        nodes.push({
+          name: entry.name,
+          path: relPath,
+          type: "directory",
+          children,
+        });
+      } else if (entry.isFile()) {
+        try {
+          const stat = await fs.stat(fullPath);
+          nodes.push({
+            name: entry.name,
+            path: relPath,
+            type: "file",
+            size: stat.size,
+          });
+        } catch {
+          nodes.push({
+            name: entry.name,
+            path: relPath,
+            type: "file",
+          });
+        }
+      }
+    }
+
+    nodes.sort((a, b) => {
+      if (a.type === b.type) {
+        return a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
+      }
+      return a.type === "directory" ? -1 : 1;
+    });
+
+    return nodes;
+  }
+
+  async getFileTree(name: string): Promise<FileNode[]> {
+    const project = await this.getProject(name);
+    return this.buildFileTree(project.path, project.path);
+  }
+
+  async readFile(name: string, relativePath: string): Promise<{
+    path: string;
+    name: string;
+    content: string;
+    isBinary: boolean;
+    size: number;
+    mimeType: string;
+  }> {
+    const project = await this.getProject(name);
+    const safePath = this.resolveSafePath(project.path, relativePath);
+    const stat = await fs.stat(safePath);
+    if (stat.isDirectory()) {
+      throw new Error("Cannot read directory as file");
+    }
+
+    const ext = path.extname(safePath).toLowerCase();
+    const mimeType = MIME_TYPES[ext] || "text/plain";
+    const isBinary = BINARY_EXTENSIONS.has(ext);
+
+    if (isBinary) {
+      const buffer = await fs.readFile(safePath);
+      return {
+        path: relativePath,
+        name: path.basename(safePath),
+        content: buffer.toString("base64"),
+        isBinary: true,
+        size: stat.size,
+        mimeType,
+      };
+    }
+
+    const content = await fs.readFile(safePath, "utf-8");
+    return {
+      path: relativePath,
+      name: path.basename(safePath),
+      content,
+      isBinary: false,
+      size: stat.size,
+      mimeType,
+    };
+  }
+
+  async writeFile(name: string, relativePath: string, content: string): Promise<{
+    success: boolean;
+    path: string;
+    size: number;
+  }> {
+    const project = await this.getProject(name);
+    const safePath = this.resolveSafePath(project.path, relativePath);
+    await fs.mkdir(path.dirname(safePath), { recursive: true });
+    await fs.writeFile(safePath, content, "utf-8");
+    const stat = await fs.stat(safePath);
+    return {
+      success: true,
+      path: relativePath,
+      size: stat.size,
+    };
+  }
+
+  async createFileOrDir(
+    name: string,
+    relativePath: string,
+    type: "file" | "directory" = "file",
+  ): Promise<{ success: boolean; path: string }> {
+    const project = await this.getProject(name);
+    const safePath = this.resolveSafePath(project.path, relativePath);
+    if (fsSync.existsSync(safePath)) {
+      throw new Error(`Target already exists: ${relativePath}`);
+    }
+    if (type === "directory") {
+      await fs.mkdir(safePath, { recursive: true });
+    } else {
+      await fs.mkdir(path.dirname(safePath), { recursive: true });
+      await fs.writeFile(safePath, "", "utf-8");
+    }
+    return { success: true, path: relativePath };
+  }
+
+  async deleteFileOrDir(name: string, relativePath: string): Promise<{ success: boolean; path: string }> {
+    const project = await this.getProject(name);
+    if (!relativePath || relativePath.trim() === "" || relativePath === "." || relativePath === "/") {
+      throw new Error("Cannot delete project root");
+    }
+    const safePath = this.resolveSafePath(project.path, relativePath);
+    if (!fsSync.existsSync(safePath)) {
+      throw new Error(`Path does not exist: ${relativePath}`);
+    }
+    await fs.rm(safePath, { recursive: true, force: true });
+    return { success: true, path: relativePath };
   }
 }

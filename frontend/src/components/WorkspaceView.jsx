@@ -122,6 +122,7 @@ export default function WorkspaceView({
 
         <div className="workspace__right" ref={rightPanelRef}>
           <PreviewPanel
+            projectName={projectName || _projectName}
             previewData={previewData}
             onStopPreview={onStopPreview}
             lastChangeTimestamp={lastChangeTimestamp}

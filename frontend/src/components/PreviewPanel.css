@@ -39,6 +39,66 @@
   flex-shrink: 0;
 }
 
+/* Segmented View Mode Toggle: Preview vs Code */
+.preview-panel__view-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 2.5px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  gap: 2px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.preview-panel__view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 550;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  user-select: none;
+  outline: none;
+}
+
+.preview-panel__view-toggle-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.preview-panel__view-toggle-btn--active {
+  background: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+}
+
+.preview-panel__code-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-family: var(--font-mono, monospace);
+  color: #93c5fd;
+  letter-spacing: -0.01em;
+}
+
 /* Left Group (Traffic lights + Port status) */
 .preview-panel__left {
   display: flex;

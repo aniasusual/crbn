@@ -208,8 +208,8 @@ const _server = Bun.serve<WsData>({
     }
 
     // Projects: Delete
-    if (url.pathname.startsWith("/api/projects/") && req.method === "DELETE") {
-      const projectName = decodeURIComponent(url.pathname.replace("/api/projects/", ""));
+    if (url.pathname.match(/^\/api\/projects\/[^/]+$/) && req.method === "DELETE") {
+      const projectName = decodeURIComponent(url.pathname.split("/")[3]);
       try {
         const project = await projectManager.getProject(projectName).catch(() => null);
         if (project) {
@@ -296,6 +296,113 @@ const _server = Bun.serve<WsData>({
           { status: "ok", result, remainingMessages: prunedEvents.length },
           { headers: CORS_HEADERS },
         );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: File Tree
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/tree$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const tree = await projectManager.getFileTree(projectName);
+        return Response.json({ tree }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Read File Content
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/file$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const filePath = url.searchParams.get("path");
+      if (!filePath) {
+        return Response.json({ detail: "Query parameter 'path' is required" }, { status: 400, headers: CORS_HEADERS });
+      }
+      try {
+        const file = await projectManager.readFile(projectName, filePath);
+        return Response.json(file, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Save File Content
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/file$/) && req.method === "PUT") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json()) as { path?: string; content?: string };
+        if (!body.path || typeof body.content !== "string") {
+          return Response.json({ detail: "Both 'path' and 'content' are required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const result = await projectManager.writeFile(projectName, body.path, body.content);
+        const now = Date.now();
+        for (const send of activeSockets) {
+          send({ type: "file_changed", file: body.path, timestamp: now });
+        }
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Create File or Directory
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/file$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json()) as { path?: string; type?: "file" | "directory" };
+        if (!body.path) {
+          return Response.json({ detail: "'path' is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const result = await projectManager.createFileOrDir(projectName, body.path, body.type || "file");
+        const now = Date.now();
+        for (const send of activeSockets) {
+          send({ type: "file_changed", file: body.path, timestamp: now });
+        }
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Delete File or Directory
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/file$/) && req.method === "DELETE") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        let filePath = url.searchParams.get("path");
+        if (!filePath) {
+          const body = (await req.json().catch(() => ({}))) as { path?: string };
+          filePath = body.path || null;
+        }
+        if (!filePath) {
+          return Response.json({ detail: "'path' is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const result = await projectManager.deleteFileOrDir(projectName, filePath);
+        const now = Date.now();
+        for (const send of activeSockets) {
+          send({ type: "file_changed", file: filePath, timestamp: now });
+        }
+        return Response.json(result, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },

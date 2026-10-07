@@ -201,7 +201,7 @@ export default function WelcomeView({
               </h1>
 
               <p className="degrees-welcome__subtitle">
-                A creative studio for full-stack software. Describe your concept in natural language; we'll compose, build, and run it locally.
+                A creative studio for full-stack software. Describe your concept in natural language and choose a model; we'll compose, build, and run it.
               </p>
             </header>
 
@@ -213,7 +213,7 @@ export default function WelcomeView({
             >
               <div className="degrees-welcome__oauth-direction-left">
                 <span className="degrees-welcome__oauth-text">
-                  No API key required — connect Claude, ChatGPT, Copilot and more
+                  No API key?  No problem — connect Claude, ChatGPT, Copilot and more
                 </span>
               </div>
               <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>

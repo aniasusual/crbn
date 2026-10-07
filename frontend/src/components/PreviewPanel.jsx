@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import CodeExplorerView from './CodeExplorerView';
 import './PreviewPanel.css';
 
 // Minimalist Notion-style SVG Icons
@@ -51,11 +52,38 @@ const BrowserEmptyIcon = () => (
   </svg>
 );
 
-export default function PreviewPanel({ previewData, _onStopPreview, lastChangeTimestamp }) {
+const EyeIcon = () => (
+  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const CodeIcon = () => (
+  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 18 22 12 16 6" />
+    <polyline points="8 6 2 12 8 18" />
+  </svg>
+);
+
+export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp }) {
   const [frameKey, setFrameKey] = useState(0);
   const [isServerReady, setIsServerReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      return localStorage.getItem('80degrees_view_mode') || 'preview';
+    } catch {
+      return 'preview';
+    }
+  });
 
+  const handleSelectMode = (mode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem('80degrees_view_mode', mode);
+    } catch {}
+  };
   // 1. Dev Server Health Polling
   // Ensures iframe is only mounted after Vite is actively accepting HTTP requests
   useEffect(() => {
@@ -129,7 +157,7 @@ export default function PreviewPanel({ previewData, _onStopPreview, lastChangeTi
     setFrameKey(k => k + 1);
   };
 
-  if (!previewData) {
+  if (!previewData && !projectName) {
     return (
       <div className="preview-panel preview-panel--empty">
         <div className="preview-panel__empty-content">
@@ -161,67 +189,118 @@ export default function PreviewPanel({ previewData, _onStopPreview, lastChangeTi
             <span className="preview-panel__light preview-panel__light--max" />
           </div>
 
-          <div className={`preview-panel__status-pill ${!isServerReady ? 'preview-panel__status-pill--booting' : ''}`}>
-            <span className="preview-panel__pulse-dot" />
-            <span className="preview-panel__port-label">
-              {isServerReady ? `:${previewData.port}` : `Booting :${previewData.port}...`}
-            </span>
-            {isServerReady && previewData.backend_port && (
-              <span className="preview-panel__api-label">API :{previewData.backend_port}</span>
-            )}
+          {/* Segmented Mode Switcher: Preview vs Code */}
+          <div className="preview-panel__view-toggle">
+            <button
+              type="button"
+              className={`preview-panel__view-toggle-btn ${viewMode === 'preview' ? 'preview-panel__view-toggle-btn--active' : ''}`}
+              onClick={() => handleSelectMode('preview')}
+              title="Live Browser Preview"
+            >
+              <EyeIcon />
+              <span>Preview</span>
+            </button>
+            <button
+              type="button"
+              className={`preview-panel__view-toggle-btn ${viewMode === 'code' ? 'preview-panel__view-toggle-btn--active' : ''}`}
+              onClick={() => handleSelectMode('code')}
+              title="Project IDE & Code Inspector"
+            >
+              <CodeIcon />
+              <span>Code</span>
+            </button>
           </div>
+
+          {viewMode === 'preview' && previewData && (
+            <div className={`preview-panel__status-pill ${!isServerReady ? 'preview-panel__status-pill--booting' : ''}`}>
+              <span className="preview-panel__pulse-dot" />
+              <span className="preview-panel__port-label">
+                {isServerReady ? `:${previewData.port}` : `Booting :${previewData.port}...`}
+              </span>
+              {isServerReady && previewData.backend_port && (
+                <span className="preview-panel__api-label">API :{previewData.backend_port}</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Center URL Address Bar */}
-        <div className="preview-panel__address-bar" onClick={handleCopyUrl} title="Click to copy URL">
-          <span className="preview-panel__address-icon"><GlobeIcon /></span>
-          <span className="preview-panel__address-text">{previewData.url}</span>
-          <span className="preview-panel__copy-btn">
-            {copied ? <CheckIcon /> : <CopyIcon />}
-          </span>
-        </div>
+        {/* Center Item */}
+        {viewMode === 'preview' && previewData ? (
+          <div className="preview-panel__address-bar" onClick={handleCopyUrl} title="Click to copy URL">
+            <span className="preview-panel__address-icon"><GlobeIcon /></span>
+            <span className="preview-panel__address-text">{previewData.url}</span>
+            <span className="preview-panel__copy-btn">
+              {copied ? <CheckIcon /> : <CopyIcon />}
+            </span>
+          </div>
+        ) : viewMode === 'code' && projectName ? (
+          <div className="preview-panel__code-pill" title="Project Workspace">
+            <span>{projectName}</span>
+          </div>
+        ) : (
+          <div />
+        )}
 
         {/* Right Actions */}
         <div className="preview-panel__actions">
-          <button
-            className="preview-panel__action-btn"
-            onClick={handleManualReload}
-            title="Reload Preview"
-          >
-            <RefreshIcon />
-          </button>
+          {viewMode === 'preview' && (
+            <button
+              className="preview-panel__action-btn"
+              onClick={handleManualReload}
+              title="Reload Preview"
+            >
+              <RefreshIcon />
+            </button>
+          )}
           
-          <button
-            className="preview-panel__action-btn"
-            onClick={handleOpenExternal}
-            title="Open in external browser"
-          >
-            <ExternalLinkIcon />
-          </button>
-
+          {previewData?.url && (
+            <button
+              className="preview-panel__action-btn"
+              onClick={handleOpenExternal}
+              title="Open in external browser"
+            >
+              <ExternalLinkIcon />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Frame Container */}
-      <div className="preview-panel__frame-wrapper">
-        {!isServerReady ? (
-          <div className="preview-panel__booting">
-            <div className="preview-panel__spinner" />
-            <div className="preview-panel__booting-title">Starting Development Server</div>
-            <div className="preview-panel__booting-desc">
-              Compiling template & launching Vite on port <code>:{previewData.port}</code>...
+      {/* Main Container: Code IDE vs Browser Frame */}
+      {viewMode === 'code' ? (
+        <CodeExplorerView
+          projectName={projectName}
+          lastChangeTimestamp={lastChangeTimestamp}
+        />
+      ) : (
+        <div className="preview-panel__frame-wrapper">
+          {!previewData ? (
+            <div className="preview-panel__booting">
+              <div className="preview-panel__spinner" />
+              <div className="preview-panel__booting-title">No Dev Server Active</div>
+              <div className="preview-panel__booting-desc">
+                Switch to <strong>Code</strong> mode to inspect project files.
+              </div>
             </div>
-          </div>
-        ) : (
-          <iframe
-            key={frameKey}
-            src={previewData.url}
-            className="preview-panel__frame"
-            title="Live Application Preview"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-          />
-        )}
-      </div>
+          ) : !isServerReady ? (
+            <div className="preview-panel__booting">
+              <div className="preview-panel__spinner" />
+              <div className="preview-panel__booting-title">Starting Development Server</div>
+              <div className="preview-panel__booting-desc">
+                Compiling template & launching Vite on port <code>:{previewData.port}</code>...
+              </div>
+            </div>
+          ) : (
+            <iframe
+              key={frameKey}
+              src={previewData.url}
+              className="preview-panel__frame"
+              title="Live Application Preview"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+            />
+          )}
+        </div>
+      )}
+
     </div>
   );
 }
