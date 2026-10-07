@@ -180,17 +180,27 @@
   z-index: 20;
 }
 
-/* Tooltip Above Button */
-.magnetic-dock-tooltip {
+/* Tooltip Anchor (Guarantees horizontal centering & fixed 12px gap above button) */
+.magnetic-dock-tooltip-anchor {
   position: absolute;
-  bottom: calc(100% + 11px);
+  bottom: calc(100% + 12px);
   left: 50%;
   transform: translateX(-50%);
-  padding: 5px 11px;
-  border-radius: 8px;
-  background: rgba(18, 18, 24, 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  pointer-events: none;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Tooltip Pill */
+.magnetic-dock-tooltip {
+  position: relative;
+  padding: 5px 12px;
+  border-radius: 9px;
+  background: rgba(16, 16, 22, 0.94);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #ffffff;
   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
@@ -199,10 +209,13 @@
   letter-spacing: -0.01em;
   white-space: nowrap;
   box-shadow:
-    0 12px 28px -4px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 12px 28px -4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   pointer-events: none;
-  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Tooltip Arrow */
@@ -213,7 +226,7 @@
   transform: translateX(-50%) rotate(45deg);
   width: 7px;
   height: 7px;
-  background: rgba(18, 18, 24, 0.94);
+  background: rgba(16, 16, 22, 0.94);
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }

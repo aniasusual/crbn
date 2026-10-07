@@ -293,11 +293,17 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         <div className="preview-sooth__top-badge">
           <div
             className="preview-sooth__badge-pill"
-            title={isServerReady ? `Dev server live on :${previewData.port}` : `Connecting dev server on :${previewData.port}`}
+            title={
+              isServerReady
+                ? `Frontend :${previewData.port}${previewData.backend_port ? ` • Backend :${previewData.backend_port}` : ''}`
+                : `Connecting frontend :${previewData.port}${previewData.backend_port ? ` • Backend :${previewData.backend_port}` : ''}`
+            }
           >
             <span className={`preview-sooth__badge-dot ${!isServerReady ? 'preview-sooth__badge-dot--booting' : ''}`} />
             <span className="preview-sooth__badge-port">:{previewData.port}</span>
-            {projectName && <span className="preview-sooth__badge-project">{projectName}</span>}
+            {previewData.backend_port && (
+              <span className="preview-sooth__badge-port-sub">api :{previewData.backend_port}</span>
+            )}
           </div>
         </div>
       )}

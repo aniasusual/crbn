@@ -186,21 +186,20 @@ function DockItem({
       {/* Tooltip */}
       <AnimatePresence initial={false}>
         {showLabel && tooltipText && (
-          <motion.div
-            role="tooltip"
-            aria-hidden="true"
-            initial={reducedMotion ? false : { opacity: 0, y: 6, scale: 0.94 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 4, scale: 0.94 }}
-            transition={{ duration: 0.14, ease: "easeOut" }}
-            className={cn(
-              "magnetic-dock-tooltip",
-              "absolute -top-10 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg text-white text-sm font-medium whitespace-nowrap pointer-events-none z-50"
-            )}
-          >
-            {tooltipText}
-            <div className="magnetic-dock-tooltip-arrow" />
-          </motion.div>
+          <div className="magnetic-dock-tooltip-anchor">
+            <motion.div
+              role="tooltip"
+              aria-hidden="true"
+              initial={reducedMotion ? false : { opacity: 0, y: 5, scale: 0.94 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 3, scale: 0.94 }}
+              transition={{ duration: 0.13, ease: "easeOut" }}
+              className="magnetic-dock-tooltip"
+            >
+              {tooltipText}
+              <div className="magnetic-dock-tooltip-arrow" />
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </motion.button>
