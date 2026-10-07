@@ -562,19 +562,18 @@ export class SessionBridge {
     }
   }
 
-  async createBranch(branchName: string, fromStepId: string): Promise<boolean> {
+  async createBranch(branchName: string, fromStepId: string, fromBranch?: string): Promise<boolean> {
     if (!this.activeProjectPath) return false;
     if (this.isGenerating) {
       throw new Error("Cannot create branch while agent is generating");
     }
 
     const projectPath = this.activeProjectPath;
-    const currentBranch = this.activeBranchName;
+    const currentBranch = fromBranch || this.activeBranchName;
     const leafId = this.session?.sessionManager?.getLeafId?.() ?? null;
 
-    const newBranch = await CheckpointManager.createBranch(projectPath, branchName, fromStepId, leafId);
+    const newBranch = await CheckpointManager.createBranch(projectPath, branchName, fromStepId, leafId, fromBranch);
     this.activeBranchName = newBranch.name;
-
     const branchEvents = await ChatHistoryManager.branchHistory(
       projectPath,
       currentBranch,

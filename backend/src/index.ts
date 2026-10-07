@@ -5,14 +5,14 @@ import { DevServerManager } from "./dev-server";
 import { SessionBridge } from "./session-bridge";
 import { ChatHistoryManager } from "./chat-history";
 import { CheckpointManager } from "./checkpoint-manager";
-
+import { GithubService } from "./github-service";
 const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8000);
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
 
 const projectManager = new ProjectManager();
 const modelsService = new ModelsService();
 const devServerManager = new DevServerManager();
-
+const githubService = new GithubService(projectManager);
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -175,6 +175,152 @@ const _server = Bun.serve<WsData>({
       }
     }
 
+    // ──────────────────────────────────────────────
+    // GitHub Integration Routes
+    // ──────────────────────────────────────────────
+
+    // GitHub: Auth Status
+    if (url.pathname === "/api/github/status" && req.method === "GET") {
+      try {
+        const status = await githubService.getAuthStatus();
+        return Response.json(status, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // GitHub: Connect (via CLI or Personal Access Token)
+    if (url.pathname === "/api/github/connect" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { mode?: "cli" | "token"; token?: string };
+        let user;
+        if (body.mode === "cli") {
+          user = await githubService.connectWithCli();
+        } else if (body.token) {
+          user = await githubService.connectWithToken(body.token);
+        } else {
+          return Response.json(
+            { detail: "Either token or mode: 'cli' is required" },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+        return Response.json({ status: "ok", user }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // GitHub: Disconnect
+    if (
+      (url.pathname === "/api/github/disconnect" && req.method === "POST") ||
+      (url.pathname === "/api/github/connect" && req.method === "DELETE")
+    ) {
+      try {
+        await githubService.disconnect();
+        return Response.json({ status: "disconnected" }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // GitHub: List User Repositories
+    if (url.pathname === "/api/github/repos" && req.method === "GET") {
+      try {
+        const search = url.searchParams.get("search") || undefined;
+        const page = parseInt(url.searchParams.get("page") || "1", 10);
+        const perPage = parseInt(url.searchParams.get("per_page") || "100", 10);
+        const sort = url.searchParams.get("sort") || "updated";
+        const result = await githubService.listUserRepos({ search, page, perPage, sort });
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // GitHub: Clone / Import Repo
+    if (url.pathname === "/api/github/clone" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as {
+          full_name?: string;
+          project_name?: string;
+          branch?: string;
+          model?: string;
+        };
+        if (!body.full_name) {
+          return Response.json(
+            { detail: "full_name (e.g. owner/repo) is required" },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+        const project = await githubService.cloneOrOpenRepo({
+          full_name: body.full_name,
+          project_name: body.project_name,
+          branch: body.branch,
+          model: body.model,
+        });
+        return Response.json(project, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+    // GitHub: List branches for a remote repository
+    if (url.pathname === "/api/github/repo-branches" && req.method === "GET") {
+      const repo = url.searchParams.get("repo");
+      if (!repo) {
+        return Response.json({ detail: "repo query parameter is required" }, { status: 400, headers: CORS_HEADERS });
+      }
+      try {
+        const branches = await githubService.listRepoBranches(repo);
+        return Response.json({ branches }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+
+    // GitHub: Create Repo
+    if (url.pathname === "/api/github/create-repo" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as {
+          name?: string;
+          description?: string;
+          is_private?: boolean;
+        };
+        if (!body.name) {
+          return Response.json({ detail: "name is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const repo = await githubService.createGitHubRepo({
+          name: body.name,
+          description: body.description,
+          is_private: body.is_private,
+        });
+        return Response.json(repo, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
     // Projects: List
     if (url.pathname === "/api/projects" && req.method === "GET") {
       const projects = await projectManager.listProjects();
@@ -313,11 +459,11 @@ const _server = Bun.serve<WsData>({
       const projectName = decodeURIComponent(parts[3]);
       try {
         const project = await projectManager.getProject(projectName);
-        const body = (await req.json()) as { branch_name?: string; from_step_id?: string };
+        const body = (await req.json()) as { branch_name?: string; from_step_id?: string; from_branch?: string };
         if (!body.branch_name || !body.from_step_id) {
           return Response.json({ detail: "branch_name and from_step_id are required" }, { status: 400, headers: CORS_HEADERS });
         }
-        const branch = await CheckpointManager.createBranch(project.path, body.branch_name, body.from_step_id);
+        const branch = await CheckpointManager.createBranch(project.path, body.branch_name, body.from_step_id, null, body.from_branch);
         return Response.json(branch, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -389,6 +535,63 @@ const _server = Bun.serve<WsData>({
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },
           { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Git Status & Remote Info
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/git-status$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const status = await githubService.getProjectGitStatus(projectName);
+        return Response.json(status, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // Projects: Git Push to GitHub
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/git-push$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json().catch(() => ({}))) as {
+          create_repo?: boolean;
+          repo_name?: string;
+          target_repo?: string;
+          is_private?: boolean;
+          description?: string;
+          commit_message?: string;
+          branch?: string;
+          push_all?: boolean;
+          force?: boolean;
+        };
+        const result = await githubService.pushProject(projectName, body);
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // Projects: Git Pull from GitHub
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/git-pull$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json().catch(() => ({}))) as { branch?: string };
+        const result = await githubService.pullProject(projectName, body.branch);
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
         );
       }
     }
@@ -605,8 +808,9 @@ const _server = Bun.serve<WsData>({
       if (action === "create_branch") {
         const branchName = (data.branch_name || data.name) as string;
         const fromStepId = (data.from_step_id || data.step_id) as string;
+        const fromBranch = (data.from_branch) as string | undefined;
         if (branchName && fromStepId) {
-          bridge.createBranch(branchName, fromStepId).catch(err => {
+          bridge.createBranch(branchName, fromStepId, fromBranch).catch(err => {
             console.error("[WebSocket] Error creating branch:", err);
             send({ type: "error", message: err instanceof Error ? err.message : String(err) });
           });
