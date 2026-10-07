@@ -549,7 +549,11 @@ const _server = Bun.serve<WsData>({
     message(ws, messageRaw) {
       const bridge = ws.data.bridge;
       if (!bridge) return;
-
+      const send = ws.data.send || ((msg: Record<string, unknown>) => {
+        try {
+          ws.send(JSON.stringify(msg));
+        } catch {}
+      });
       let data: Record<string, unknown>;
       try {
         const text = typeof messageRaw === "string" ? messageRaw : new TextDecoder().decode(messageRaw);

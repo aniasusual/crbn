@@ -1,21 +1,21 @@
 /* ==========================================================================
-   80degrees — BranchTreeModal Styling
-   Museum-Grade Studio Canvas, Full-Bleed Glassmorphism, Interactive Tree Graph
+   80degrees — BranchTreeModal (Graph Data Structure Tree) Styling
+   Minimalist Glassmorphism, Zero Curved Corners (Sharp Architecture), Restrained Tone
    ========================================================================== */
 
 .branch-tree-backdrop {
   position: fixed;
   inset: 0;
   z-index: 100000;
-  background: rgba(8, 8, 12, 0.72);
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  background: rgba(4, 4, 6, 0.72);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
   box-sizing: border-box;
-  animation: branch-tree-fade 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: branch-tree-fade 0.14s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes branch-tree-fade {
@@ -27,32 +27,33 @@
   }
 }
 
+/* Sharp, Elegant Minimalist Modal (Size Compacted, No Rounded Corners) */
 .branch-tree-modal {
-  width: 100%;
-  max-width: 920px;
-  max-height: 86vh;
+  width: min(1080px, 86vw);
+  height: 76vh;
+  max-height: 76vh;
   display: flex;
   flex-direction: column;
-  background: rgba(18, 18, 26, 0.94);
+  background: rgba(14, 14, 18, 0.94);
   border: none;
-  border-radius: 24px;
+  border-radius: 0;
   box-shadow: 
-    0 36px 84px -16px rgba(0, 0, 0, 0.9),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 0 32px 0 rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(44px) saturate(200%);
-  -webkit-backdrop-filter: blur(44px) saturate(200%);
+    0 24px 64px -12px rgba(0, 0, 0, 0.88),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(36px);
+  -webkit-backdrop-filter: blur(36px);
   overflow: hidden;
-  font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   color: #f1f5f9;
   user-select: none;
-  animation: branch-tree-scale 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  position: relative;
+  animation: branch-tree-scale 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @keyframes branch-tree-scale {
   from {
     opacity: 0;
-    transform: scale(0.97) translateY(8px);
+    transform: scale(0.99) translateY(4px);
   }
   to {
     opacity: 1;
@@ -60,20 +61,22 @@
   }
 }
 
-/* Header */
+/* Header — Minimalist Translucent Strip */
 .branch-tree__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 16px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 18px 24px 16px 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
 }
 
 .branch-tree__header-left {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .branch-tree__title-row {
@@ -83,7 +86,7 @@
 }
 
 .branch-tree__title {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #ffffff;
@@ -92,11 +95,12 @@
 .branch-tree__active-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   padding: 2px 8px;
-  background: rgba(96, 165, 250, 0.14);
-  border-radius: 6px;
-  color: #93c5fd;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 11px;
   font-family: var(--font-mono, monospace);
   font-weight: 500;
@@ -105,14 +109,13 @@
 .branch-tree__active-dot {
   width: 5px;
   height: 5px;
-  border-radius: 50%;
+  border-radius: 0;
   background: #38bdf8;
-  box-shadow: 0 0 6px #38bdf8;
 }
 
 .branch-tree__subtitle {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.45);
   letter-spacing: -0.01em;
 }
 
@@ -120,195 +123,245 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.05);
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.04);
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .branch-tree__close-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
 
-/* Tree Body Scroll Area */
-.branch-tree__body {
-  flex: 1;
-  overflow: auto;
-  padding: 24px;
-  display: flex;
-  gap: 24px;
-  min-height: 280px;
-}
-
-.branch-tree__body::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.branch-tree__body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 3px;
-}
-
-/* Branch Column Card */
-.branch-tree__column {
-  width: 280px;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  background: rgba(255, 255, 255, 0.025);
-  border-radius: 16px;
-  box-shadow: inset 0 1px 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 16px;
-  box-sizing: border-box;
-  gap: 14px;
-  position: relative;
-  transition: background 0.15s ease;
-}
-
-.branch-tree__column--active {
-  background: rgba(96, 165, 250, 0.05) !important;
-  box-shadow: 
-    0 12px 32px -8px rgba(0, 0, 0, 0.5),
-    inset 0 1px 1px 0 rgba(96, 165, 250, 0.3) !important;
-}
-
-/* Column Header */
-.branch-tree__col-header {
+/* Nav & Legend Strip */
+.branch-tree__nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.branch-tree__col-name-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  overflow: hidden;
-}
-
-.branch-tree__col-icon {
-  color: #60a5fa;
+  padding: 8px 24px;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
   flex-shrink: 0;
 }
 
-.branch-tree__col-name {
-  font-size: 13.5px;
+.branch-tree__nav-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.branch-tree__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.branch-tree__legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+}
+
+/* Canvas Area */
+.branch-tree__body {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  background: rgba(10, 10, 14, 0.5);
+}
+
+.branch-tree__body--panning {
+  cursor: grabbing !important;
+}
+
+/* Transform Layer for Pan & Zoom */
+.branch-tree__transform-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+/* Directed Graph Canvas */
+.branch-tree__canvas {
+  position: relative;
+  min-width: 600px;
+  min-height: 400px;
+}
+
+/* SVG Connecting Lines Overlay */
+.branch-tree__svg-edges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+/* Pulse animation for active HEAD node */
+@keyframes branch-node-pulse {
+  0% {
+    r: 5;
+    opacity: 0.8;
+  }
+  50% {
+    r: 10;
+    opacity: 0.2;
+  }
+  100% {
+    r: 5;
+    opacity: 0.8;
+  }
+}
+
+.branch-tree__pulse-ring {
+  animation: branch-node-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  transform-origin: center;
+}
+
+/* Graph Node (Vertex) Card — Sharp, Glassmorphic & Borderless */
+.branch-tree__node {
+  position: absolute;
+  width: 250px;
+  height: 94px;
+  background: rgba(255, 255, 255, 0.035);
+  border: none;
+  border-radius: 0;
+  box-shadow: 
+    0 12px 28px -6px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 12px 14px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  z-index: 2;
+  transition: background 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+  cursor: grab;
+}
+
+.branch-tree__node--dragging {
+  cursor: grabbing !important;
+  z-index: 100 !important;
+  opacity: 0.95;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 
+    0 24px 48px -8px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2) !important;
+  transition: none !important;
+}
+
+.branch-tree__node:hover:not(.branch-tree__node--dragging) {
+  background: rgba(255, 255, 255, 0.055);
+  box-shadow: 
+    0 16px 36px -8px rgba(0, 0, 0, 0.7),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+.branch-tree__node--active {
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: 
+    0 16px 36px -6px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 0 #38bdf8 !important;
+}
+
+/* Ports */
+.branch-tree__port-top {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+  background: #38bdf8;
+  border: none;
+  z-index: 5;
+}
+
+.branch-tree__port-bottom {
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.4);
+  border: none;
+  z-index: 5;
+}
+
+/* Node Header Row */
+.branch-tree__node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.branch-tree__node-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-mono, monospace);
+}
+
+.branch-tree__node-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
   font-weight: 600;
   font-family: var(--font-mono, monospace);
-  color: #ffffff;
+  padding: 2px 6px;
+  border-radius: 0;
+  border: none;
+  max-width: 110px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.branch-tree__switch-btn {
-  height: 24px;
-  padding: 0 9px;
-  background: rgba(96, 165, 250, 0.14);
-  border: none;
-  border-radius: 6px;
-  color: #93c5fd;
-  font-size: 11px;
-  font-weight: 550;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  flex-shrink: 0;
-}
-
-.branch-tree__switch-btn:hover {
-  background: #2563eb;
-  color: #ffffff;
-}
-
-/* Timeline Cards */
-.branch-tree__timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-}
-
-.branch-tree__timeline::before {
-  content: '';
-  position: absolute;
-  top: 14px;
-  bottom: 14px;
-  left: 11px;
-  width: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 1px;
-}
-
-.branch-tree__step-node {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  position: relative;
-}
-
-.branch-tree__step-dot {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(30, 30, 42, 0.95);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.branch-tree__node-hash {
   font-size: 10px;
-  font-weight: 600;
   font-family: var(--font-mono, monospace);
-  color: rgba(255, 255, 255, 0.6);
-  flex-shrink: 0;
-  z-index: 1;
+  color: rgba(255, 255, 255, 0.35);
 }
 
-.branch-tree__step-node--head .branch-tree__step-dot {
-  background: #2563eb;
-  color: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
-}
-
-.branch-tree__step-card {
-  flex: 1;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: background 0.12s ease;
-}
-
-.branch-tree__step-card:hover {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.branch-tree__step-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 10.5px;
-  font-family: var(--font-mono, monospace);
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.branch-tree__step-hash {
-  color: #60a5fa;
-}
-
-.branch-tree__step-prompt {
+/* Node Prompt Body */
+.branch-tree__node-prompt {
   font-size: 12px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: #e2e8f0;
   line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -317,55 +370,95 @@
   -webkit-box-orient: vertical;
 }
 
-.branch-tree__step-actions {
+/* Node Footer Row */
+.branch-tree__node-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding-top: 4px;
+  justify-content: space-between;
+  padding-top: 2px;
 }
 
-.branch-tree__branch-step-btn {
+.branch-tree__node-head-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #38bdf8;
+  font-family: var(--font-mono, monospace);
+}
+
+.branch-tree__node-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.branch-tree__btn-branch {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  height: 20px;
-  padding: 0 6px;
-  background: rgba(96, 165, 250, 0.1);
+  height: 22px;
+  padding: 0 7px;
+  background: rgba(255, 255, 255, 0.06);
   border: none;
-  border-radius: 4px;
-  color: #93c5fd;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.85);
   font-size: 10.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.1s ease;
+  transition: all 0.12s ease;
 }
 
-.branch-tree__branch-step-btn:hover {
-  background: rgba(96, 165, 250, 0.25);
+.branch-tree__btn-branch:hover {
+  background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
 }
 
-/* Inline Create Branch input under step */
+.branch-tree__btn-switch {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  background: #2563eb;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.branch-tree__btn-switch:hover {
+  background: #3b82f6;
+}
+
+/* Inline Create Branch input on node */
 .branch-tree__inline-form {
-  margin-top: 6px;
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 14, 18, 0.98);
+  border: none;
+  border-radius: 0;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  justify-content: space-between;
+  z-index: 20;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
 }
 
 .branch-tree__inline-input {
   width: 100%;
-  padding: 5px 8px;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.35);
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
+  padding: 6px 8px;
   color: #ffffff;
   font-size: 11px;
   font-family: var(--font-mono, monospace);
   outline: none;
   box-sizing: border-box;
+  caret-color: #ffffff;
 }
 
 .branch-tree__inline-btns {
@@ -375,34 +468,127 @@
   gap: 6px;
 }
 
-.branch-tree__inline-confirm {
-  height: 22px;
-  padding: 0 8px;
-  background: #2563eb;
-  border: none;
-  border-radius: 4px;
-  color: #ffffff;
-  font-size: 10.5px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
 .branch-tree__inline-cancel {
   height: 22px;
-  padding: 0 6px;
-  background: transparent;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.05);
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 10.5px;
   cursor: pointer;
 }
 
-/* Empty / Loading State */
+.branch-tree__inline-cancel:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.branch-tree__inline-confirm {
+  height: 22px;
+  padding: 0 10px;
+  background: #2563eb;
+  border: none;
+  border-radius: 0;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.branch-tree__inline-confirm:hover {
+  background: #3b82f6;
+}
+
+/* Loading State */
 .branch-tree__loading {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12.5px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ──────────────────────────────────────────────────────────
+   Floating Minimal HUD Controls: Zoom, Pan, Fit, Reset
+   ────────────────────────────────────────────────────────── */
+.branch-tree__hud {
+  position: absolute;
+  bottom: 18px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(14, 14, 18, 0.9);
+  border: none;
+  border-radius: 0;
+  padding: 3px;
+  box-shadow: 
+    0 16px 36px -8px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: 1000;
+}
+
+.branch-tree__hud-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.8);
   font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.branch-tree__hud-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.branch-tree__hud-pct {
+  font-size: 10.5px;
+  font-family: var(--font-mono, monospace);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0 6px;
+  min-width: 38px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.branch-tree__hud-pct:hover {
+  color: #ffffff;
+}
+
+.branch-tree__hud-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 2px;
+}
+
+.branch-tree__hud-text-btn {
+  height: 26px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  border-radius: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.branch-tree__hud-text-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }

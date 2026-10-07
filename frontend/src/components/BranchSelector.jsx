@@ -151,20 +151,6 @@ export default function BranchSelector({
             })}
           </div>
 
-          {/* Footer Action: View Complete Tree */}
-          <div className="branch-selector__menu-footer">
-            <button
-              type="button"
-              className="branch-selector__fulltree-btn"
-              onClick={() => {
-                setIsOpen(false);
-                onOpenTreeView?.();
-              }}
-            >
-              <TreeIcon />
-              <span>Explore Complete Tree Graph</span>
-            </button>
-          </div>
         </div>
       )}
     </div>

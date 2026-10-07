@@ -338,11 +338,14 @@ export class CheckpointManager {
   ): Promise<ProjectBranch> {
     await this.ensureGitRepo(projectPath);
     const state = await this.getBranches(projectPath);
-    const cleanedName = branchName.trim() || `exp-${Date.now().toString().slice(-4)}`;
+    const rawName = branchName.trim() || `exp-${Date.now().toString().slice(-4)}`;
 
-    // Check for duplicate name
-    if (state.branches.some((b) => b.name.toLowerCase() === cleanedName.toLowerCase())) {
-      throw new Error(`Branch with name "${cleanedName}" already exists.`);
+    // Auto-deduplicate branch name if it already exists
+    let finalName = rawName;
+    let counter = 2;
+    while (state.branches.some((b) => b.name.toLowerCase() === finalName.toLowerCase())) {
+      finalName = `${rawName}-${counter}`;
+      counter++;
     }
 
     // 1. Commit any in-flight changes on active branch so work isn't lost
@@ -356,10 +359,9 @@ export class CheckpointManager {
     }
 
     // 3. Create and checkout the Git branch
-    const gitBranch = this.sanitizeGitBranchName(cleanedName);
+    const gitBranch = this.sanitizeGitBranchName(finalName);
     const checkoutRes = await this.runGit(projectPath, ["checkout", "-b", gitBranch, targetStep.commit_hash]);
     if (checkoutRes.exitCode !== 0) {
-      // If branch already exists in git, try checkout
       const fallback = await this.runGit(projectPath, ["checkout", gitBranch]);
       if (fallback.exitCode !== 0) {
         throw new Error(`Failed to create Git branch "${gitBranch}": ${checkoutRes.stderr}`);
@@ -368,7 +370,7 @@ export class CheckpointManager {
 
     const newBranch: ProjectBranch = {
       id: `b_${Date.now()}`,
-      name: cleanedName,
+      name: finalName,
       git_branch: gitBranch,
       source_step_id: targetStep.step_id,
       source_commit: targetStep.commit_hash,
@@ -377,10 +379,10 @@ export class CheckpointManager {
     };
 
     state.branches.push(newBranch);
-    state.active_branch = cleanedName;
+    state.active_branch = finalName;
     await this.saveBranches(projectPath, state);
 
-    console.log(`[CheckpointManager] Created & switched to branch "${cleanedName}" (${gitBranch}) from ${targetStep.step_id}`);
+    console.log(`[CheckpointManager] Created & switched to branch "${finalName}" (${gitBranch}) from ${targetStep.step_id}`);
     return newBranch;
   }
 
