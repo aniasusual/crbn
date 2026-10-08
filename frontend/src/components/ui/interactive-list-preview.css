@@ -43,6 +43,14 @@
 .ilp-row:last-child {
   border-bottom: none;
 }
+.ilp-row--selected {
+  background: rgba(56, 189, 248, 0.08);
+  border-bottom-color: rgba(56, 189, 248, 0.22);
+}
+
+.ilp-row--selected:hover {
+  background: rgba(56, 189, 248, 0.12);
+}
 
 .ilp-cell {
   white-space: nowrap;
@@ -75,6 +83,9 @@
 
 .ilp-cell--actions {
   text-align: right;
+  padding-left: 8px;
+  padding-right: 20px;
+  overflow: visible;
 }
 
 .ilp-actions-group {
@@ -84,6 +95,7 @@
   gap: 6px;
   position: relative;
   z-index: 35;
+  white-space: nowrap;
 }
 
 .ilp-action-btn {
