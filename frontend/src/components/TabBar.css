@@ -8,11 +8,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(16, 16, 24, 0.48);
+  background: #000000;
   border: none;
-  border-bottom: none;
-  backdrop-filter: blur(36px) saturate(200%);
-  -webkit-backdrop-filter: blur(36px) saturate(200%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   height: 44px;
   min-height: 44px;
   user-select: none;

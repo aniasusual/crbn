@@ -2,7 +2,8 @@ import { useState, useEffect, useId, useMemo } from 'react';
 import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
 import AttachmentRibbon from './AttachmentRibbon';
-import { ShaderBackground } from '@/components/ui/repeat-start';
+import { AsciiEffect } from '@/components/ui/ascii-effect';
+import { GrainGradient } from '@/components/ui/grain-gradient';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
@@ -176,17 +177,43 @@ export default function WelcomeView({
 
   return (
     <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''}`}>
-      {/* 21st.dev WebGL Shader Background */}
-      <div className="degrees-welcome__shader-wrap" aria-hidden="true">
-        <ShaderBackground className="degrees-welcome__shader-canvas" />
-        <div className="degrees-welcome__shader-overlay" />
-      </div>
+      {!isNaming ? (
+        <>
+          {/* Left 30%: ASCII Art Panel */}
+          <aside className="degrees-welcome__left" aria-label="Visual Art">
+            <div className="degrees-welcome__ascii-frame">
+              <AsciiEffect
+                variant="flow"
+                imageSrc="/images/portrait.jpg"
+                fontSize={5}
+                flowSpeed={0.22}
+                flowStrength={12}
+                mouseRadius={150}
+                mouseStrength={22}
+              />
+            </div>
+          </aside>
 
-      <div className="degrees-welcome__content">
-        {!isNaming ? (
-          <>
-            {/* Header & Editorial Wordmark */}
-            {/* Header & Official 80degrees Logo */}
+          {/* Right 55%: Main Welcome Content */}
+          <main className="degrees-welcome__right">
+            <div className="degrees-welcome__right-bg" aria-hidden="true">
+              <GrainGradient
+                colorLight="#fed7aa"
+                colorMid="#ea580c"
+                colorDark="#080402"
+                angle={0}
+                position={0}
+                curve={0.48}
+                softness={0.13}
+                scale={1}
+                grain={0.32}
+                grainSize={1}
+                seed={1}
+                speed={1}
+                className="h-full w-full"
+              />
+            </div>
+            <div className="degrees-welcome__right-inner">
             <header className="degrees-welcome__header">
               <div className="degrees-logo-container">
                 <img
@@ -409,8 +436,10 @@ export default function WelcomeView({
                 </div>
               )}
             </section>
-          </>
-        ) : (
+            </div>
+          </main>
+        </>
+      ) : (
           /* Naming Step */
           <div className="degrees-naming-card">
             <div className="degrees-logo-container degrees-logo-container--naming">
@@ -475,7 +504,6 @@ export default function WelcomeView({
             </form>
           </div>
         )}
-      </div>
 
       {/* Model Selector Modal */}
       <ModelSelector

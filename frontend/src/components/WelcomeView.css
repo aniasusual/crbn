@@ -6,18 +6,18 @@
 
 .degrees-welcome {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   min-height: 100vh;
-  background-color: var(--app-bg, #16161a);
-  color: var(--app-text, #ffffff);
+  max-height: 100vh;
+  background-color: #000000;
+  color: #ffffff;
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 56px 24px 84px 24px;
+  flex-direction: row;
+  padding: 0;
+  margin: 0;
   box-sizing: border-box;
 }
 
@@ -35,47 +35,140 @@
     transform: scale(0.99);
   }
 }
-/* WebGL Plasma Shader Background Wrap */
-.degrees-welcome__shader-wrap {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-  z-index: 0;
+/* Left 45%: Dedicated ASCII visual art column */
+.degrees-welcome__left {
+  flex: 0 0 45%;
+  width: 45%;
+  max-width: 45%;
+  height: 100%;
+  min-height: 100vh;
+  background-color: #000000;
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  position: relative;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.degrees-welcome__shader-canvas {
+.degrees-welcome__ascii-frame {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  position: relative !important;
+  border: none !important;
+  background: #000000 !important;
+  box-shadow: none !important;
+  flex: 1;
+}
+
+.ascii-effect-container {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.ascii-effect-canvas {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+}
+
+/* Right 55%: Main creative studio content */
+.degrees-welcome__right {
+  flex: 0 0 55%;
+  width: 55%;
+  max-width: 55%;
+  height: 100%;
+  min-height: 0;
+  background-color: #000000;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 44px 44px 64px 28px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.degrees-welcome__right-bg {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  display: block;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+  overflow: hidden;
 }
 
-.degrees-welcome__shader-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 85% 75% at 50% 32%,
-    rgba(18, 18, 22, 0.4) 0%,
-    rgba(18, 18, 22, 0.72) 55%,
-    var(--app-bg, #16161a) 96%
-  );
-  pointer-events: none;
-  z-index: 1;
+.degrees-welcome__right-bg > div,
+.degrees-welcome__right-bg .h-full,
+.degrees-welcome__right-bg .w-full {
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
 }
-.degrees-welcome__content {
+
+.degrees-welcome__right-inner {
   position: relative;
-  z-index: 3;
+  z-index: 1;
   width: 100%;
   max-width: 720px;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
+/* Naming step wrap */
+.degrees-welcome__naming-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  box-sizing: border-box;
+  background-color: #000000;
+}
 
+@media (max-width: 960px) {
+  .degrees-welcome {
+    flex-direction: column;
+    height: auto;
+    max-height: none;
+    overflow-y: auto;
+  }
+  .degrees-welcome__left {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    height: 420px;
+    padding: 20px;
+  }
+  .degrees-welcome__ascii-frame {
+    height: 100%;
+    max-height: 380px;
+  }
+  .degrees-welcome__right {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    overflow-y: visible;
+    padding: 24px 16px;
+  }
+}
 /* Header & Editorial Wordmark */
 .degrees-welcome__header {
   display: flex;
