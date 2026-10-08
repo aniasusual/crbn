@@ -10,7 +10,7 @@
   height: 100%;
   flex: 1;
   min-height: 0;
-  background: var(--app-bg, #16161a);
+  background: #000000;
   overflow: hidden;
   position: relative;
   animation: workspaceSwitchIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -34,6 +34,7 @@
   box-sizing: border-box;
   gap: 0;
   overflow: hidden;
+  background: #000000;
 }
 
 .workspace__left {
@@ -45,6 +46,7 @@
   height: 100%;
   position: relative;
   overflow: hidden;
+  background: #000000;
 }
 
 .workspace__splitter {
@@ -57,7 +59,7 @@
   position: relative;
   user-select: none;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.15);
+  background: #000000;
 }
 
 .workspace__splitter::after {
@@ -82,11 +84,9 @@
   flex-grow: 1;
   min-width: 320px;
   height: 100%;
-  padding: 0;
+  padding: 8px 10px 10px 4px;
   box-sizing: border-box;
   position: relative;
-  background: 
-    radial-gradient(ellipse 60% 40% at 75% 20%, rgba(249, 115, 22, 0.07) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 50% at 85% 80%, rgba(99, 102, 241, 0.06) 0%, transparent 70%),
-    radial-gradient(ellipse 60% 60% at 30% 60%, rgba(56, 189, 248, 0.04) 0%, transparent 70%);
+  background: #000000;
+  overflow: hidden;
 }

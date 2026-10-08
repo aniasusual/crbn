@@ -1,54 +1,50 @@
-// TEMPORARY PREVIEW PLACEHOLDER: The agent must completely overwrite this file with the real application.
+// TEMPORARY PREVIEW PLACEHOLDER: The agent will replace this with your application.
 import React from 'react';
-import { ChromaticImage } from '@/components/ui/chromatic-image';
-import logo from './assets/logo-white.png';
+import { MatrixRain } from '@/components/ui/matrix-rain';
+import { DitheredLogo } from '@/components/ui/dithered-logo';
+import logoImg from './assets/imagelogo.png';
 
 export default function App() {
   return (
-    <ChromaticImage
-      src="/bg-chromatic.webp"
-      alt="80degrees preview background"
-      className="degrees-canvas"
-      zoom={0.14}
-      displacement={0.05}
-      chromaticShift={0.012}
-      tilt={0.18}
-      backgroundColor="#06080d"
-    >
-      {/* Ambient Depth Overlay */}
+    <div className="degrees-canvas">
+      {/* Matrix Rain Background */}
+      <div className="degrees-matrix-bg" aria-hidden="true">
+        <MatrixRain
+          fixedColor="#ec4899"
+          speed={80}
+          fontSize={20}
+        />
+      </div>
+
+      {/* Atmospheric Depth Vignette */}
       <div className="degrees-bg-overlay" aria-hidden="true" />
 
-      {/* Main Content (Boundary-Free, Opacity-Styled) */}
+      {/* Centerpiece Content */}
       <main className="degrees-hero">
-        {/* Brand Logo */}
-        <div className="degrees-logo-container">
-          <img src={logo} alt="80degrees" className="degrees-logo" />
+        {/* Interactive Dithered Logo Canvas */}
+        
+        <div className="h-[300px] w-full flex items-center justify-center">
+          <DitheredLogo
+            imageSrc={logoImg}
+            className="h-full w-full"
+            gridSize={200}
+            scale={0.36}
+            dotScale={1}
+            cornerRadius={0.2}
+            gamma={1.0}
+            blur={3.75}
+            diffusionStrength={0.5}
+            innerColor="#ffffff"
+            outerColor="#ea580c"
+          />
         </div>
 
-        {/* Live Status Label with Micro Spinner */}
-        <div className="degrees-status-wrap">
-          <span className="degrees-status-spinner" aria-hidden="true" />
-          <span className="degrees-status-label">Live Preview Running</span>
-        </div>
-
-        {/* Prominent Editorial Heading */}
-        <h1 className="degrees-title">Cooking...</h1>
-
-        {/* Readable Subtitle */}
-        <p className="degrees-description">
-          Your preview is working. The agent will build your app here — thanks for your patience.
-        </p>
-
-        {/* Elegant Modern Loader */}
-        <div className="degrees-loader-container" aria-label="Loading preview">
-          <div className="degrees-loader" />
-        </div>
-
-        {/* Agent Readiness Text */}
-        <div className="degrees-agent-status">
-          <span className="degrees-agent-text">Standing by for your prompts</span>
+        {/* Clean, Crisp Standing By Copy */}
+        <div className="degrees-hero-content">
+          <h1 className="degrees-hero-title">Standing by</h1>
+          <p className="degrees-hero-desc">Your preview will appear here.</p>
         </div>
       </main>
-    </ChromaticImage>
+    </div>
   );
 }

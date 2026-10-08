@@ -1,0 +1,252 @@
+/* ==========================================================================
+   Magnetic Dock — macOS Style Spring Dock Component
+   Compatible with @componentry/magnetic-dock
+   ========================================================================== */
+
+.magnetic-dock-container {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 22px;
+  position: relative;
+  user-select: none;
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+/* Glass Variant (Default) */
+.magnetic-dock-container--glass {
+  background: rgba(18, 18, 24, 0.78);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 20px 48px -6px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Solid Variant */
+.magnetic-dock-container--solid {
+  background: #181820;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+/* Transparent Variant */
+.magnetic-dock-container--transparent {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Dock Item Button */
+.magnetic-dock-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  outline: none;
+  transform-origin: bottom center;
+  transition: background-color 0.18s ease;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.magnetic-dock-item:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 2px;
+}
+
+/* Item Surface / Tile */
+.magnetic-dock-surface {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 13px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.magnetic-dock-item:hover .magnetic-dock-surface {
+  border-color: rgba(255, 255, 255, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.magnetic-dock-item--active .magnetic-dock-surface {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.09) 100%);
+  border-color: rgba(255, 255, 255, 0.32);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+/* Icon glyph holder */
+.magnetic-dock-icon {
+  width: 52%;
+  height: 52%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.72);
+  transition: color 0.16s ease, transform 0.16s ease;
+  pointer-events: none;
+}
+
+.magnetic-dock-item:hover .magnetic-dock-icon,
+.magnetic-dock-item--active .magnetic-dock-icon {
+  color: #ffffff;
+}
+
+.magnetic-dock-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Dynamic shine specular sweep */
+.magnetic-dock-shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, transparent 50%, transparent 100%);
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+
+.magnetic-dock-item:hover .magnetic-dock-shine {
+  opacity: 0.85;
+}
+
+/* Active indicator dot */
+.magnetic-dock-active-dot {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4.5px;
+  height: 4.5px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow:
+    0 0 8px rgba(255, 255, 255, 0.9),
+    0 0 14px rgba(255, 255, 255, 0.45);
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Notification Badge */
+.magnetic-dock-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #141418;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Tooltip Anchor (Guarantees horizontal centering & fixed 12px gap above button) */
+.magnetic-dock-tooltip-anchor {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Tooltip Pill */
+.magnetic-dock-tooltip {
+  position: relative;
+  padding: 5px 12px;
+  border-radius: 9px;
+  background: rgba(16, 16, 22, 0.94);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-size: 11.5px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  box-shadow:
+    0 12px 28px -4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Tooltip Arrow */
+.magnetic-dock-tooltip-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  transform: translateX(-50%) rotate(45deg);
+  width: 7px;
+  height: 7px;
+  background: rgba(16, 16, 22, 0.94);
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Subtle separator bar between dock groupings */
+.magnetic-dock-separator {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 4px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+/* Spin animation for reload icon */
+.magnetic-dock-spin {
+  animation: magnetic-dock-rotate 0.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes magnetic-dock-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

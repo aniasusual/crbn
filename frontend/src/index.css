@@ -5,12 +5,12 @@
 
 :root {
   /* 80degrees Design Tokens — Restrained, Museum-Grade Monochrome */
-  --app-bg: #16161a;
-  --app-surface: #1c1c22;
-  --app-surface-card: #222228;
-  --app-surface-elevated: #282830;
-  --app-surface-hover: #30303a;
-  --app-border: rgba(255, 255, 255, 0.08);
+  --app-bg: #000000;
+  --app-surface: #141416;
+  --app-surface-card: #1c1c20;
+  --app-surface-elevated: #24242a;
+  --app-surface-hover: #1e1e24;
+  --app-border: rgba(255, 255, 255, 0.07);
   --app-border-subtle: rgba(255, 255, 255, 0.05);
   --app-border-hover: rgba(255, 255, 255, 0.16);
   --app-border-focus: rgba(255, 255, 255, 0.28);
@@ -84,7 +84,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  background: var(--lk-bg);
+  background: #000000;
   overflow: hidden;
 }
 
@@ -94,6 +94,7 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background: #000000;
 }
 
 /* ---- Animations ---- */
