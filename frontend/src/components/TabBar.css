@@ -55,86 +55,109 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 0 12px;
-  height: 30px;
+  padding: 0 10px;
+  height: 32px;
   margin: 0;
   background: transparent;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   font-size: 12px;
   font-weight: 450;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color 0.14s ease, opacity 0.14s ease, background 0.14s ease;
   max-width: 220px;
-  min-width: 80px;
+  min-width: 60px;
   position: relative;
   white-space: nowrap;
 }
 
 .tab-bar__tab:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   border: none;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .tab-bar__tab--active {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.44) 0%, rgba(234, 88, 12, 0.32) 100%);
-  border: none;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  color: #ffffff;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #ffffff !important;
   font-weight: 550;
-  transform: scale(1.03);
-  transform-origin: center center;
-  animation: tabSelectPulse 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  box-shadow: none;
+  transform: none !important;
+  animation: none !important;
   z-index: 2;
 }
 
 .tab-bar__tab--active:hover {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.54) 0%, rgba(234, 88, 12, 0.4) 100%);
-  border: none;
-  transform: scale(1.04);
+  background: transparent !important;
+  transform: none !important;
   color: #ffffff;
+}
+
+.tab-bar__tab-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  position: relative;
+  white-space: nowrap;
+}
+
+.tab-bar__tab--active .tab-bar__tab-inner,
+.tab-bar__tab--active .tab-bar__tab-name {
+  overflow: visible;
 }
 
 /* Home / Projects Pinned Tab */
 .tab-bar__tab--home {
   min-width: auto;
-  padding: 0 12px;
+  padding: 0 10px;
   margin: 0;
-  background: rgba(255, 255, 255, 0.035);
+  background: transparent;
   border: none;
 }
 
 .tab-bar__tab--home:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.04);
   border: none;
   color: #ffffff;
 }
 
 .tab-bar__tab--home.tab-bar__tab--active {
-  background: linear-gradient(135deg, rgba(249, 115, 22, 0.44) 0%, rgba(234, 88, 12, 0.32) 100%);
-  border: none;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  color: #ffffff;
-  transform: scale(1.03);
-  transform-origin: center center;
-  animation: tabSelectPulse 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
-  box-shadow: none;
+  background: transparent !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #ffffff !important;
+  transform: none !important;
+  animation: none !important;
+  box-shadow: none !important;
 }
-
 .tab-bar__tab-icon {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
   color: rgba(255, 255, 255, 0.45);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transition: color 0.14s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.tab-bar__tab-icon svg {
+  position: static !important;
+  width: 13px !important;
+  height: 13px !important;
+  transform: none !important;
+  display: block !important;
 }
 
 .tab-bar__tab:hover .tab-bar__tab-icon,

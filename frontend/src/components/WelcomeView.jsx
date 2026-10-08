@@ -5,6 +5,7 @@ import AttachmentRibbon from './AttachmentRibbon';
 import { AsciiEffect } from '@/components/ui/ascii-effect';
 import { GrainGradient } from '@/components/ui/grain-gradient';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
+import { SilkAurora } from '@/components/ui/silk-aurora';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './WelcomeView.css';
@@ -176,7 +177,7 @@ export default function WelcomeView({
   const exiting = isExiting || isTransitioning;
 
   return (
-    <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''}`}>
+    <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''} ${isNaming ? 'degrees-welcome--naming' : ''}`}>
       {!isNaming ? (
         <>
           {/* Left 30%: ASCII Art Panel */}
@@ -443,7 +444,21 @@ export default function WelcomeView({
         </>
       ) : (
           /* Naming Step */
-          <div className="degrees-naming-card">
+          <div className="degrees-naming-screen">
+            <div className="degrees-naming-bg" aria-hidden="true">
+              <SilkAurora
+                title="Maison Lumiere"
+                subtitle="Private Preview"
+                description="Quiet motion, warm sheen, and a velvet base for refined product launches."
+                baseColor="#060505"
+                midColor="#19130f"
+                sheenColor="#ffe2a9"
+                accentColor="#c58d5d"
+                intensity={0.9}
+                speed={0.75}
+              />
+            </div>
+            <div className="degrees-naming-card">
             <div className="degrees-logo-container degrees-logo-container--naming">
               <img
                 src="/logo-white.png"
@@ -504,6 +519,7 @@ export default function WelcomeView({
                 </div>
               </div>
             </form>
+          </div>
           </div>
         )}
 

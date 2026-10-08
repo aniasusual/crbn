@@ -688,17 +688,83 @@
   color: #ffffff;
 }
 
-/* Naming Step — Glassmorphic Capsule Console */
-.degrees-naming-card {
-  width: 100%;
-  max-width: 580px;
+/* Naming Screen Layout — Top-aligned with SilkAurora WebGL Ambient Background */
+.degrees-welcome--naming {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  min-height: 100vh !important;
+  max-height: 100vh !important;
+  background-color: #060505 !important;
+  overflow: hidden !important;
+}
+
+.degrees-naming-screen {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  padding-top: 16px;
+  justify-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: #060505;
+  box-sizing: border-box;
+  padding: 56px 24px 40px 24px;
 }
 
+.degrees-naming-bg {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  overflow: hidden !important;
+}
+
+.degrees-naming-bg .silk-aurora,
+.degrees-naming-bg > div {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 100% !important;
+  max-height: 100% !important;
+}
+
+.degrees-naming-bg canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+}
+
+.degrees-naming-bg .relative.z-10,
+.degrees-naming-bg .z-10 {
+  display: none !important;
+}
+
+.degrees-naming-card {
+  position: relative !important;
+  z-index: 10 !important;
+  width: 100% !important;
+  max-width: 580px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  text-align: center !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+}
 .degrees-naming-form {
   width: 100%;
   margin-top: 8px;
