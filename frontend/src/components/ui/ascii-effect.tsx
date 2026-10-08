@@ -24,6 +24,7 @@ export interface AsciiEffectProps extends Omit<HTMLAttributes<HTMLDivElement>, "
   mouseRadius?: number
   mouseStrength?: number
   mouseWaveSpeed?: number
+  mouseEasing?: number
   scale?: number
   fit?: "cover" | "contain" | "stretch"
   colors?: string[]
@@ -88,6 +89,7 @@ export function AsciiEffect({
   mouseRadius = 150,
   mouseStrength = 22,
   mouseWaveSpeed = 1.2,
+  mouseEasing = 1.0,
   scale = 1.15,
   fit = "cover",
   colors = IMAGE_COLORS,
@@ -161,8 +163,14 @@ export function AsciiEffect({
     const draw = (now: number) => {
       if (!loaded || width === 0 || height === 0) return
 
-      pointer.current.x += (pointer.current.targetX - pointer.current.x) * 0.08
-      pointer.current.y += (pointer.current.targetY - pointer.current.y) * 0.08
+      if (mouseEasing >= 0.95) {
+        pointer.current.x = pointer.current.targetX
+        pointer.current.y = pointer.current.targetY
+      } else {
+        const easing = clamp(mouseEasing, 0.05, 1)
+        pointer.current.x += (pointer.current.targetX - pointer.current.x) * easing
+        pointer.current.y += (pointer.current.targetY - pointer.current.y) * easing
+      }
 
       const cellHeight = Math.max(4, fontSize * Math.max(0.5, lineHeight))
       context.font = `${fontWeight} ${fontSize}px ${fontFamily}`
@@ -267,13 +275,15 @@ export function AsciiEffect({
             if (pointer.current.active && mouseRadius > 0) {
               const mouseX = x - pointer.current.x
               const mouseY = y - pointer.current.y
-              const distance = Math.hypot(mouseX, mouseY)
-              mouseInfluence = clamp(1 - distance / mouseRadius)
-              if (distance > 0 && mouseInfluence > 0) {
-                const ripple = Math.sin(distance * 0.055 - now * mouseWaveSpeed * Math.PI * 0.002)
-                mouseDisplacement = mouseInfluence ** 2 * mouseStrength * ripple
-                sourceColumn -= mouseX / distance * mouseDisplacement / cellWidth
-                sourceRow -= mouseY / distance * mouseDisplacement / cellHeight
+              if (Math.abs(mouseX) < mouseRadius && Math.abs(mouseY) < mouseRadius) {
+                const distance = Math.hypot(mouseX, mouseY)
+                if (distance < mouseRadius && distance > 0) {
+                  mouseInfluence = 1 - distance / mouseRadius
+                  const wave = Math.sin(distance * 0.08 - now * mouseWaveSpeed * Math.PI * 0.002)
+                  mouseDisplacement = mouseInfluence * mouseStrength * (0.6 + 0.4 * wave)
+                  sourceColumn -= (mouseX / distance) * mouseDisplacement / cellWidth
+                  sourceRow -= (mouseY / distance) * mouseDisplacement / cellHeight
+                }
               }
             }
 
@@ -285,7 +295,7 @@ export function AsciiEffect({
           const sampledRow = Math.round(clamp(sourceRow, 0, rows - 1))
           const sampleIndex = sampledRow * columns + sampledColumn
           const pixel = sampleIndex * 4
-          let luminance = clamp(luminanceField[sampleIndex]! + mouseInfluence * 0.08)
+          let luminance = clamp(luminanceField[sampleIndex]! + mouseInfluence * 0.2)
           if (invert) luminance = 1 - luminance
 
           const character = chars[Math.min(chars.length - 1, Math.floor(luminance * (chars.length - 1)))]
@@ -323,7 +333,7 @@ export function AsciiEffect({
       observer.disconnect()
       image.onload = null
     }
-  }, [backgroundColor, brightnessBoost, characterSpacing, chars, colorMode, colors, contrast, dither, ditherStrength, fit, flowDirection, flowFrequency, flowSpeed, flowStrength, fontFamily, fontSize, fontWeight, glitchFrequency, glitchIntensity, imageSrc, invert, lineHeight, mouseRadius, mouseStrength, mouseWaveSpeed, posterize, revealDuration, scale, threshold, variant])
+  }, [backgroundColor, brightnessBoost, characterSpacing, chars, colorMode, colors, contrast, dither, ditherStrength, fit, flowDirection, flowFrequency, flowSpeed, flowStrength, fontFamily, fontSize, fontWeight, glitchFrequency, glitchIntensity, imageSrc, invert, lineHeight, mouseEasing, mouseRadius, mouseStrength, mouseWaveSpeed, posterize, revealDuration, scale, threshold, variant])
 
   const trackPointer = (event: PointerEvent<HTMLDivElement>) => {
     onPointerMove?.(event)
@@ -338,6 +348,10 @@ export function AsciiEffect({
     pointer.current.active = true
     pointer.current.targetX = x
     pointer.current.targetY = y
+    if (mouseEasing >= 0.95) {
+      pointer.current.x = x
+      pointer.current.y = y
+    }
   }
 
   const resetPointer = (event: PointerEvent<HTMLDivElement>) => {

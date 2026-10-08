@@ -188,8 +188,10 @@ export default function WelcomeView({
                 fontSize={5}
                 flowSpeed={0.22}
                 flowStrength={12}
-                mouseRadius={150}
-                mouseStrength={22}
+                mouseRadius={180}
+                mouseStrength={32}
+                mouseWaveSpeed={2.6}
+                mouseEasing={1.0}
               />
             </div>
           </aside>
