@@ -9,7 +9,7 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: var(--app-bg, #16161a);
+  background: transparent;
   border: none;
   border-radius: 0;
   overflow: hidden;
@@ -25,7 +25,7 @@
   justify-content: space-between;
   padding: 0 16px;
   height: 44px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
+  background: transparent;
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
   z-index: 10;

@@ -1,75 +1,44 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import CodeExplorerView from './CodeExplorerView';
+import {
+  MagneticDock,
+  DockIconEye,
+  DockIconCode,
+  DockIconDesktop,
+  DockIconTablet,
+  DockIconMobile,
+  DockIconRefresh,
+  DockIconExternal,
+} from '@/components/ui/magnetic-dock';
 import './PreviewPanel.css';
 
-// Minimalist Notion-style SVG Icons
-const RefreshIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-    <path d="M3 3v5h5" />
-    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-    <path d="M16 21h5v-5" />
+const CanvasStudioGlyph = () => (
+  <svg viewBox="0 0 48 48" width="44" height="44" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="6" y="8" width="36" height="26" rx="4" />
+    <path d="M14 26l7-7 8 8 5-5 8 8" />
+    <circle cx="16" cy="16" r="2.5" />
+    <path d="M18 38l6-4 6 4" />
+    <line x1="24" y1="34" x2="24" y2="42" />
   </svg>
 );
 
-const ExternalLinkIcon = () => (
-  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-    <polyline points="15 3 21 3 21 9" />
-    <line x1="10" y1="14" x2="21" y2="3" />
-  </svg>
-);
+const DEVICE_MODES = ['desktop', 'tablet', 'mobile'];
 
-
-const GlobeIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="2" y1="12" x2="22" y2="12" />
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-  </svg>
-);
-
-const CopyIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-  </svg>
-);
-
-const CheckIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12" />
-  </svg>
-);
-
-const BrowserEmptyIcon = () => (
-  <svg viewBox="0 0 24 24" width="40" height="40" stroke="currentColor" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="3" width="20" height="18" rx="3" />
-    <line x1="2" y1="8" x2="22" y2="8" />
-    <circle cx="5" cy="5.5" r="1" fill="currentColor" />
-    <circle cx="8" cy="5.5" r="1" fill="currentColor" />
-    <circle cx="11" cy="5.5" r="1" fill="currentColor" />
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-    <circle cx="12" cy="12" r="3" />
-  </svg>
-);
-
-const CodeIcon = () => (
-  <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="16 18 22 12 16 6" />
-    <polyline points="8 6 2 12 8 18" />
-  </svg>
-);
+const BASE_PRESETS = [
+  { id: 'desktop', label: 'Desktop', width: 1280, height: 800, canRotate: false },
+  { id: 'tablet', label: 'Tablet', width: 768, height: 1024, canRotate: true },
+  { id: 'mobile', label: 'Mobile', width: 375, height: 667, canRotate: true },
+];
 
 export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp }) {
   const [frameKey, setFrameKey] = useState(0);
   const [isServerReady, setIsServerReady] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [isReloading, setIsReloading] = useState(false);
+  const [isLandscape, _setIsLandscape] = useState(false);
+
+  const canvasRef = useRef(null);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+
   const [viewMode, setViewMode] = useState(() => {
     try {
       return localStorage.getItem('80degrees_view_mode') || 'preview';
@@ -78,14 +47,69 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     }
   });
 
-  const handleSelectMode = (mode) => {
+  const [viewportMode, setViewportMode] = useState(() => {
+    try {
+      const saved = localStorage.getItem('80degrees_viewport_mode');
+      if (saved && DEVICE_MODES.includes(saved)) {
+        return saved;
+      }
+      return 'desktop';
+    } catch {
+      return 'desktop';
+    }
+  });
+
+  // Track canvas size for smooth device fitting
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect) {
+          setCanvasSize({
+            width: entry.contentRect.width,
+            height: entry.contentRect.height,
+          });
+        }
+      }
+    });
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [viewMode]);
+
+  const handleSelectMode = useCallback((mode) => {
     setViewMode(mode);
     try {
       localStorage.setItem('80degrees_view_mode', mode);
     } catch {}
-  };
-  // 1. Dev Server Health Polling
-  // Ensures iframe is only mounted after Vite is actively accepting HTTP requests
+  }, []);
+
+  const handleSelectViewport = useCallback((mode) => {
+    setViewportMode(mode);
+    try {
+      localStorage.setItem('80degrees_viewport_mode', mode);
+    } catch {}
+  }, []);
+
+  // Single button toggles between Preview and Code Inspector
+  const handleToggleViewMode = useCallback(() => {
+    handleSelectMode(viewMode === 'preview' ? 'code' : 'preview');
+  }, [viewMode, handleSelectMode]);
+
+  // Single button cycles through all three modes: Desktop -> Tablet -> Mobile
+  const handleCycleViewport = useCallback(() => {
+    const currentIdx = DEVICE_MODES.indexOf(viewportMode);
+    const nextIdx = currentIdx === -1 ? 0 : (currentIdx + 1) % DEVICE_MODES.length;
+    const nextMode = DEVICE_MODES[nextIdx];
+    handleSelectViewport(nextMode);
+    if (viewMode !== 'preview') {
+      handleSelectMode('preview');
+    }
+  }, [viewportMode, viewMode, handleSelectViewport, handleSelectMode]);
+
+  // Dev Server Health Polling
   useEffect(() => {
     if (!previewData?.url) {
       setIsServerReady(false);
@@ -118,20 +142,19 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     };
   }, [previewData?.url]);
 
-  // 2. Debounced Live Auto-Reload when AI agent writes/edits code or finishes turn
+  // Debounced Live Auto-Reload when AI agent writes/edits code
   useEffect(() => {
     if (!lastChangeTimestamp || !isServerReady) return;
 
     const timer = setTimeout(() => {
-      setFrameKey(k => k + 1);
+      setFrameKey((k) => k + 1);
     }, 450);
 
     return () => clearTimeout(timer);
   }, [lastChangeTimestamp, isServerReady]);
 
-  const handleOpenExternal = () => {
+  const handleOpenExternal = useCallback(() => {
     if (!previewData?.url) return;
-    // If running in Electron, use shell.openExternal to open system browser
     if (typeof window !== 'undefined' && window.require) {
       try {
         const { shell } = window.require('electron');
@@ -144,163 +167,223 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       }
     }
     window.open(previewData.url, '_blank', 'noopener,noreferrer');
-  };
+  }, [previewData?.url]);
 
-  const handleCopyUrl = () => {
-    if (!previewData?.url) return;
-    navigator.clipboard.writeText(previewData.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
-  };
+  const handleManualReload = useCallback(() => {
+    setIsReloading(true);
+    setFrameKey((k) => k + 1);
+    setTimeout(() => setIsReloading(false), 450);
+  }, []);
 
-  const handleManualReload = () => {
-    setFrameKey(k => k + 1);
-  };
+  // Dimensions & scale calculation (clean fitting without auto-fit toggle)
+  const currentConfig = useMemo(() => {
+    const raw = BASE_PRESETS.find((p) => p.id === viewportMode) || BASE_PRESETS[0];
 
+    let w = raw.width;
+    let h = raw.height;
+
+    if (isLandscape && raw.canRotate) {
+      w = raw.height;
+      h = raw.width;
+    }
+
+    let scale = 1;
+    if (canvasSize.width > 0 && canvasSize.height > 0) {
+      const availW = Math.max(100, canvasSize.width - 56);
+      const availH = Math.max(100, canvasSize.height - 110);
+      const scaleW = availW / w;
+      const scaleH = availH / h;
+      scale = Math.min(1, scaleW, scaleH);
+      scale = Math.max(0.3, Number(scale.toFixed(3)));
+    }
+
+    return {
+      ...raw,
+      width: w,
+      height: h,
+      dims: `${w} × ${h}`,
+      scale,
+    };
+  }, [viewportMode, isLandscape, canvasSize]);
+
+  // Magnetic Dock Action Items: Single View Toggle, Single Device Toggle, Reload, Open
+  const dockItems = useMemo(() => {
+    return [
+      {
+        id: 'view-toggle',
+        label: viewMode === 'preview' ? 'Live Preview' : 'Code Inspector',
+        tooltip: viewMode === 'preview'
+          ? 'Live Preview (Click for Code)'
+          : 'Code Inspector (Click for Preview)',
+        icon: viewMode === 'preview' ? <DockIconEye /> : <DockIconCode />,
+        onClick: handleToggleViewMode,
+      },
+      {
+        id: 'device-toggle',
+        label:
+          viewportMode === 'tablet'
+            ? 'Tablet'
+            : viewportMode === 'mobile'
+            ? 'Mobile'
+            : 'Desktop (Full)',
+        tooltip:
+          viewportMode === 'desktop'
+            ? 'Desktop: Full Width (Click for Tablet)'
+            : viewportMode === 'tablet'
+            ? 'Tablet: 768×1024 (Click for Mobile)'
+            : 'Mobile: 375×667 (Click for Desktop Full)',
+        icon:
+          viewportMode === 'tablet' ? (
+            <DockIconTablet />
+          ) : viewportMode === 'mobile' ? (
+            <DockIconMobile />
+          ) : (
+            <DockIconDesktop />
+          ),
+        onClick: handleCycleViewport,
+      },
+      {
+        id: 'reload',
+        label: 'Reload',
+        tooltip: isReloading ? 'Reloading Preview...' : 'Reload Preview',
+        icon: <DockIconRefresh spinning={isReloading} />,
+        onClick: handleManualReload,
+      },
+      {
+        id: 'external',
+        label: 'Open Browser',
+        tooltip: 'Open in External Browser',
+        icon: <DockIconExternal />,
+        onClick: handleOpenExternal,
+      },
+    ];
+  }, [
+    viewMode,
+    viewportMode,
+    isReloading,
+    handleToggleViewMode,
+    handleCycleViewport,
+    handleManualReload,
+    handleOpenExternal,
+  ]);
+
+  // Clean empty state with sanctuary card
   if (!previewData && !projectName) {
     return (
-      <div className="preview-panel preview-panel--empty">
-        <div className="preview-panel__empty-content">
-          <div className="preview-panel__empty-icon-wrap">
-            <div className="preview-panel__empty-icon-glow" />
-            <div className="preview-panel__empty-icon">
-              <BrowserEmptyIcon />
+      <div className="preview-sooth preview-sooth--empty">
+        <div className="preview-sooth__viewport preview-sooth__viewport--empty">
+          <div className="preview-sooth__sanctuary">
+            <div className="preview-sooth__sanctuary-icon">
+              <CanvasStudioGlyph />
             </div>
+            <h3 className="preview-sooth__sanctuary-title">Creative Canvas</h3>
+            <p className="preview-sooth__sanctuary-desc">
+              Your live design preview will illuminate here as soon as you open a workspace or start crafting.
+            </p>
           </div>
-          <h3 className="preview-panel__empty-title">
-            Live app <span className="preview-panel__empty-title-serif">preview</span>
-          </h3>
-          <p className="preview-panel__empty-desc">
-            The dev server will boot automatically when you open or create a workspace.
-          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="preview-panel">
-      {/* Notion-style Browser Chrome */}
-      <div className="preview-panel__header">
-        <div className="preview-panel__left">
-          <div className="preview-panel__traffic-lights">
-            <span className="preview-panel__light preview-panel__light--close" />
-            <span className="preview-panel__light preview-panel__light--min" />
-            <span className="preview-panel__light preview-panel__light--max" />
+    <div className="preview-sooth">
+      {/* Top Subtle Status Pill */}
+      {previewData && (
+        <div className="preview-sooth__top-badge">
+          <div
+            className="preview-sooth__badge-pill"
+            title={
+              isServerReady
+                ? `Frontend :${previewData.port}${previewData.backend_port ? ` • Backend :${previewData.backend_port}` : ''}`
+                : `Connecting frontend :${previewData.port}${previewData.backend_port ? ` • Backend :${previewData.backend_port}` : ''}`
+            }
+          >
+            <span className={`preview-sooth__badge-dot ${!isServerReady ? 'preview-sooth__badge-dot--booting' : ''}`} />
+            <span className="preview-sooth__badge-port">:{previewData.port}</span>
+            {previewData.backend_port && (
+              <span className="preview-sooth__badge-port-sub">api :{previewData.backend_port}</span>
+            )}
           </div>
-
-          {/* Segmented Mode Switcher: Preview vs Code */}
-          <div className="preview-panel__view-toggle">
-            <button
-              type="button"
-              className={`preview-panel__view-toggle-btn ${viewMode === 'preview' ? 'preview-panel__view-toggle-btn--active' : ''}`}
-              onClick={() => handleSelectMode('preview')}
-              title="Live Browser Preview"
-            >
-              <EyeIcon />
-              <span>Preview</span>
-            </button>
-            <button
-              type="button"
-              className={`preview-panel__view-toggle-btn ${viewMode === 'code' ? 'preview-panel__view-toggle-btn--active' : ''}`}
-              onClick={() => handleSelectMode('code')}
-              title="Project IDE & Code Inspector"
-            >
-              <CodeIcon />
-              <span>Code</span>
-            </button>
-          </div>
-
-          {viewMode === 'preview' && previewData && (
-            <div className={`preview-panel__status-pill ${!isServerReady ? 'preview-panel__status-pill--booting' : ''}`}>
-              <span className="preview-panel__pulse-dot" />
-              <span className="preview-panel__port-label">
-                {isServerReady ? `:${previewData.port}` : `Booting :${previewData.port}...`}
-              </span>
-              {isServerReady && previewData.backend_port && (
-                <span className="preview-panel__api-label">API :{previewData.backend_port}</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Center Item */}
-        {viewMode === 'preview' && previewData ? (
-          <div className="preview-panel__address-bar" onClick={handleCopyUrl} title="Click to copy URL">
-            <span className="preview-panel__address-icon"><GlobeIcon /></span>
-            <span className="preview-panel__address-text">{previewData.url}</span>
-            <span className="preview-panel__copy-btn">
-              {copied ? <CheckIcon /> : <CopyIcon />}
-            </span>
-          </div>
-        ) : viewMode === 'code' && projectName ? (
-          <div className="preview-panel__code-pill" title="Project Workspace">
-            <span>{projectName}</span>
-          </div>
-        ) : (
-          <div />
-        )}
-
-        {/* Right Actions */}
-        <div className="preview-panel__actions">
-          {viewMode === 'preview' && (
-            <button
-              className="preview-panel__action-btn"
-              onClick={handleManualReload}
-              title="Reload Preview"
-            >
-              <RefreshIcon />
-            </button>
-          )}
-          
-          {previewData?.url && (
-            <button
-              className="preview-panel__action-btn"
-              onClick={handleOpenExternal}
-              title="Open in external browser"
-            >
-              <ExternalLinkIcon />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Main Container: Code IDE vs Browser Frame */}
-      {viewMode === 'code' ? (
-        <CodeExplorerView
-          projectName={projectName}
-          lastChangeTimestamp={lastChangeTimestamp}
-        />
-      ) : (
-        <div className="preview-panel__frame-wrapper">
-          {!previewData ? (
-            <div className="preview-panel__booting">
-              <div className="preview-panel__spinner" />
-              <div className="preview-panel__booting-title">No Dev Server Active</div>
-              <div className="preview-panel__booting-desc">
-                Switch to <strong>Code</strong> mode to inspect project files.
-              </div>
-            </div>
-          ) : !isServerReady ? (
-            <div className="preview-panel__booting">
-              <div className="preview-panel__spinner" />
-              <div className="preview-panel__booting-title">Starting Development Server</div>
-              <div className="preview-panel__booting-desc">
-                Compiling template & launching Vite on port <code>:{previewData.port}</code>...
-              </div>
-            </div>
-          ) : (
-            <iframe
-              key={frameKey}
-              src={previewData.url}
-              className="preview-panel__frame"
-              title="Live Application Preview"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
-            />
-          )}
         </div>
       )}
 
+      {/* Main Sanctuary: Viewport / Code Inspector */}
+      <div className="preview-sooth__viewport">
+        {viewMode === 'code' ? (
+          <div className="preview-sooth__body">
+            <CodeExplorerView
+              projectName={projectName}
+              lastChangeTimestamp={lastChangeTimestamp}
+            />
+          </div>
+        ) : (
+          <div
+            ref={canvasRef}
+            className={`preview-sooth__canvas ${viewportMode !== 'desktop' ? 'preview-sooth__canvas--framed' : ''}`}
+          >
+            {!previewData ? (
+              <div className="preview-sooth__calm-state">
+                <div className="preview-sooth__calm-icon"><CanvasStudioGlyph /></div>
+                <div className="preview-sooth__calm-title">Dev Server Inactive</div>
+                <div className="preview-sooth__calm-subtitle">
+                  Switch to <strong>Code</strong> mode to inspect files or launch your project.
+                </div>
+              </div>
+            ) : !isServerReady ? (
+              <div className="preview-sooth__calm-state">
+                <div className="preview-sooth__breathing-halo">
+                  <div className="preview-sooth__halo-ring" />
+                  <div className="preview-sooth__halo-core" />
+                </div>
+                <div className="preview-sooth__calm-title">Warming up preview</div>
+                <div className="preview-sooth__calm-subtitle">
+                  Connecting dev runtime on port <code>:{previewData.port}</code>
+                </div>
+              </div>
+) : viewportMode === 'desktop' ? (
+              <iframe
+                key={frameKey}
+                src={previewData.url}
+                className="preview-sooth__frame preview-sooth__frame--fluid"
+                title="Live Application Preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+              />
+) : (
+              <div className="preview-sooth__stage">
+                <div
+                  className="preview-sooth__chassis"
+                  style={{
+                    width: `${currentConfig.width}px`,
+                    height: `${currentConfig.height}px`,
+                    transform: `scale(${currentConfig.scale})`,
+                    transformOrigin: 'top center',
+                  }}
+                >
+                  <iframe
+                    key={frameKey}
+                    src={previewData.url}
+                    className="preview-sooth__frame preview-sooth__frame--contained"
+                    title="Live Application Preview"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Action Items Dock Positioned at Bottom Center */}
+      <div className="preview-sooth__dock-bottom-center">
+        <MagneticDock
+          items={dockItems}
+          iconSize={42}
+          maxScale={1.35}
+          magneticDistance={120}
+          showLabels={true}
+        />
+      </div>
     </div>
   );
 }

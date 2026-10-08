@@ -3,8 +3,10 @@ import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
 import GitHubConnectModal from './GitHubConnectModal';
 import AttachmentRibbon from './AttachmentRibbon';
-import { ShaderBackground } from '@/components/ui/repeat-start';
+import { AsciiEffect } from '@/components/ui/ascii-effect';
+import { GrainGradient } from '@/components/ui/grain-gradient';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
+import { SilkAurora } from '@/components/ui/silk-aurora';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './WelcomeView.css';
@@ -341,47 +343,75 @@ export default function WelcomeView({
   const exiting = isExiting || isTransitioning;
 
   return (
-    <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''}`}>
-      {/* 21st.dev WebGL Shader Background */}
-      <div className="degrees-welcome__shader-wrap" aria-hidden="true">
-        <ShaderBackground className="degrees-welcome__shader-canvas" />
-        <div className="degrees-welcome__shader-overlay" />
-      </div>
-
-      <div className="degrees-welcome__content">
-        {!isNaming ? (
-          <>
-            {/* Top Bar with GitHub Connect & Model Auth */}
-            <div className="degrees-welcome__top-bar">
-              {githubStatus?.connected && githubStatus?.user ? (
-                <button
-                  type="button"
-                  className="degrees-github-pill"
-                  onClick={() => setIsGitHubConnectModalOpen(true)}
-                  title={`Connected as @${githubStatus.user.login} — Click to manage`}
-                >
-                  <img
-                    src={githubStatus.user.avatar_url}
-                    alt={githubStatus.user.login}
-                    className="degrees-github-avatar"
-                  />
-                  <span className="degrees-github-login">@{githubStatus.user.login}</span>
-                  <span className="degrees-github-dot" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="degrees-github-connect-btn"
-                  onClick={() => setIsGitHubConnectModalOpen(true)}
-                  title="Connect GitHub account"
-                >
-                  <GitHubIcon size={14} />
-                  <span>Connect GitHub</span>
-                </button>
-              )}
+    <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''} ${isNaming ? 'degrees-welcome--naming' : ''}`}>
+      {!isNaming ? (
+        <>
+          {/* Left 30%: ASCII Art Panel */}
+          <aside className="degrees-welcome__left" aria-label="Visual Art">
+            <div className="degrees-welcome__ascii-frame">
+              <AsciiEffect
+                variant="flow"
+                imageSrc="/images/portrait.jpg"
+                fontSize={5}
+                flowSpeed={0.22}
+                flowStrength={12}
+                mouseRadius={180}
+                mouseStrength={32}
+                mouseWaveSpeed={2.6}
+                mouseEasing={1.0}
+              />
             </div>
+          </aside>
 
-            {/* Header & Official 80degrees Logo */}
+          {/* Right 55%: Main Welcome Content */}
+          <main className="degrees-welcome__right">
+            <div className="degrees-welcome__right-bg" aria-hidden="true">
+              <GrainGradient
+                colorLight="#fed7aa"
+                colorMid="#ea580c"
+                colorDark="#080402"
+                angle={180}
+                position={0}
+                curve={0.48}
+                softness={0.13}
+                scale={1}
+                grain={0.32}
+                grainSize={1}
+                seed={1}
+                speed={1}
+                className="h-full w-full"
+              />
+            </div>
+            <div className="degrees-welcome__right-inner">
+              {/* Top Bar with GitHub Connect & Model Auth */}
+              <div className="degrees-welcome__top-bar">
+                {githubStatus?.connected && githubStatus?.user ? (
+                  <button
+                    type="button"
+                    className="degrees-github-pill"
+                    onClick={() => setIsGitHubConnectModalOpen(true)}
+                    title={`Connected as @${githubStatus.user.login} — Click to manage`}
+                  >
+                    <img
+                      src={githubStatus.user.avatar_url}
+                      alt={githubStatus.user.login}
+                      className="degrees-github-avatar"
+                    />
+                    <span className="degrees-github-login">@{githubStatus.user.login}</span>
+                    <span className="degrees-github-dot" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="degrees-github-connect-btn"
+                    onClick={() => setIsGitHubConnectModalOpen(true)}
+                    title="Connect GitHub account"
+                  >
+                    <GitHubIcon size={14} />
+                    <span>Connect GitHub</span>
+                  </button>
+                )}
+              </div>
             <header className="degrees-welcome__header">
               <div className="degrees-logo-container">
                 <img
@@ -832,10 +862,26 @@ export default function WelcomeView({
                 )
               )}
             </section>
-          </>
-        ) : (
+            </div>
+          </main>
+        </>
+      ) : (
           /* Naming Step */
-          <div className="degrees-naming-card">
+          <div className="degrees-naming-screen">
+            <div className="degrees-naming-bg" aria-hidden="true">
+              <SilkAurora
+                title="Maison Lumiere"
+                subtitle="Private Preview"
+                description="Quiet motion, warm sheen, and a velvet base for refined product launches."
+                baseColor="#060505"
+                midColor="#19130f"
+                sheenColor="#ffe2a9"
+                accentColor="#c58d5d"
+                intensity={0.9}
+                speed={0.75}
+              />
+            </div>
+            <div className="degrees-naming-card">
             <div className="degrees-logo-container degrees-logo-container--naming">
               <img
                 src="/logo-white.png"
@@ -897,8 +943,8 @@ export default function WelcomeView({
               </div>
             </form>
           </div>
+          </div>
         )}
-      </div>
 
       {/* Model Selector Modal */}
       <ModelSelector

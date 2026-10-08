@@ -1,0 +1,84 @@
+/* ==========================================================================
+   Annotated Text — Hand-Drawn Editorial SVG Annotations
+   Compatible with @componentry/annotated-text
+   ========================================================================== */
+
+.annotated-text {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  white-space: nowrap !important;
+  vertical-align: middle !important;
+}
+
+.annotated-text--circle {
+  padding: 0 0.55em !important;
+}
+
+.annotated-text > svg,
+.annotated-text__svg,
+svg[class*="annotated-text__svg"] {
+  pointer-events: none !important;
+  position: absolute !important;
+  overflow: visible !important;
+  z-index: 1;
+}
+
+.annotated-text__svg--circle,
+.annotated-text--circle > svg {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: calc(100% + 1.2em) !important;
+  height: calc(100% + 1.3em) !important;
+}
+
+.annotated-text__svg--box,
+.annotated-text--box > svg {
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: calc(100% + 0.8em) !important;
+  height: calc(100% + 0.8em) !important;
+}
+
+.annotated-text__svg--wavy,
+.annotated-text--wavy > svg {
+  bottom: -0.4em !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 104% !important;
+  height: 0.7em !important;
+}
+
+.annotated-text__svg--underline,
+.annotated-text--underline > svg {
+  bottom: -0.32em !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 102% !important;
+  height: 0.5em !important;
+}
+
+.annotated-text__svg--doubleUnderline,
+.annotated-text--doubleUnderline > svg {
+  bottom: -0.5em !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 102% !important;
+  height: 0.7em !important;
+}
+
+/* Color fallbacks */
+.text-orange-500 { color: #f97316; }
+.text-orange-400 { color: #fb923c; }
+.text-orange-600 { color: #ea580c; }
+.text-cyan-600 { color: #0891b2; }
+.text-cyan-400 { color: #22d3ee; }
+.text-cyan-200 { color: #a5f3fc; }
+.text-purple-500 { color: #a855f7; }
+.text-emerald-600 { color: #059669; }
+.text-blue-600 { color: #2563eb; }
+.text-red-500 { color: #ef4444; }
+.text-neutral-500 { color: #737373; }

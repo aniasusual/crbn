@@ -1,446 +1,391 @@
 /* ==========================================================================
-   80degrees — PreviewPanel Styling
-   Pure Glassmorphic Surface, Ambient Light Refraction & Zero Boundaries
+   80degrees — Creative Studio Canvas Styling
+   Soothing, Velvety & Elegant Workspace for Creative Website Crafting
    ========================================================================== */
 
-.preview-panel {
+.preview-sooth {
+  --sooth-bg: #101014;
+  --sooth-mat-bg: #0b0b0e;
+  --sooth-line: rgba(255, 255, 255, 0.055);
+  --sooth-line-soft: rgba(255, 255, 255, 0.035);
+  --sooth-line-hover: rgba(255, 255, 255, 0.12);
+  --sooth-fg: #f5f5f7;
+  --sooth-fg-dim: rgba(255, 255, 255, 0.6);
+  --sooth-fg-muted: rgba(255, 255, 255, 0.36);
+  --sooth-fg-faint: rgba(255, 255, 255, 0.18);
+  --sooth-live: #34d399;
+  --sooth-live-glow: rgba(52, 211, 153, 0.22);
+  --sooth-boot: #fbbf24;
+  --sooth-boot-glow: rgba(251, 191, 36, 0.22);
+
   width: 100%;
   height: 100%;
   min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 40%, rgba(18, 18, 26, 0.35) 100%);
-  border-radius: 0;
+  background: transparent;
   overflow: hidden;
-  border: none;
-  box-shadow: none;
-  backdrop-filter: blur(40px) saturate(210%);
-  -webkit-backdrop-filter: blur(40px) saturate(210%);
-  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   position: relative;
+  box-sizing: border-box;
+  padding: 0;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
+}
+
+/* ==========================================================================
+   Floating Action Dock Positioned at Bottom Center
+   ========================================================================== */
+
+.preview-sooth__dock-bottom-center {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* ==========================================================================
+   Top Floating Status Pill
+   ========================================================================== */
+
+.preview-sooth__top-badge {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+.preview-sooth__badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 13px;
+  border-radius: 9999px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.09) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  ), rgba(16, 16, 22, 0.55);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 10px 30px -4px rgba(0, 0, 0, 0.45),
+    0 2px 8px 0 rgba(0, 0, 0, 0.22),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.24),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35);
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  color: var(--sooth-fg-dim);
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.preview-sooth__badge-pill:hover {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.13) 0%,
+    rgba(255, 255, 255, 0.04) 100%
+  ), rgba(22, 22, 30, 0.68);
+  border-color: rgba(255, 255, 255, 0.24);
+  box-shadow:
+    0 14px 36px -4px rgba(0, 0, 0, 0.55),
+    0 4px 12px 0 rgba(0, 0, 0, 0.28),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.32);
+}
+
+.preview-sooth__badge-dot {
+  width: 5.5px;
+  height: 5.5px;
+  border-radius: 50%;
+  background: var(--sooth-live);
+  box-shadow: 0 0 8px var(--sooth-live-glow);
+  flex-shrink: 0;
+}
+
+.preview-sooth__badge-dot--booting {
+  background: var(--sooth-boot);
+  box-shadow: 0 0 8px var(--sooth-boot-glow);
+  animation: sooth-dot-breathe 2.2s infinite ease-in-out;
+}
+
+@keyframes sooth-dot-breathe {
+  0%, 100% { opacity: 0.95; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+.preview-sooth__badge-port {
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  color: var(--sooth-fg);
+}
+
+.preview-sooth__badge-port-sub {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.52);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  padding-left: 8px;
+  margin-left: 2px;
+  letter-spacing: -0.01em;
+}
+
+/* ==========================================================================
+   Full-Height Curved Viewport Sanctuary
+   ========================================================================== */
+
+.preview-sooth__viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 16px 40px -8px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+  background: var(--sooth-mat-bg);
+  isolation: isolate;
+  transform: translateZ(0);
+}
+
+.preview-sooth__viewport--empty {
+  align-items: center;
+  justify-content: center;
+}
+
+/* ==========================================================================
+   Body & Canvas Containers
+   ========================================================================== */
+
+.preview-sooth__body {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  overflow: hidden;
+  padding-bottom: 74px; /* Room for bottom-center dock */
   box-sizing: border-box;
 }
 
-/* Header Bar — Glassmorphic Frosted Strip */
-.preview-panel__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  height: 44px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
-  border: none;
-  border-bottom: none;
-  box-shadow: none;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  user-select: none;
-  flex-shrink: 0;
-}
-
-/* Segmented View Mode Toggle: Preview vs Code */
-.preview-panel__view-toggle {
-  display: inline-flex;
-  align-items: center;
-  padding: 2.5px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  gap: 2px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.preview-panel__view-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 24px;
-  padding: 0 10px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 11px;
-  font-weight: 550;
-  font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.14s ease;
-  user-select: none;
-  outline: none;
-}
-
-.preview-panel__view-toggle-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.preview-panel__view-toggle-btn--active {
-  background: rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  font-weight: 600;
-}
-
-.preview-panel__code-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  background: rgba(96, 165, 250, 0.08);
-  border: 1px solid rgba(96, 165, 250, 0.2);
-  border-radius: 6px;
-  font-size: 11.5px;
-  font-family: var(--font-mono, monospace);
-  color: #93c5fd;
-  letter-spacing: -0.01em;
-}
-
-/* Left Group (Traffic lights + Port status) */
-.preview-panel__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 140px;
-}
-
-.preview-panel__traffic-lights {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.preview-panel__light {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  opacity: 0.75;
-  border: none;
-  box-shadow: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-
-.preview-panel__light--close { background: #ef4444; }
-.preview-panel__light--min { background: #f59e0b; }
-.preview-panel__light--max { background: #22c55e; }
-
-.preview-panel:hover .preview-panel__light {
-  opacity: 0.95;
-}
-
-/* Port Status Glass Pill */
-.preview-panel__status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 10px;
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
-  box-shadow: none;
-  border-radius: 7px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
-  font-family: var(--font-mono, monospace);
-  font-variant-numeric: tabular-nums;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  transition: all 0.12s ease;
-}
-
-.preview-panel__status-pill:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  box-shadow: none;
-  color: #ffffff;
-}
-
-.preview-panel__status-pill--booting {
-  background: rgba(245, 158, 11, 0.08);
-  border: none;
-  box-shadow: none;
-  color: #fbbf24;
-}
-
-.preview-panel__pulse-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #22c55e;
-  border: none;
-  box-shadow: none;
-  flex-shrink: 0;
-}
-
-.preview-panel__status-pill--booting .preview-panel__pulse-dot {
-  background: #f59e0b;
-  border: none;
-  box-shadow: none;
-  animation: degrees-pulse 1.4s infinite ease-in-out;
-}
-
-@keyframes degrees-pulse {
-  0%, 100% { opacity: 0.9; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
-}
-
-.preview-panel__port-label {
-  font-weight: 550;
-  letter-spacing: -0.01em;
-}
-
-.preview-panel__api-label {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-  border: none;
-  border-left: none;
-  padding-left: 6px;
-  margin-left: 2px;
-}
-
-/* Center URL Address Bar — Frosted Glass Capsule */
-.preview-panel__address-bar {
-  flex: 1;
-  max-width: 380px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  background: rgba(0, 0, 0, 0.22);
-  border: none;
-  box-shadow: none;
-  border-radius: 6px;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  cursor: pointer;
-  transition: all 0.14s ease;
-}
-
-.preview-panel__address-bar:hover {
-  background: rgba(0, 0, 0, 0.32);
-  border: none;
-  box-shadow: none;
-}
-
-.preview-panel__address-icon {
-  display: flex;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.45);
-  flex-shrink: 0;
-}
-
-.preview-panel__address-text {
-  flex: 1;
-  font-size: 11.5px;
-  font-family: var(--font-mono, monospace);
-  color: rgba(255, 255, 255, 0.78);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  text-align: center;
-  letter-spacing: -0.01em;
-}
-
-.preview-panel__copy-btn {
-  display: flex;
-  align-items: center;
-  color: rgba(255, 255, 255, 0.35);
-  transition: color 0.12s ease;
-  flex-shrink: 0;
-}
-
-.preview-panel__address-bar:hover .preview-panel__copy-btn {
-  color: #ffffff;
-}
-
-/* Right Action Buttons — Frosted Glass Controls */
-.preview-panel__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 80px;
-  justify-content: flex-end;
-}
-
-.preview-panel__action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  box-shadow: none;
-  border-radius: 7px;
-  color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.preview-panel__action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border: none;
-  box-shadow: none;
-  color: #ffffff;
-  transform: scale(1.05);
-}
-
-.preview-panel__action-btn:active {
-  transform: scale(0.98);
-}
-
-/* Frame Container & Iframe */
-.preview-panel__frame-wrapper {
+.preview-sooth__canvas {
   flex: 1;
   width: 100%;
   height: 100%;
   min-height: 0;
   position: relative;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.preview-panel__frame {
-  width: 100%;
-  height: 100%;
-  border: none;
-  display: block;
-  background: transparent;
-}
-
-/* Empty State — Glassmorphic */
-.preview-panel--empty {
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(16, 16, 24, 0.5) 100%);
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  backdrop-filter: blur(40px) saturate(210%);
-  -webkit-backdrop-filter: blur(40px) saturate(210%);
-}
-
-.preview-panel__empty-content {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  max-width: 320px;
+  background: var(--sooth-bg);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  padding: 32px 24px;
+  border-radius: 20px;
+  overflow: hidden;
 }
 
-.preview-panel__empty-icon-wrap {
+.preview-sooth__frame {
+  border: none;
+  display: block;
+  background: #ffffff;
+}
+
+.preview-sooth__frame--fluid {
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+/* Framed Studio Mat for Device Presets */
+.preview-sooth__canvas--framed {
+  overflow: auto;
+  background-color: var(--sooth-mat-bg);
+  background-image: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.02) 0%, transparent 65%);
+  padding: 36px 28px 96px 28px; /* Extra bottom padding so dock never overlaps */
+  box-sizing: border-box;
+}
+
+.preview-sooth__stage {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
   position: relative;
+}
+
+/* Apple-Grade Floating Device Chassis */
+.preview-sooth__chassis {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 64px;
-  height: 64px;
-  margin-bottom: 4px;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow:
+    0 32px 80px -16px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+  position: relative;
+  transition:
+    width 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.preview-panel__empty-icon-glow {
-  position: absolute;
-  inset: -12px;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.06) 0%, transparent 70%);
-  border-radius: 50%;
-  pointer-events: none;
+.preview-sooth__frame--contained {
+  width: 100%;
+  height: 100%;
+  flex: 1;
 }
 
-.preview-panel__empty-icon {
-  color: rgba(255, 255, 255, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* ==========================================================================
+   Booting, Idle & Standby States
+   ========================================================================== */
 
-.preview-panel__empty-title {
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 550;
-  letter-spacing: -0.025em;
-  margin: 0;
-}
-
-.preview-panel__empty-title-serif {
-  font-family: var(--font-serif, 'Instrument Serif', Georgia, serif);
-  font-style: italic;
-  font-weight: 400;
-  font-size: 21px;
-  letter-spacing: -0.01em;
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.preview-panel__empty-desc {
-  font-size: 13px;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.48);
-  margin: 0;
-  letter-spacing: -0.01em;
-}
-
-/* Dev Server Booting Loader — Glassmorphic Modal */
-.preview-panel__booting {
+.preview-sooth__calm-state {
   position: absolute;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(16, 16, 24, 0.65) 100%);
-  backdrop-filter: blur(40px) saturate(210%);
-  -webkit-backdrop-filter: blur(40px) saturate(210%);
-  border: none;
-  box-shadow: none;
-  gap: 12px;
-  z-index: 10;
+  background: var(--sooth-bg);
+  gap: 10px;
+  padding: 28px;
   text-align: center;
-  padding: 24px;
+  z-index: 10;
 }
 
-.preview-panel__spinner {
-  width: 22px;
-  height: 22px;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  animation: degrees-spin 0.8s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+.preview-sooth__calm-icon {
+  color: var(--sooth-fg-faint);
+  margin-bottom: 4px;
 }
 
-@keyframes degrees-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.preview-panel__booting-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
+.preview-sooth__calm-title {
+  font-size: 14.5px;
+  font-weight: 550;
+  color: var(--sooth-fg);
   letter-spacing: -0.015em;
 }
 
-.preview-panel__booting-desc {
+.preview-sooth__calm-subtitle {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  font-family: var(--font-mono, monospace);
-  max-width: 320px;
-  line-height: 1.5;
+  line-height: 1.55;
+  color: var(--sooth-fg-muted);
+  max-width: 300px;
 }
 
-.preview-panel__booting-desc code {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.08);
+.preview-sooth__calm-subtitle code {
+  color: var(--sooth-fg);
+  background: rgba(255, 255, 255, 0.07);
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 4px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+/* Ethereal Breathing Halo for Warming Up Runtime */
+.preview-sooth__breathing-halo {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.preview-sooth__halo-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  animation: halo-breathe 2.4s ease-in-out infinite;
+}
+
+.preview-sooth__halo-core {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sooth-boot);
+  box-shadow: 0 0 16px var(--sooth-boot-glow);
+  animation: halo-core-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes halo-breathe {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 0.95;
+    border-color: rgba(251, 191, 36, 0.35);
+  }
+}
+
+@keyframes halo-core-glow {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+/* Creative Sanctuary Empty State */
+.preview-sooth--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sooth-bg);
+  padding: 10px;
+}
+
+.preview-sooth__sanctuary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 320px;
+  gap: 10px;
+}
+
+.preview-sooth__sanctuary-icon {
+  color: var(--sooth-fg-faint);
+  margin-bottom: 6px;
+  transition: color 0.2s ease;
+}
+
+.preview-sooth__sanctuary:hover .preview-sooth__sanctuary-icon {
+  color: var(--sooth-fg-muted);
+}
+
+.preview-sooth__sanctuary-title {
+  font-size: 16px;
+  font-weight: 550;
+  color: var(--sooth-fg);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.preview-sooth__sanctuary-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--sooth-fg-muted);
+  margin: 0;
 }
