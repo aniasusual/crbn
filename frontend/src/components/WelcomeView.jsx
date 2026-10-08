@@ -201,7 +201,7 @@ export default function WelcomeView({
                 colorLight="#fed7aa"
                 colorMid="#ea580c"
                 colorDark="#080402"
-                angle={0}
+                angle={180}
                 position={0}
                 curve={0.48}
                 softness={0.13}
