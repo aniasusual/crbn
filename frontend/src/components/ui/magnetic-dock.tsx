@@ -30,6 +30,8 @@ export interface DockItemData {
   tooltip?: string;
   /** Optional disabled state */
   disabled?: boolean;
+  /** Optional flag to suppress tooltip */
+  hideTooltip?: boolean;
 }
 
 export interface MagneticDockProps {
@@ -79,7 +81,7 @@ function DockItem({
   const ref = React.useRef<HTMLButtonElement>(null);
   const [isHovered, setIsHovered] = React.useState(false);
   const [isFocused, setIsFocused] = React.useState(false);
-  const showLabel = showLabels && (isHovered || isFocused);
+  const showLabel = showLabels && (isHovered || isFocused) && !item.hideTooltip;
 
   // Calculate distance from mouse to center of item
   const distance = useTransform(mouseX, (val: number) => {
@@ -583,6 +585,25 @@ export function DockIconExternal({ className }: { className?: string }) {
       <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
       <polyline points="15 3 21 3 21 9" />
       <line x1="10" y1="14" x2="21" y2="3" />
+    </svg>
+  );
+}
+
+export function DockIconDeploy({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("w-full h-full", className)}
+    >
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
     </svg>
   );
 }

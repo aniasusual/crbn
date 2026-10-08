@@ -9,6 +9,7 @@ import {
   DockIconMobile,
   DockIconRefresh,
   DockIconExternal,
+  DockIconDeploy,
 } from '@/components/ui/magnetic-dock';
 import './PreviewPanel.css';
 
@@ -175,6 +176,23 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     setTimeout(() => setIsReloading(false), 450);
   }, []);
 
+  const [deployNotice, setDeployNotice] = useState(false);
+  const deployTimerRef = useRef(null);
+
+  const handleDeployClick = useCallback(() => {
+    setDeployNotice(true);
+    clearTimeout(deployTimerRef.current);
+    deployTimerRef.current = setTimeout(() => {
+      setDeployNotice(false);
+    }, 4500);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearTimeout(deployTimerRef.current);
+    };
+  }, []);
+
   // Dimensions & scale calculation (clean fitting without auto-fit toggle)
   const currentConfig = useMemo(() => {
     const raw = BASE_PRESETS.find((p) => p.id === viewportMode) || BASE_PRESETS[0];
@@ -256,6 +274,15 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         icon: <DockIconExternal />,
         onClick: handleOpenExternal,
       },
+      {
+        id: 'deploy',
+        label: 'Deploy',
+        tooltip: 'Deploy Application',
+        hideTooltip: deployNotice,
+        icon: <DockIconDeploy />,
+        onClick: handleDeployClick,
+        isActive: deployNotice,
+      },
     ];
   }, [
     viewMode,
@@ -265,6 +292,8 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     handleCycleViewport,
     handleManualReload,
     handleOpenExternal,
+    deployNotice,
+    handleDeployClick,
   ]);
 
   // Clean empty state with sanctuary card
@@ -376,6 +405,20 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
       {/* Action Items Dock Positioned at Bottom Center */}
       <div className="preview-sooth__dock-bottom-center">
+        {deployNotice && (
+          <div className="preview-deploy-notice" role="status" aria-live="polite">
+            <span className="preview-deploy-notice__icon">🚀</span>
+            <span className="preview-deploy-notice__text">Deployments coming soon, stay tuned!</span>
+            <button
+              type="button"
+              className="preview-deploy-notice__close"
+              onClick={() => setDeployNotice(false)}
+              aria-label="Dismiss notice"
+            >
+              ✕
+            </button>
+          </div>
+        )}
         <MagneticDock
           items={dockItems}
           iconSize={42}
