@@ -48,6 +48,77 @@
   pointer-events: auto;
 }
 
+/* Deployments Coming Soon Feedback Notice */
+.preview-deploy-notice {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(18, 18, 24, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  white-space: nowrap;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  z-index: 70;
+  pointer-events: auto;
+  animation: previewDeployPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes previewDeployPopIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.preview-deploy-notice__icon {
+  font-size: 13px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.preview-deploy-notice__text {
+  color: rgba(255, 255, 255, 0.95);
+  user-select: none;
+}
+
+.preview-deploy-notice__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  border-radius: 50%;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  margin-left: 2px;
+  padding: 0;
+}
+
+.preview-deploy-notice__close:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
 /* ==========================================================================
    Top Floating Status Pill
    ========================================================================== */
