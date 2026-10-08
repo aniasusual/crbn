@@ -111,8 +111,28 @@ export class DevServerManager {
 
     console.log(`[DevServerManager] Starting dev server for ${resolvedPath} on port ${targetPort}...`);
 
-    // Launch Vite using bun
-    const proc = Bun.spawn(["bun", "run", "dev:frontend"], {
+    // Inspect package.json to determine the proper dev command
+    let devScript: string | null = null;
+    try {
+      const rawPkg = fsSync.readFileSync(packageJsonPath, "utf-8");
+      const pkg = JSON.parse(rawPkg);
+      const scripts = pkg.scripts || {};
+      if (scripts["dev:frontend"]) {
+        devScript = "dev:frontend";
+      } else if (scripts["dev"]) {
+        devScript = "dev";
+      } else if (scripts["start"]) {
+        devScript = "start";
+      }
+    } catch {}
+
+    if (!devScript) {
+      console.log(`[DevServerManager] No runnable dev script found in ${packageJsonPath}`);
+      return null;
+    }
+
+    // Launch dev server using bun
+    const proc = Bun.spawn(["bun", "run", devScript], {
       cwd: resolvedPath,
       env: {
         ...process.env,
