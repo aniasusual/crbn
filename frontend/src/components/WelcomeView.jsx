@@ -1,4 +1,4 @@
-import { useState, useEffect, useId, useMemo } from 'react';
+import { useState, useEffect, useId, useMemo, useCallback } from 'react';
 import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
 import GitHubConnectModal from './GitHubConnectModal';
@@ -236,6 +236,88 @@ export default function WelcomeView({
     });
   }, [githubRepos, repoSearch, repoVisibilityFilter]);
 
+  const handleSelectRepo = useCallback((repo) => {
+    setSelectedRepo(repo);
+    // Scroll composer into view
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const textarea = document.getElementById(textareaId);
+    if (textarea) textarea.focus();
+  }, [textareaId]);
+
+  // Formatted GitHub Repository Items for Interactive Timeline List
+  const githubRepoItems = useMemo(() => {
+    return filteredGithubRepos.map((repo) => {
+      const isSelected = selectedRepo?.full_name === repo.full_name;
+      return {
+        key: `repo-${repo.id || repo.full_name}`,
+        client: (
+          <div className="degrees-github-list-repo-title">
+            {repo.private ? (
+              <span className="degrees-github-list-lock" title="Private repository">
+                <LockIcon />
+              </span>
+            ) : null}
+            <span className="degrees-github-list-repo-name" title={repo.name}>
+              {repo.name}
+            </span>
+            <span className="degrees-github-list-repo-owner" title={`/${repo.owner}`}>
+              /{repo.owner}
+            </span>
+            <span
+              className={`degrees-github-vis-badge ${
+                repo.private ? 'degrees-github-vis-badge--private' : ''
+              }`}
+            >
+              {repo.private ? 'Private' : 'Public'}
+            </span>
+          </div>
+        ),
+        platform: (
+          <div className="degrees-github-list-repo-meta">
+            {repo.language && (
+              <span className="degrees-github-lang">
+                <span className="degrees-github-lang-dot" />
+                {repo.language}
+              </span>
+            )}
+            {repo.stargazers_count > 0 && (
+              <span className="degrees-github-stars">
+                <StarIcon /> {repo.stargazers_count}
+              </span>
+            )}
+            <span className="degrees-github-branch">
+              <BranchIcon /> {repo.default_branch || 'main'}
+            </span>
+          </div>
+        ),
+        services: (
+          <span
+            className="degrees-github-list-repo-desc"
+            title={repo.description || 'No description provided'}
+          >
+            {repo.description || 'No description provided'}
+          </span>
+        ),
+        actions: (
+          <button
+            type="button"
+            className={`degrees-repo-select-btn ${
+              isSelected ? 'degrees-repo-select-btn--active' : ''
+            }`}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSelectRepo(repo);
+            }}
+          >
+            {isSelected ? 'Target Active' : 'Select & Build'}
+          </button>
+        ),
+        selected: isSelected,
+        data: repo,
+      };
+    });
+  }, [filteredGithubRepos, selectedRepo, handleSelectRepo]);
+
   const currentModelObj = models.find(
     (m) => m.id === selectedModel || m.canonical_id === selectedModel
   ) || {
@@ -332,13 +414,6 @@ export default function WelcomeView({
     clearAttachments();
   };
 
-  const handleSelectRepo = (repo) => {
-    setSelectedRepo(repo);
-    // Scroll composer into view
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    const textarea = document.getElementById(textareaId);
-    if (textarea) textarea.focus();
-  };
 
   const exiting = isExiting || isTransitioning;
 
@@ -420,10 +495,6 @@ export default function WelcomeView({
                   className="degrees-logo-img"
                 />
               </div>
-
-              <h1 className="degrees-welcome__title">
-                Cook what you <span className="degrees-welcome__title-serif">want.</span>
-              </h1>
 
               <p className="degrees-welcome__subtitle">
                 A creative studio for full-stack software. Describe your concept or connect any GitHub repo; we'll compose, build, and run it.
@@ -787,77 +858,29 @@ export default function WelcomeView({
                     <span>Loading your repositories from GitHub...</span>
                   </div>
                 ) : filteredGithubRepos.length > 0 ? (
-                  <div className="degrees-github-repo-grid">
-                    {filteredGithubRepos.map((repo) => {
-                      const isSelected = selectedRepo?.full_name === repo.full_name;
-                      return (
-                        <div
-                          key={repo.id}
-                          className={`degrees-github-repo-card ${
-                            isSelected ? 'degrees-github-repo-card--selected' : ''
-                          }`}
-                          onClick={() => handleSelectRepo(repo)}
-                        >
-                          <div className="degrees-github-repo-header">
-                            <div className="degrees-github-repo-title-row">
-                              {repo.private ? <LockIcon /> : null}
-                              <span className="degrees-github-repo-name">{repo.name}</span>
-                              <span className="degrees-github-repo-owner">/{repo.owner}</span>
-                            </div>
-                            <span
-                              className={`degrees-github-vis-badge ${
-                                repo.private ? 'degrees-github-vis-badge--private' : ''
-                              }`}
-                            >
-                              {repo.private ? 'Private' : 'Public'}
-                            </span>
-                          </div>
-
-                          <p className="degrees-github-repo-desc">
-                            {repo.description || 'No description provided'}
-                          </p>
-
-                          <div className="degrees-github-repo-meta">
-                            <div className="degrees-github-repo-meta-left">
-                              {repo.language && (
-                                <span className="degrees-github-lang">
-                                  <span className="degrees-github-lang-dot" />
-                                  {repo.language}
-                                </span>
-                              )}
-                              {repo.stargazers_count > 0 && (
-                                <span className="degrees-github-stars">
-                                  <StarIcon /> {repo.stargazers_count}
-                                </span>
-                              )}
-                              <span className="degrees-github-branch">
-                                <BranchIcon /> {repo.default_branch}
-                              </span>
-                            </div>
-
-                            <div className="degrees-github-repo-actions">
-
-                              <button
-                                type="button"
-                                className={`degrees-repo-select-btn ${
-                                  isSelected ? 'degrees-repo-select-btn--active' : ''
-                                }`}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSelectRepo(repo);
-                                }}
-                              >
-                                {isSelected ? 'Target Active' : 'Select & Build'}
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div className="degrees-timelines__interactive-wrap">
+                    <InteractiveListPreview
+                      items={githubRepoItems}
+                      colWidths={['32%', '22%', '26%', '20%']}
+                      onItemClick={(item) => handleSelectRepo(item.data || item)}
+                    />
                   </div>
                 ) : (
                   <div className="degrees-timelines__empty">
-                    <p>No repositories found matching your filter criteria.</p>
+                    {repoSearch.trim() ? (
+                      <div className="degrees-timelines__empty-search">
+                        <span>No repositories matching &ldquo;{repoSearch}&rdquo;</span>
+                        <button
+                          type="button"
+                          className="degrees-timelines__clear-btn"
+                          onClick={() => setRepoSearch('')}
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    ) : (
+                      <p>No repositories found matching your filter criteria.</p>
+                    )}
                   </div>
                 )
               )}

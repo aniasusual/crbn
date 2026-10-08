@@ -1249,6 +1249,77 @@
   gap: 12px;
   width: 100%;
 }
+/* GitHub Repositories List Format (Timeline Style) */
+.degrees-github-list-repo-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-transform: none;
+}
+
+.degrees-github-list-lock {
+  display: inline-flex;
+  align-items: center;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.degrees-github-list-repo-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.degrees-github-list-repo-owner {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.38);
+  white-space: nowrap;
+  flex-shrink: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.degrees-github-list-repo-title .degrees-github-vis-badge {
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.degrees-github-list-repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  text-transform: none;
+  color: rgba(255, 255, 255, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.degrees-github-list-repo-meta svg {
+  flex-shrink: 0;
+}
+
+.degrees-github-list-repo-desc {
+  display: block;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 
 .degrees-github-repo-card {
   background: rgba(255, 255, 255, 0.02);
@@ -1351,6 +1422,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .degrees-github-lang-dot {
@@ -1369,9 +1441,18 @@
 .degrees-github-branch {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-family: monospace;
   font-size: 10.5px;
+  flex-shrink: 0;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.degrees-github-branch svg {
+  flex-shrink: 0;
 }
 
 .degrees-github-repo-actions {
@@ -1402,9 +1483,14 @@
   color: #ffffff;
   font-size: 11px;
   font-weight: 500;
-  padding: 4px 9px;
+  padding: 4px 10px;
   border-radius: 6px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.12s ease;
 }
 
