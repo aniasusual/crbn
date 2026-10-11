@@ -34,6 +34,7 @@ const BASE_PRESETS = [
 export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp }) {
   const [frameKey, setFrameKey] = useState(0);
   const [isServerReady, setIsServerReady] = useState(false);
+  const [isBackendReady, setIsBackendReady] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
   const [isLandscape, _setIsLandscape] = useState(false);
 
@@ -142,6 +143,46 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [previewData?.url]);
+  // Dev Server Backend Health Polling
+  useEffect(() => {
+    if (!previewData?.backend_port) {
+      setIsBackendReady(false);
+      return;
+    }
+
+    let isMounted = true;
+    let timeoutId = null;
+    setIsBackendReady(false);
+
+    const checkBackendHealth = async () => {
+      try {
+        const targetUrl = (
+          previewData.backend_url || `http://127.0.0.1:${previewData.backend_port}`
+        ).replace('://localhost:', '://127.0.0.1:');
+        await fetch(targetUrl, { mode: 'no-cors', cache: 'no-store' });
+        if (isMounted) {
+          setIsBackendReady(true);
+        }
+      } catch {
+        if (isMounted) {
+          setIsBackendReady(false);
+          timeoutId = setTimeout(checkBackendHealth, 500);
+        }
+      }
+    };
+
+    checkBackendHealth();
+
+    const intervalId = setInterval(() => {
+      if (isMounted) checkBackendHealth();
+    }, 3000);
+
+    return () => {
+      isMounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
+      clearInterval(intervalId);
+    };
+  }, [previewData?.backend_port, previewData?.backend_url]);
 
   // Debounced Live Auto-Reload when AI agent writes/edits code
   useEffect(() => {
@@ -323,15 +364,27 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
           <div
             className="preview-sooth__badge-pill"
             title={
-              isServerReady
-                ? `Frontend :${previewData.port}${previewData.backend_port ? ` • Backend :${previewData.backend_port}` : ''}`
-                : `Connecting frontend :${previewData.port}${previewData.backend_port ? ` • Backend :${previewData.backend_port}` : ''}`
+              `${isServerReady ? `Frontend active on :${previewData.port}` : `Connecting frontend on :${previewData.port}...`}` +
+              (previewData.backend_port
+                ? ` • ${isBackendReady ? `API server active on :${previewData.backend_port}` : `Connecting to API server on :${previewData.backend_port}...`}`
+                : '')
             }
           >
-            <span className={`preview-sooth__badge-dot ${!isServerReady ? 'preview-sooth__badge-dot--booting' : ''}`} />
+            <span
+              className={`preview-sooth__badge-dot ${!isServerReady ? 'preview-sooth__badge-dot--booting' : ''}`}
+              title={isServerReady ? `Frontend running on :${previewData.port}` : `Starting frontend on :${previewData.port}...`}
+            />
             <span className="preview-sooth__badge-port">:{previewData.port}</span>
             {previewData.backend_port && (
-              <span className="preview-sooth__badge-port-sub">api :{previewData.backend_port}</span>
+              <span
+                className="preview-sooth__badge-port-sub"
+                title={isBackendReady ? `API Server online on :${previewData.backend_port}` : `API Server connecting on :${previewData.backend_port}...`}
+              >
+                <span
+                  className={`preview-sooth__badge-dot preview-sooth__badge-dot--sub ${!isBackendReady ? 'preview-sooth__badge-dot--booting' : ''}`}
+                />
+                api :{previewData.backend_port}
+              </span>
             )}
           </div>
         </div>

@@ -556,6 +556,7 @@ export class GithubService {
       model: model || undefined,
       status: "stopped",
       port: null,
+      backend_port: null,
       pid: null,
       created_at: now,
       last_opened: now,

@@ -9,9 +9,9 @@ import { GithubService } from "./github-service";
 const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8000);
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
 
-const projectManager = new ProjectManager();
-const modelsService = new ModelsService();
 const devServerManager = new DevServerManager();
+const projectManager = new ProjectManager({ devServerManager });
+const modelsService = new ModelsService();
 const githubService = new GithubService(projectManager);
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -335,6 +335,21 @@ const _server = Bun.serve<WsData>({
         { headers: CORS_HEADERS },
       );
     }
+    // Dev Server: Status
+    if (url.pathname === "/api/dev-server/status" && req.method === "GET") {
+      const projectName = url.searchParams.get("project") || url.searchParams.get("name");
+      if (!projectName) {
+        return Response.json({ error: "project parameter is required" }, { status: 400, headers: CORS_HEADERS });
+      }
+      try {
+        const project = await projectManager.getProject(projectName);
+        const status = await devServerManager.getServerStatus(project.path);
+        return Response.json(status || { frontend: { running: false, port: 0, url: "" }, backend: { running: false, port: null, url: null } }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json({ detail: err instanceof Error ? err.message : String(err) }, { status: 404, headers: CORS_HEADERS });
+      }
+    }
+
 
     // Projects: Create
     if (url.pathname === "/api/projects" && req.method === "POST") {
@@ -871,6 +886,7 @@ const _server = Bun.serve<WsData>({
             });
             if (devServer) {
               project.port = devServer.port;
+              project.backend_port = devServer.backend_port ?? null;
               project.status = "running";
               projectManager.saveMeta(project).catch(() => {});
             }
@@ -896,6 +912,7 @@ const _server = Bun.serve<WsData>({
             const newInfo = await devServerManager.restartDevServer(project.path);
             if (newInfo) {
               project.port = newInfo.port;
+              project.backend_port = newInfo.backend_port ?? null;
               project.status = "running";
               projectManager.saveMeta(project).catch(() => {});
             }

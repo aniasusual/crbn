@@ -5,23 +5,25 @@ import * as fsSync from "node:fs";
 export interface DevServerInfo {
   port: number;
   url: string;
-  backend_port: number;
-  backend_url: string;
+  backend_port: number | null;
+  backend_url: string | null;
   pid: number | null;
+  backend_pid?: number | null;
 }
 
 export type PreviewEventCallback = (event: {
   type: "preview_ready" | "preview_stopped";
   port?: number;
   url?: string;
-  backend_port?: number;
-  backend_url?: string;
+  backend_port?: number | null;
+  backend_url?: string | null;
   project_path?: string;
 }) => void;
 
 export class DevServerManager {
   private activeServers = new Map<string, {
-    proc: Subprocess;
+    frontendProc: Subprocess;
+    backendProc: Subprocess | null;
     info: DevServerInfo;
   }>();
 
@@ -46,15 +48,19 @@ export class DevServerManager {
     const key = path.resolve(projectPath);
     return this.activeServers.get(key)?.info ?? null;
   }
+
   private getOccupiedPorts(): Set<number> {
     const ports = new Set<number>();
     for (const server of this.activeServers.values()) {
       ports.add(server.info.port);
+      if (server.info.backend_port) {
+        ports.add(server.info.backend_port);
+      }
     }
     return ports;
   }
 
-  private async isPortAvailable(port: number): Promise<boolean> {
+  async isPortAvailable(port: number): Promise<boolean> {
     try {
       const server = Bun.listen({
         port,
@@ -70,6 +76,25 @@ export class DevServerManager {
     }
   }
 
+  async isPortListening(port: number): Promise<boolean> {
+    try {
+      await Bun.connect({
+        hostname: "127.0.0.1",
+        port,
+        socket: {
+          data() {},
+          open(s) {
+            s.end();
+          },
+          error() {},
+        },
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async findAvailablePort(startPort: number = 3000, maxPort: number = 3050): Promise<number> {
     const occupied = this.getOccupiedPorts();
     for (let p = startPort; p <= maxPort; p++) {
@@ -79,6 +104,38 @@ export class DevServerManager {
     }
     return startPort;
   }
+
+  detectBackendCommand(resolvedPath: string, scripts: Record<string, string>): string[] | null {
+    if (scripts["dev:backend"]) {
+      return ["bun", "run", "dev:backend"];
+    }
+    if (scripts["server"]) {
+      return ["bun", "run", "server"];
+    }
+    if (scripts["api"]) {
+      return ["bun", "run", "api"];
+    }
+
+    const candidateFiles = [
+      "server/index.js",
+      "server/index.ts",
+      "server/server.js",
+      "server.js",
+      "server.ts",
+      "src/server.js",
+      "src/server.ts",
+    ];
+
+    for (const rel of candidateFiles) {
+      const full = path.join(resolvedPath, rel);
+      if (fsSync.existsSync(full)) {
+        return ["bun", "--watch", rel];
+      }
+    }
+
+    return null;
+  }
+
 
   async startDevServer(projectPath: string, preferredPort?: number): Promise<DevServerInfo | null> {
     const resolvedPath = path.resolve(projectPath);
@@ -105,57 +162,81 @@ export class DevServerManager {
     if (preferredPort && !occupied.has(preferredPort) && (await this.isPortAvailable(preferredPort))) {
       targetPort = preferredPort;
     } else {
-      targetPort = await this.findAvailablePort(3000);
+      targetPort = await this.findAvailablePort(3000, 3050);
     }
-    const backendPort = 5001 + (targetPort - 3000);
 
-    console.log(`[DevServerManager] Starting dev server for ${resolvedPath} on port ${targetPort}...`);
-
-    // Inspect package.json to determine the proper dev command
-    let devScript: string | null = null;
+    let scripts: Record<string, string> = {};
     try {
       const rawPkg = fsSync.readFileSync(packageJsonPath, "utf-8");
-      const pkg = JSON.parse(rawPkg);
-      const scripts = pkg.scripts || {};
-      if (scripts["dev:frontend"]) {
-        devScript = "dev:frontend";
-      } else if (scripts["dev"]) {
-        devScript = "dev";
-      } else if (scripts["start"]) {
-        devScript = "start";
-      }
+      scripts = JSON.parse(rawPkg).scripts || {};
     } catch {}
 
-    if (!devScript) {
+    const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
+    if (!frontendScript) {
       console.log(`[DevServerManager] No runnable dev script found in ${packageJsonPath}`);
       return null;
     }
 
-    // Launch dev server using bun
-    const proc = Bun.spawn(["bun", "run", devScript], {
+    const backendCmd = this.detectBackendCommand(resolvedPath, scripts);
+    let backendPort: number | null = null;
+    if (backendCmd) {
+      backendPort = await this.findAvailablePort(5001, 5099);
+    }
+
+    console.log(`[DevServerManager] Starting frontend for ${resolvedPath} on port ${targetPort}...`);
+
+    const frontendEnv: Record<string, string> = {
+      ...process.env as Record<string, string>,
+      PORT: String(targetPort),
+      VITE_PORT: String(targetPort),
+    };
+    if (backendPort) {
+      frontendEnv.BACKEND_PORT = String(backendPort);
+      frontendEnv.VITE_BACKEND_PORT = String(backendPort);
+    }
+
+    // Launch frontend dev server using bun
+    const frontendProc = Bun.spawn(["bun", "run", frontendScript], {
       cwd: resolvedPath,
-      env: {
-        ...process.env,
-        PORT: String(targetPort),
-        BACKEND_PORT: String(backendPort),
-      },
+      env: frontendEnv,
       stdout: "pipe",
       stderr: "pipe",
     });
+
+    // Launch backend server if detected
+    let backendProc: Subprocess | null = null;
+    if (backendCmd && backendPort) {
+      try {
+        console.log(`[DevServerManager] Starting backend for ${resolvedPath} on port ${backendPort}...`);
+        backendProc = Bun.spawn(backendCmd, {
+          cwd: resolvedPath,
+          env: {
+            ...process.env as Record<string, string>,
+            PORT: String(backendPort),
+            BACKEND_PORT: String(backendPort),
+          },
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+      } catch (err) {
+        console.error(`[DevServerManager] Failed to start backend server:`, err);
+      }
+    }
 
     const info: DevServerInfo = {
       port: targetPort,
       url: `http://127.0.0.1:${targetPort}`,
       backend_port: backendPort,
-      backend_url: `http://127.0.0.1:${backendPort}`,
-      pid: proc.pid,
+      backend_url: backendPort ? `http://127.0.0.1:${backendPort}` : null,
+      pid: frontendProc.pid,
+      backend_pid: backendProc?.pid ?? null,
     };
 
-    this.activeServers.set(resolvedPath, { proc, info });
+    this.activeServers.set(resolvedPath, { frontendProc, backendProc, info });
 
-    // Stream logs and detect ready URL
+    // Stream frontend logs and detect ready URL
     (async () => {
-      const reader = proc.stdout.getReader();
+      const reader = frontendProc.stdout.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -208,15 +289,120 @@ export class DevServerManager {
     return info;
   }
 
+  async ensureBackendRunning(projectPath: string): Promise<number | null> {
+    const resolvedPath = path.resolve(projectPath);
+    const entry = this.activeServers.get(resolvedPath);
+    if (!entry) return null;
+
+    // Check if backend is already alive and listening
+    if (entry.backendProc && entry.info.backend_port) {
+      const isListening = await this.isPortListening(entry.info.backend_port);
+      if (isListening) {
+        return entry.info.backend_port;
+      }
+    }
+
+    const packageJsonPath = path.join(resolvedPath, "package.json");
+    let scripts: Record<string, string> = {};
+    if (fsSync.existsSync(packageJsonPath)) {
+      try {
+        const rawPkg = fsSync.readFileSync(packageJsonPath, "utf-8");
+        scripts = JSON.parse(rawPkg).scripts || {};
+      } catch {}
+    }
+
+    const backendCmd = this.detectBackendCommand(resolvedPath, scripts);
+    if (!backendCmd) {
+      return null;
+    }
+
+    const backendPort = entry.info.backend_port || (await this.findAvailablePort(5001, 5099));
+
+    // Terminate existing dead or unresponsive backend process
+    if (entry.backendProc) {
+      try {
+        entry.backendProc.kill();
+      } catch {}
+    }
+
+    try {
+      console.log(`[DevServerManager] Dynamically starting backend for ${resolvedPath} on port ${backendPort}...`);
+      const backendProc = Bun.spawn(backendCmd, {
+        cwd: resolvedPath,
+        env: {
+          ...process.env as Record<string, string>,
+          PORT: String(backendPort),
+          BACKEND_PORT: String(backendPort),
+        },
+        stdout: "pipe",
+        stderr: "pipe",
+      });
+
+      entry.backendProc = backendProc;
+      entry.info.backend_port = backendPort;
+      entry.info.backend_url = `http://127.0.0.1:${backendPort}`;
+      entry.info.backend_pid = backendProc.pid;
+
+      this.emit({
+        type: "preview_ready",
+        port: entry.info.port,
+        url: entry.info.url,
+        backend_port: entry.info.backend_port,
+        backend_url: entry.info.backend_url,
+        project_path: resolvedPath,
+      });
+
+      return backendPort;
+    } catch (err) {
+      console.error(`[DevServerManager] Failed to dynamically start backend:`, err);
+      return null;
+    }
+  }
+
+  async getServerStatus(projectPath: string): Promise<{
+    frontend: { running: boolean; port: number; url: string };
+    backend: { running: boolean; port: number | null; url: string | null };
+  } | null> {
+    const resolvedPath = path.resolve(projectPath);
+    const entry = this.activeServers.get(resolvedPath);
+    if (!entry) return null;
+
+    const frontendActive = await this.isPortListening(entry.info.port);
+    const backendActive = entry.info.backend_port
+      ? await this.isPortListening(entry.info.backend_port)
+      : false;
+
+    return {
+      frontend: {
+        running: frontendActive,
+        port: entry.info.port,
+        url: entry.info.url,
+      },
+      backend: {
+        running: backendActive,
+        port: entry.info.backend_port,
+        url: entry.info.backend_url,
+      },
+    };
+  }
+
   stopDevServer(projectPath: string): void {
     const resolvedPath = path.resolve(projectPath);
     const entry = this.activeServers.get(resolvedPath);
     if (!entry) return;
 
     try {
-      entry.proc.kill();
+      entry.frontendProc.kill();
     } catch {
       // Process might already be dead
+    }
+
+    if (entry.backendProc) {
+      try {
+        entry.backendProc.kill();
+      } catch {
+        // Backend process might already be dead
+      }
     }
 
     this.activeServers.delete(resolvedPath);
