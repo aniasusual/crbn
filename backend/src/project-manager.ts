@@ -3,6 +3,7 @@ import * as fsSync from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index";
+import type { DevServerManager } from "./dev-server";
 export interface ProjectInfo {
   name: string;
   path: string;
@@ -10,6 +11,7 @@ export interface ProjectInfo {
   model?: string;
   status: "running" | "stopped";
   port: number | null;
+  backend_port: number | null;
   pid: number | null;
   created_at: string;
   last_opened: string;
@@ -91,8 +93,15 @@ export class ProjectManager {
   readonly root: string;
   readonly templatesDir: string;
   readonly templateCacheDir: string;
+  private devServerManager: DevServerManager | null = null;
 
-  constructor(options?: { root?: string; templatesDir?: string; templateCacheDir?: string }) {
+  constructor(options?: {
+    root?: string;
+    templatesDir?: string;
+    templateCacheDir?: string;
+    devServerManager?: DevServerManager;
+  }) {
+    this.devServerManager = options?.devServerManager ?? null;
     this.root = options?.root ?? process.env.PROJECTS_ROOT ?? path.join(os.homedir(), ".80degrees", "projects");
     this.templatesDir =
       options?.templatesDir ?? path.join(import.meta.dir, "..", "templates");
@@ -101,6 +110,9 @@ export class ProjectManager {
 
     fsSync.mkdirSync(this.root, { recursive: true });
     fsSync.mkdirSync(this.templateCacheDir, { recursive: true });
+  }
+  setDevServerManager(manager: DevServerManager): void {
+    this.devServerManager = manager;
   }
 
   private validateName(name: string): string {
@@ -196,6 +208,7 @@ export class ProjectManager {
       model: model || undefined,
       status: "stopped",
       port: null,
+      backend_port: null,
       pid: null,
       created_at: now,
       last_opened: now,
@@ -212,6 +225,7 @@ export class ProjectManager {
       throw new Error(`Project "${validatedName}" not found at ${projectDir}`);
     }
 
+    const live = this.devServerManager?.getServerInfo(projectDir);
     const metaPath = path.join(projectDir, META_FILENAME);
     if (fsSync.existsSync(metaPath)) {
       try {
@@ -222,9 +236,10 @@ export class ProjectManager {
           path: projectDir,
           template: meta.template ?? "node_react",
           model: meta.model ?? undefined,
-          status: meta.status ?? "stopped",
-          port: meta.port ?? null,
-          pid: meta.pid ?? null,
+          status: live ? "running" : (this.devServerManager ? "stopped" : (meta.status ?? "stopped")),
+          port: live ? live.port : (this.devServerManager ? null : (meta.port ?? null)),
+          backend_port: live ? live.backend_port : (this.devServerManager ? null : (meta.backend_port ?? null)),
+          pid: live ? live.pid : null,
           created_at: meta.created_at ?? new Date().toISOString(),
           last_opened: meta.last_opened ?? new Date().toISOString(),
         };
@@ -237,9 +252,10 @@ export class ProjectManager {
       name: validatedName,
       path: projectDir,
       template: "node_react",
-      status: "stopped",
-      port: null,
-      pid: null,
+      status: live ? "running" : "stopped",
+      port: live ? live.port : null,
+      backend_port: live ? live.backend_port : null,
+      pid: live ? live.pid : null,
       created_at: new Date().toISOString(),
       last_opened: new Date().toISOString(),
     };
@@ -298,6 +314,7 @@ export class ProjectManager {
       model: project.model,
       status: project.status,
       port: project.port,
+      backend_port: project.backend_port ?? null,
       pid: project.pid,
       created_at: project.created_at,
       last_opened: project.last_opened,

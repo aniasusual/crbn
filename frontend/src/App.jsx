@@ -209,14 +209,18 @@ export default function App() {
           }
 
           if (data.type === 'preview_ready') {
-            updateTab(tabId, {
+            updateTab(tabId, (t) => ({
               previewData: {
                 port: data.port,
                 url: data.url,
-                backend_port: data.backend_port,
-                backend_url: data.backend_url,
+                backend_port: data.backend_port ?? t.previewData?.backend_port ?? null,
+                backend_url:
+                  data.backend_url ??
+                  (data.backend_port
+                    ? `http://127.0.0.1:${data.backend_port}`
+                    : t.previewData?.backend_url ?? null),
               },
-            });
+            }));
             return;
           }
 
@@ -274,13 +278,25 @@ export default function App() {
           }
 
           if (data.type === 'project_opened') {
-            updateTab(tabId, (t) => ({
-              project: data.project,
-              model: data.project?.model || t.model,
-              previewData: data.project?.port
-                ? { port: data.project.port, url: `http://127.0.0.1:${data.project.port}` }
-                : t.previewData,
-            }));
+            updateTab(tabId, (t) => {
+              const prev = t.previewData;
+              const port = data.project?.port ?? prev?.port;
+              const backendPort = data.project?.backend_port ?? prev?.backend_port ?? null;
+              return {
+                project: data.project,
+                model: data.project?.model || t.model,
+                previewData: port
+                  ? {
+                      port,
+                      url: `http://127.0.0.1:${port}`,
+                      backend_port: backendPort,
+                      backend_url: backendPort
+                        ? prev?.backend_url || `http://127.0.0.1:${backendPort}`
+                        : null,
+                    }
+                  : prev,
+              };
+            });
 
             // If an initial prompt was queued for this tab, dispatch it now
             const pending = pendingPromptsRef.current.get(tabId);
@@ -641,9 +657,7 @@ export default function App() {
         inputText: '',
         messages: initialMessages,
         agentStatus: initialPrompt ? 'generating' : null,
-        previewData: projectInfo.port
-          ? { port: projectInfo.port, url: `http://127.0.0.1:${projectInfo.port}` }
-          : null,
+        previewData: null,
         contextTelemetry: null,
         todoState: null,
         checkpointTimeline: [],

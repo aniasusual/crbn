@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import * as fsSync from "node:fs";
 import {
   createAgentSession,
   SessionManager,
@@ -140,7 +141,7 @@ export class SessionBridge {
               const resolvedEvent = path.resolve(event.project_path);
               const resolvedActive = path.resolve(this.activeProjectPath);
               if (resolvedEvent === resolvedActive && event.url) {
-                this.handlePreviewReady(event.url);
+                this.handlePreviewReady(event.url, event.backend_port);
               }
             }
           });
@@ -150,7 +151,7 @@ export class SessionBridge {
         const previewPort = devServer?.port ?? 3000;
         const previewUrl = devServer?.url ?? `http://127.0.0.1:${previewPort}`;
         this.currentPreviewUrl = previewUrl;
-        const appendSystemPrompt = this.buildPreviewSystemPrompt(previewUrl);
+        const appendSystemPrompt = this.buildPreviewSystemPrompt(previewUrl, devServer?.backend_port);
         const { session, setToolUIContext } = await createAgentSession({
           cwd: projectPath,
           modelPattern: this.activeModel,
@@ -817,6 +818,26 @@ export class SessionBridge {
               filePath = details.perFileResults[0].path;
             }
           }
+          if (filePath && this.activeProjectPath) {
+            const resolvedPath = path.isAbsolute(filePath)
+              ? filePath
+              : path.join(this.activeProjectPath, filePath);
+            try {
+              fsSync.utimesSync(resolvedPath, new Date(), new Date());
+            } catch {}
+
+            const normPath = filePath.replace(/\\/g, "/");
+            if (
+              normPath.includes("server/") ||
+              normPath.endsWith("server.js") ||
+              normPath.endsWith("server.ts") ||
+              normPath.endsWith("package.json")
+            ) {
+              this.devServerManager?.ensureBackendRunning(this.activeProjectPath).catch((err) => {
+                console.warn("[SessionBridge] Error checking backend after file change:", err);
+              });
+            }
+          }
           this.send({
             type: "file_changed",
             file: filePath ?? "*",
@@ -936,26 +957,39 @@ export class SessionBridge {
     this.devServerUnsubscribe = null;
   }
 
-  private buildPreviewSystemPrompt(previewUrl: string): string {
-    return [
+  private buildPreviewSystemPrompt(previewUrl: string, backendPort?: number | null): string {
+    const lines = [
       `# Managed Development Server & Live Preview Environment`,
       `- A managed Vite dev server is ALREADY active for this project at ${previewUrl}.`,
       `- Automatic Hot Module Replacement (HMR) is active: writing or editing files in src/ immediately updates the live preview iframe.`,
-      `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server).`,
+    ];
+    if (backendPort) {
+      lines.push(
+        `- A managed API backend server is ALREADY active for this project at http://127.0.0.1:${backendPort}.`,
+        `- Frontend requests to '/api/*' are automatically proxied by Vite to http://127.0.0.1:${backendPort}.`,
+        `- Backend code in server/index.js (or server/) automatically reloads when modified.`,
+      );
+    } else {
+      lines.push(
+        `- Fullstack capability: If you create backend API endpoints (e.g., in server/index.js), the platform automatically detects, launches, and proxies them through '/api/*'.`,
+      );
+    }
+    lines.push(
+      `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server); dev servers are fully managed by the workspace.`,
       `- DO NOT alter port settings in vite.config.js or package.json.`,
-    ].join("\n");
+    );
+    return lines.join("\n");
   }
 
-  private handlePreviewReady(newUrl: string): void {
-    if (this.currentPreviewUrl === newUrl) return;
+  private handlePreviewReady(newUrl: string, backendPort?: number | null): void {
     this.currentPreviewUrl = newUrl;
-    console.log(`[SessionBridge] Updated live preview URL to ${newUrl}`);
+    console.log(`[SessionBridge] Updated live preview URL to ${newUrl}${backendPort ? ` (backend: ${backendPort})` : ""}`);
 
     const agent = this.session?.agent;
     if (agent) {
       try {
         const currentPrompts: string[] = agent.state?.systemPrompt ?? [];
-        const newPromptSection = this.buildPreviewSystemPrompt(newUrl);
+        const newPromptSection = this.buildPreviewSystemPrompt(newUrl, backendPort);
 
         let replaced = false;
         const updated = currentPrompts.map((p) => {

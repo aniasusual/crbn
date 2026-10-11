@@ -203,7 +203,7 @@ export default function WelcomeView({
   const timelineItems = useMemo(() => {
     return filteredProjects.map((p) => {
       const modelName = p.model ? p.model.split('/').pop() || 'gemini-3.8-flash' : 'gemini-3.8-flash';
-      const statusLabel = p.status === 'running' ? `LIVE :${p.port || 3000}` : 'LOCAL';
+      const statusLabel = p.status === 'running' && p.port ? `LIVE :${p.port}` : 'LOCAL';
       const dateLabel = p.last_opened
         ? new Date(p.last_opened).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
         : 'Recent';
