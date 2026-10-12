@@ -1,7 +1,6 @@
 /* ============================================================================
    Provider Connect Modal
-   Headless UI Dialog: Simple, solid dark, elegant, borderless, no box shadows
-   Clean internal boxes, items, trays, and controls
+   Black Background + Silver Border + Liquid Glass Elements
    ============================================================================ */
 
 .provider-dialog-root {
@@ -12,7 +11,7 @@
 .provider-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: opacity 0.16s ease-out;
@@ -33,6 +32,7 @@
   overflow-y: auto;
 }
 
+/* Main Panel: Solid Pitch Black + Silver Border */
 .provider-dialog-panel {
   position: relative;
   width: 100%;
@@ -40,10 +40,10 @@
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  background: #0f1117;
+  background: #000000;
   border-radius: 14px;
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(210, 215, 225, 0.32);
+  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 24px 64px -12px rgba(0, 0, 0, 0.95);
   overflow: hidden;
   color: #f3f4f6;
   transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
@@ -70,17 +70,18 @@
   gap: 11px;
 }
 
+/* Liquid Glass Header Icon */
 .provider-dialog-header-icon {
   width: 32px;
   height: 32px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.85);
+  color: #60a5fa;
   flex-shrink: 0;
 }
 
@@ -99,24 +100,27 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* Liquid Glass Close Button */
 .provider-dialog-close-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
-  color: rgba(255, 255, 255, 0.45);
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.5);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-size: 11px;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .provider-dialog-close-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }
 
@@ -127,17 +131,17 @@
   border-radius: 6px;
   font-size: 11.5px;
   font-weight: 500;
-  border: none;
-  box-shadow: none;
 }
 
 .provider-dialog-banner--error {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
 }
 
 .provider-dialog-banner--success {
-  background: rgba(34, 197, 94, 0.12);
+  background: rgba(34, 197, 94, 0.14);
+  border: 1px solid rgba(34, 197, 94, 0.3);
   color: #86efac;
 }
 
@@ -148,7 +152,7 @@
   padding: 10px 22px 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .provider-dialog-list::-webkit-scrollbar {
@@ -156,41 +160,47 @@
 }
 
 .provider-dialog-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
 }
 
-/* Provider Row */
+/* Provider Row: Liquid Glass Card */
 .provider-dialog-row {
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.025);
-  border: none;
-  box-shadow: none;
-  transition: background 0.12s ease;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition: all 0.12s ease;
   overflow: hidden;
 }
 
 .provider-dialog-row:hover {
-  background: rgba(255, 255, 255, 0.045);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(210, 215, 225, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .provider-dialog-row--connected {
-  background: rgba(34, 197, 94, 0.03);
+  background: rgba(34, 197, 94, 0.04);
+  border-color: rgba(74, 222, 128, 0.2);
+  box-shadow: inset 0 1px 0 rgba(74, 222, 128, 0.15);
 }
 
 .provider-dialog-row--connected:hover {
-  background: rgba(34, 197, 94, 0.055);
+  background: rgba(34, 197, 94, 0.07);
+  border-color: rgba(74, 222, 128, 0.3);
 }
 
 .provider-dialog-row--active {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(210, 215, 225, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24);
 }
 
 .provider-dialog-row-main {
   display: flex;
   align-items: center;
-  padding: 9px 12px;
+  padding: 10px 13px;
   gap: 10px;
 }
 
@@ -219,11 +229,10 @@
   font-weight: 500;
   text-transform: uppercase;
   color: #4ade80;
-  background: rgba(34, 197, 94, 0.1);
-  border: none;
-  box-shadow: none;
-  padding: 1px 5px;
-  border-radius: 3px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
 }
 
 .provider-dialog-row-plan {
@@ -248,10 +257,11 @@
 }
 
 .provider-dialog-row-email code {
-  color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1px 4px;
-  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 4px;
   font-family: inherit;
 }
 
@@ -268,69 +278,70 @@
   font-size: 11.5px;
   font-weight: 500;
   padding: 5px 12px;
-  border-radius: 5px;
+  border-radius: 6px;
   border: none;
-  box-shadow: none;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: all 0.12s ease;
   font-family: inherit;
 }
 
+/* Liquid Silver Connect Button */
 .provider-dialog-btn--connect {
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 6px rgba(0, 0, 0, 0.4);
   color: #0b0c11;
-  font-weight: 550;
-  box-shadow: none;
+  font-weight: 600;
 }
 
 .provider-dialog-btn--connect:hover {
-  background: #e5e7eb;
-  box-shadow: none;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 #ffffff, 0 3px 10px rgba(255, 255, 255, 0.25);
 }
 
 .provider-dialog-btn-arrow {
   font-size: 11px;
 }
 
+/* Liquid Glass Disconnect Button */
 .provider-dialog-btn--disconnect {
   background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
   color: #f87171;
   font-size: 11px;
   padding: 4px 10px;
-  border: none;
-  box-shadow: none;
 }
 
 .provider-dialog-btn--disconnect:hover {
-  background: rgba(239, 68, 68, 0.15);
-  box-shadow: none;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
 }
 
+/* Liquid Glass Cancel Button */
 .provider-dialog-btn--cancel {
-  background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 11px;
   padding: 4px 10px;
-  border: none;
-  box-shadow: none;
 }
 
 .provider-dialog-btn--cancel:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(210, 215, 225, 0.25);
 }
 
-/* In-Flight Tray */
+/* In-Flight Tray: Liquid Glass Well */
 .provider-dialog-tray {
-  padding: 8px 12px 10px 12px;
-  background: rgba(0, 0, 0, 0.25);
-  border: none;
-  box-shadow: none;
-  border-radius: 6px;
+  padding: 10px 14px 12px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .provider-dialog-tray-header {
@@ -338,7 +349,7 @@
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .provider-dialog-tray-spinner {
@@ -354,15 +365,16 @@
   to { transform: rotate(360deg); }
 }
 
+/* Liquid Glass Code Box */
 .provider-dialog-tray-code-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 5px 9px;
-  background: rgba(0, 0, 0, 0.4);
-  border: none;
-  box-shadow: none;
-  border-radius: 4px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
 }
 
 .provider-dialog-tray-code {
@@ -375,24 +387,25 @@
 
 .provider-dialog-tray-copy-btn {
   background: rgba(255, 255, 255, 0.08);
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
   color: rgba(255, 255, 255, 0.85);
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .provider-dialog-tray-copy-btn:hover {
   background: rgba(255, 255, 255, 0.14);
-  box-shadow: none;
+  border-color: rgba(210, 215, 225, 0.3);
+  color: #ffffff;
 }
 
 .provider-dialog-tray-instructions {
   font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.45);
   margin: 0;
   line-height: 1.35;
 }
@@ -415,14 +428,12 @@
 
 /* GCP Project ID Box */
 .provider-dialog-gcp-box {
-  padding: 9px 12px;
-  background: rgba(0, 0, 0, 0.25);
-  border: none;
-  box-shadow: none;
-  border-radius: 6px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .provider-dialog-gcp-title {
@@ -446,17 +457,19 @@
 
 .provider-dialog-gcp-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
   outline: none;
-  border-radius: 5px;
-  padding: 5px 8px;
+  border-radius: 6px;
+  padding: 6px 9px;
   font-size: 11px;
   font-family: monospace;
   color: #ffffff;
+  transition: all 0.12s ease;
 }
 
 .provider-dialog-gcp-input:focus {
-  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(210, 215, 225, 0.55);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(210, 215, 225, 0.12);
 }

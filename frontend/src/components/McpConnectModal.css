@@ -1,0 +1,798 @@
+/* ============================================================================
+   MCP Connect Modal
+   Black Background + Silver Border + Liquid Glass Elements
+   ============================================================================ */
+
+.mcp-dialog-root {
+  position: relative;
+  z-index: 10000;
+}
+
+.mcp-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: opacity 0.16s ease-out;
+}
+
+.mcp-dialog-backdrop[data-closed] {
+  opacity: 0;
+}
+
+.mcp-dialog-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+/* Main Panel: Solid Pitch Black + Silver Border */
+.mcp-dialog-panel {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: #000000;
+  border-radius: 14px;
+  border: 1px solid rgba(210, 215, 225, 0.32);
+  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 24px 64px -12px rgba(0, 0, 0, 0.95);
+  overflow: hidden;
+  color: #f3f4f6;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
+}
+
+.mcp-dialog-panel[data-closed] {
+  opacity: 0;
+  transform: scale(0.98) translateY(3px);
+}
+
+/* Header */
+.mcp-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 22px 14px 22px;
+  background: transparent;
+  border: none;
+}
+
+.mcp-dialog-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+/* Liquid Glass Header Icon */
+.mcp-dialog-header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+.mcp-dialog-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.mcp-dialog-subtitle {
+  margin: 3px 0 0 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.4;
+}
+
+.mcp-dialog-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Liquid Glass Reload Button */
+.mcp-dialog-reload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.mcp-dialog-reload-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.35);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.mcp-dialog-reload-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Liquid Glass Close Button */
+.mcp-dialog-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.12s ease;
+}
+
+.mcp-dialog-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Navigation Tabs: Silver Border Bottom */
+.mcp-dialog-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0 22px 12px 22px;
+  border-bottom: 1px solid rgba(210, 215, 225, 0.15);
+}
+
+.mcp-dialog-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.mcp-dialog-tab:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Liquid Glass Active Tab */
+.mcp-dialog-tab--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.mcp-dialog-tab-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Banners */
+.mcp-dialog-banner {
+  margin: 10px 22px 0 22px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+}
+
+.mcp-dialog-banner--error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.mcp-dialog-banner--success {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+/* Content Body */
+.mcp-dialog-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 22px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Empty State */
+.mcp-dialog-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 36px 16px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.mcp-dialog-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.mcp-dialog-empty h4 {
+  margin: 0 0 6px 0;
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.mcp-dialog-empty p {
+  margin: 0 0 16px 0;
+  font-size: 12.5px;
+  max-width: 340px;
+  line-height: 1.45;
+}
+
+/* Server Cards: Liquid Glass Card */
+.mcp-dialog-servers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mcp-server-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.12s ease;
+}
+
+.mcp-server-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(210, 215, 225, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.mcp-server-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mcp-server-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mcp-server-card-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.mcp-server-card-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.mcp-server-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mcp-server-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.mcp-status--connected {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
+.mcp-status--connecting {
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.25);
+}
+
+.mcp-status--configured {
+  color: #93c5fd;
+  background: rgba(147, 197, 253, 0.1);
+  border-color: rgba(147, 197, 253, 0.25);
+}
+
+.mcp-status--disabled {
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.mcp-status--disconnected {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.25);
+}
+
+.mcp-server-type-tag,
+.mcp-server-source-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.mcp-server-card-meta {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.mcp-server-cmd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 5px;
+  word-break: break-all;
+}
+
+.mcp-server-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Liquid Glass Card Action Buttons */
+.mcp-action-btn {
+  height: 24px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.mcp-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.mcp-action-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+}
+
+/* Tools section within server card */
+.mcp-server-tools-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+}
+
+.mcp-server-tools-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.mcp-server-tools-toggle:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.mcp-tools-toggle-icon {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.mcp-server-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-left: 4px;
+}
+
+.mcp-tools-empty {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.4);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.mcp-tool-item {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.mcp-tool-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mcp-tool-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #93c5fd;
+}
+
+.mcp-tool-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.mcp-tool-desc {
+  margin: 3px 0 0 0;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.35;
+}
+
+/* Mode Selector in Add Tab: Liquid Glass Segment */
+.mcp-mode-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.mcp-mode-btn {
+  flex: 1;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.mcp-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(210, 215, 225, 0.2);
+  color: #ffffff;
+}
+
+.mcp-mode-btn--active {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(210, 215, 225, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Presets Grid */
+.mcp-presets-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.mcp-preset-card {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: all 0.12s ease;
+}
+
+.mcp-preset-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(210, 215, 225, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.mcp-preset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mcp-preset-title-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.mcp-preset-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.mcp-preset-key-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 5px;
+  letter-spacing: -0.01em;
+}
+
+.mcp-preset-key-tag--free {
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+.mcp-preset-key-tag--req {
+  background: rgba(234, 179, 8, 0.15);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #fde047;
+}
+
+.mcp-preset-key-hint {
+  font-size: 10.5px;
+  color: rgba(250, 204, 21, 0.85);
+  margin-top: 1px;
+}
+
+.mcp-preset-desc {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.mcp-preset-cmd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Custom Form */
+.mcp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mcp-form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.mcp-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mcp-form-group--half {
+  flex: 1;
+}
+
+.mcp-form-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.mcp-form-hint {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Liquid Glass Input & Textarea */
+.mcp-form-input,
+.mcp-form-textarea {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  border-radius: 7px;
+  padding: 7px 10px;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 12px;
+  outline: none;
+  transition: all 0.12s ease;
+}
+
+.mcp-form-input:focus,
+.mcp-form-textarea:focus {
+  border-color: rgba(210, 215, 225, 0.55);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(210, 215, 225, 0.15);
+}
+
+.mcp-form-textarea--code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.mcp-transport-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.mcp-transport-btn {
+  flex: 1;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.mcp-transport-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(210, 215, 225, 0.2);
+  color: #ffffff;
+}
+
+.mcp-transport-btn--active {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(210, 215, 225, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.mcp-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* Button Variants */
+.mcp-dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 7px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.12s ease;
+}
+
+/* Primary Liquid Glass Button */
+.mcp-dialog-btn--primary {
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 8px rgba(37, 99, 235, 0.4);
+  color: #ffffff;
+}
+
+.mcp-dialog-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 10px rgba(37, 99, 235, 0.55);
+}
+
+.mcp-dialog-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary Liquid Glass Button */
+.mcp-dialog-btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.mcp-dialog-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+
+/* Spin animation */
+@keyframes mcp-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mcp-spin {
+  animation: mcp-spin 1s linear infinite;
+}

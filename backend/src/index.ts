@@ -1,4 +1,5 @@
 import * as path from "node:path";
+import * as os from "node:os";
 import { ProjectManager } from "./project-manager";
 import { ModelsService, detectHardware } from "./models-service";
 import { DevServerManager } from "./dev-server";
@@ -6,6 +7,14 @@ import { SessionBridge } from "./session-bridge";
 import { ChatHistoryManager } from "./chat-history";
 import { CheckpointManager } from "./checkpoint-manager";
 import { GithubService } from "./github-service";
+import {
+  readMCPConfigFile,
+  updateMCPServer,
+  removeMCPServer,
+  setServerDisabled,
+  validateServerName,
+} from "../../pi-harness/packages/coding-agent/src/mcp/config-writer";
+import type { MCPServerConfig } from "../../pi-harness/packages/coding-agent/src/mcp/types";
 const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8000);
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
 
@@ -28,6 +37,8 @@ interface WsData {
 }
 
 const activeSockets = new Set<(msg: Record<string, unknown>) => void>();
+const activeBridges = new Map<string, SessionBridge>();
+
 
 // Broadcast OAuth session state changes in real-time to all connected frontend clients
 modelsService.oauthManager.onSessionUpdate((session) => {
@@ -435,6 +446,180 @@ const _server = Bun.serve<WsData>({
         );
       }
     }
+    // Projects: MCP Config & Status
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/mcp$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const mcpConfigPath = isGlobal
+          ? path.join(os.homedir(), ".omp", "agent", "mcp.json")
+          : path.join((await projectManager.getProject(projectName)).path, ".omp", "mcp.json");
+
+        const config = await readMCPConfigFile(mcpConfigPath);
+        const activeBridge = isGlobal ? undefined : activeBridges.get(projectName);
+        const runtimeStatus = activeBridge ? activeBridge.getMcpStatus() : { servers: [] };
+
+        const configuredServers = config.mcpServers || {};
+        const disabledSet = new Set(config.disabledServers || []);
+        const runtimeMap = new Map(runtimeStatus.servers.map((s) => [s.name, s]));
+
+        const servers = Object.entries(configuredServers).map(([name, srvConfig]) => {
+          const rt = runtimeMap.get(name);
+          const isDisabled = disabledSet.has(name);
+          return {
+            name,
+            config: srvConfig,
+            disabled: isDisabled,
+            status: isDisabled ? "disabled" : (rt?.status || (isGlobal ? "configured" : "disconnected")),
+            tools: rt?.tools || [],
+            source: isGlobal ? "global" : "project",
+          };
+        });
+
+        if (!isGlobal) {
+          for (const rt of runtimeStatus.servers) {
+            if (!configuredServers[rt.name]) {
+              servers.push({
+                name: rt.name,
+                config: (rt.config as MCPServerConfig) || undefined,
+                disabled: false,
+                status: rt.status,
+                tools: rt.tools,
+                source: "global",
+              });
+            }
+          }
+        }
+
+        return Response.json(
+          {
+            project: projectName,
+            config,
+            servers,
+            runtime_active: Boolean(activeBridge),
+          },
+          { headers: CORS_HEADERS },
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 404, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Add or update MCP server
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/mcp\/servers$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json()) as { name?: string; config?: MCPServerConfig };
+        if (!body.name || !body.config) {
+          return Response.json(
+            { detail: "Server 'name' and 'config' are required" },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+        const nameErr = validateServerName(body.name);
+        if (nameErr) {
+          return Response.json({ detail: nameErr }, { status: 400, headers: CORS_HEADERS });
+        }
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const mcpConfigPath = isGlobal
+          ? path.join(os.homedir(), ".omp", "agent", "mcp.json")
+          : path.join((await projectManager.getProject(projectName)).path, ".omp", "mcp.json");
+        await updateMCPServer(mcpConfigPath, body.name, body.config);
+
+        const activeBridge = activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadMcp().catch(() => {});
+        }
+
+        return Response.json({ success: true, name: body.name }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Delete MCP server
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/mcp\/servers\/[^/]+$/) && req.method === "DELETE") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const serverName = decodeURIComponent(parts[5]);
+      try {
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const mcpConfigPath = isGlobal
+          ? path.join(os.homedir(), ".omp", "agent", "mcp.json")
+          : path.join((await projectManager.getProject(projectName)).path, ".omp", "mcp.json");
+        await removeMCPServer(mcpConfigPath, serverName);
+
+        const activeBridge = activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadMcp().catch(() => {});
+        }
+
+        return Response.json({ success: true, removed: serverName }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Toggle MCP server disabled/enabled
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/mcp\/servers\/[^/]+\/toggle$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const serverName = decodeURIComponent(parts[5]);
+      try {
+        const body = (await req.json()) as { disabled?: boolean };
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const mcpConfigPath = isGlobal
+          ? path.join(os.homedir(), ".omp", "agent", "mcp.json")
+          : path.join((await projectManager.getProject(projectName)).path, ".omp", "mcp.json");
+        await setServerDisabled(mcpConfigPath, serverName, Boolean(body.disabled));
+
+        const activeBridge = activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadMcp().catch(() => {});
+        }
+
+        return Response.json(
+          { success: true, name: serverName, disabled: Boolean(body.disabled) },
+          { headers: CORS_HEADERS },
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Reload MCP servers
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/mcp\/reload$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const activeBridge = activeBridges.get(projectName);
+        if (activeBridge) {
+          const status = await activeBridge.reloadMcp();
+          return Response.json({ success: true, ...status }, { headers: CORS_HEADERS });
+        }
+        return Response.json({ success: true, message: "No active session to reload" }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
 
     // Projects: List Branches
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/branches$/) && req.method === "GET") {
@@ -881,6 +1066,9 @@ const _server = Bun.serve<WsData>({
             // Stop previous project's dev server if switching projects
             if (previousProject && previousProject !== projectName) {
               try {
+                if (activeBridges.get(previousProject) === bridge) {
+                  activeBridges.delete(previousProject);
+                }
                 const prevProj = await projectManager.getProject(previousProject);
                 devServerManager.stopDevServer(prevProj.path);
               } catch {}
@@ -910,6 +1098,7 @@ const _server = Bun.serve<WsData>({
             // 2. Open project session (now devServerManager.getServerInfo has the real port & url)
             await bridge.openProject(project.path, modelName);
 
+            activeBridges.set(projectName, bridge);
             ws.send(JSON.stringify({ type: "project_opened", project }));
             ws.send(
               JSON.stringify({
@@ -966,6 +1155,27 @@ const _server = Bun.serve<WsData>({
           }
           return;
         }
+        if (action === "get_mcp_status") {
+          const status = bridge.getMcpStatus();
+          ws.send(JSON.stringify({ type: "mcp_status", ...status }));
+          return;
+        }
+
+        if (action === "reload_mcp") {
+          try {
+            const status = await bridge.reloadMcp();
+            ws.send(JSON.stringify({ type: "mcp_status", ...status }));
+          } catch (err) {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: `Failed to reload MCP servers: ${err instanceof Error ? err.message : String(err)}`,
+              }),
+            );
+          }
+          return;
+        }
+
 
         if (action === "rewind_to_step") {
           const stepId = (data.step_id || data.stepId) as string;
@@ -1035,6 +1245,9 @@ const _server = Bun.serve<WsData>({
       ws.data.unsubscribeDevServer?.();
       if (ws.data.send) {
         activeSockets.delete(ws.data.send);
+      }
+      if (ws.data.activeProjectName && activeBridges.get(ws.data.activeProjectName) === ws.data.bridge) {
+        activeBridges.delete(ws.data.activeProjectName);
       }
       ws.data.bridge?.dispose().catch(() => {});
     },

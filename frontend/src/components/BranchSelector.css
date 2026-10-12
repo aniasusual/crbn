@@ -84,12 +84,10 @@
   left: auto;
   min-width: 250px;
   max-width: 310px;
-  background: #0f1117;
-  border: none;
+  background: #000000;
+  border: 1px solid rgba(210, 215, 225, 0.32);
   border-radius: 10px;
-  box-shadow: none;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 16px 40px -8px rgba(0, 0, 0, 0.95);
   z-index: 1001;
   padding: 8px;
   display: flex;
@@ -112,9 +110,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 8px 6px 10px;
-  border-bottom: none;
-  margin-bottom: 4px;
+  padding: 6px 8px 8px 10px;
+  border-bottom: 1px solid rgba(210, 215, 225, 0.12);
+  margin-bottom: 6px;
 }
 
 .branch-selector__menu-title {
@@ -170,18 +168,24 @@
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.1s ease;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
+  transition: all 0.1s ease;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.75);
 }
 
 .branch-selector__item:hover {
   background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
   color: #ffffff;
 }
 
 .branch-selector__item--active {
-  background: rgba(96, 165, 250, 0.12) !important;
+  background: rgba(96, 165, 250, 0.1) !important;
+  border: 1px solid rgba(96, 165, 250, 0.35) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
   color: #93c5fd !important;
   font-weight: 500;
 }
@@ -237,8 +241,8 @@
 /* Menu Footer with Full Tree Button */
 .branch-selector__menu-footer {
   margin-top: 6px;
-  padding-top: 6px;
-  border-top: none;
+  padding-top: 8px;
+  border-top: 1px solid rgba(210, 215, 225, 0.12);
 }
 
 .branch-selector__fulltree-btn {
@@ -249,10 +253,11 @@
   gap: 7px;
   height: 28px;
   padding: 0 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.75);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
@@ -260,6 +265,8 @@
 }
 
 .branch-selector__fulltree-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   color: #ffffff;
 }

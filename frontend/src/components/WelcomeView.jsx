@@ -2,6 +2,7 @@ import { useState, useEffect, useId, useMemo, useCallback } from 'react';
 import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
 import GitHubConnectModal from './GitHubConnectModal';
+import McpConnectModal from './McpConnectModal';
 import AttachmentRibbon from './AttachmentRibbon';
 import { AsciiEffect } from '@/components/ui/ascii-effect';
 import { GrainGradient } from '@/components/ui/grain-gradient';
@@ -65,6 +66,24 @@ export default function WelcomeView({
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isGitHubConnectModalOpen, setIsGitHubConnectModalOpen] = useState(false);
+  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
+  const [mcpCount, setMcpCount] = useState(0);
+
+  const fetchGlobalMcp = useCallback(() => {
+    fetch(`${API_BASE_URL}/api/projects/_global/mcp`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.servers)) {
+          const active = data.servers.filter((s) => !s.disabled).length;
+          setMcpCount(active);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchGlobalMcp();
+  }, [fetchGlobalMcp]);
 
   // GitHub Integration State
   const [githubStatus, setGithubStatus] = useState(null);
@@ -641,6 +660,25 @@ export default function WelcomeView({
                         <polyline points="6 9 12 15 18 9"></polyline>
                       </svg>
                     </button>
+
+                    <button
+                      type="button"
+                      className={`degrees-mcp-btn ${mcpCount > 0 ? 'degrees-mcp-btn--active' : ''}`}
+                      onClick={() => setIsMcpModalOpen(true)}
+                      title="Connect Model Context Protocol (MCP) servers"
+                      aria-label="Connect MCP servers"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 22v-5"/>
+                        <path d="M9 8V2"/>
+                        <path d="M15 8V2"/>
+                        <path d="M18 8v5a6 6 0 0 1-12 0V8z"/>
+                      </svg>
+                      <span>MCP</span>
+                      {mcpCount > 0 && (
+                        <span className="degrees-mcp-badge">{mcpCount}</span>
+                      )}
+                    </button>
                   </div>
 
                   <div className="degrees-composer__toolbar-right">
@@ -1002,6 +1040,17 @@ export default function WelcomeView({
           setGithubRepos([]);
           setSelectedRepo(null);
         }}
+      />
+
+      {/* MCP Connect Modal */}
+      <McpConnectModal
+        isOpen={isMcpModalOpen}
+        onClose={() => {
+          setIsMcpModalOpen(false);
+          fetchGlobalMcp();
+        }}
+        projectName=""
+        onReloadMcp={fetchGlobalMcp}
       />
     </div>
   );

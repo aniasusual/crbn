@@ -5,6 +5,7 @@ import GitHubSyncModal from './GitHubSyncModal';
 import ChatMessage from './ChatMessage';
 import CommandApproval from './CommandApproval';
 import ModelSelector from './ModelSelector';
+import McpConnectModal from './McpConnectModal';
 import SubagentPanel from './SubagentPanel';
 import ContextGauge from './ContextGauge';
 import { getSubagentSessionData, isSubagentTool, normalizeSubagentName } from './subagentUtils';
@@ -110,11 +111,17 @@ export default function ChatPanel({
   _onCreateBranch,
   onDeleteBranch,
   onBranchFromStep,
+  mcpState = null,
+  onReloadMcp = null,
 }) {
   const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
   const setInput = onInputChange || setLocalInput;
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+  const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
+  const connectedMcpCount = (mcpState?.servers || []).filter(
+    (s) => s.status === 'connected' && !s.disabled
+  ).length;
   const {
     attachments,
     isDragging,
@@ -550,6 +557,25 @@ export default function ChatPanel({
                 </svg>
               </button>
 
+              <button
+                type="button"
+                className={`chat-panel__mcp-btn ${connectedMcpCount > 0 ? 'chat-panel__mcp-btn--active' : ''}`}
+                onClick={() => setIsMcpModalOpen(true)}
+                title="Connect Model Context Protocol (MCP) servers"
+                aria-label="Connect MCP servers"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22v-5"/>
+                  <path d="M9 8V2"/>
+                  <path d="M15 8V2"/>
+                  <path d="M18 8v5a6 6 0 0 1-12 0V8z"/>
+                </svg>
+                <span>MCP</span>
+                {connectedMcpCount > 0 && (
+                  <span className="chat-panel__mcp-badge">{connectedMcpCount}</span>
+                )}
+              </button>
+
               <ContextGauge telemetry={contextTelemetry} />
 
             </div>
@@ -622,6 +648,14 @@ export default function ChatPanel({
         projectName={projectName || _projectName}
         activeBranch={activeBranch}
         isAgentRunning={Boolean(isAgentRunning)}
+      />
+
+      {/* MCP Connect Modal */}
+      <McpConnectModal
+        isOpen={isMcpModalOpen}
+        onClose={() => setIsMcpModalOpen(false)}
+        projectName={projectName || _projectName}
+        onReloadMcp={onReloadMcp}
       />
     </div>
   );
