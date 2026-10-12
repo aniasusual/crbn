@@ -6,6 +6,7 @@ import {
   AgentRegistry,
   USER_INTERRUPT_LABEL,
   type AgentSession,
+  type MCPManager,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
 import type {
@@ -53,6 +54,8 @@ export class SessionBridge {
   private devServerUnsubscribe: (() => void) | null = null;
   private currentPreviewUrl: string | null = null;
   private lastPromptText: string = "";
+  private mcpManager: MCPManager | null = null;
+  private mcpStatusUnsubscribe: (() => void) | null = null;
 
   constructor(
     private readonly send: WebSocketSender,
@@ -62,6 +65,80 @@ export class SessionBridge {
   getActiveModel(): string {
     return this.activeModel;
   }
+  getActiveProjectPath(): string | null {
+    return this.activeProjectPath;
+  }
+  getMcpStatus(): {
+    servers: Array<{
+      name: string;
+      status: "connected" | "connecting" | "disconnected";
+      config?: unknown;
+      tools: Array<{ name: string; label?: string; description?: string }>;
+    }>;
+  } {
+    if (!this.mcpManager) {
+      return { servers: [] };
+    }
+    const allNames = this.mcpManager.getAllServerNames();
+    const allTools = this.mcpManager.getTools();
+
+    const servers = allNames.map((name) => {
+      const status = this.mcpManager!.getConnectionStatus(name);
+      const config = this.mcpManager!.getServerConfig(name);
+      const serverTools = (allTools as unknown as Array<{
+        name: string;
+        label?: string;
+        description?: string;
+        mcpServerName?: string;
+        details?: { serverName?: string };
+      }>)
+        .filter((t) => t.mcpServerName === name || t.details?.serverName === name)
+        .map((t) => ({
+          name: t.name,
+          label: t.label || t.name,
+          description: t.description || "",
+        }));
+      return {
+        name,
+        status,
+        config,
+        tools: serverTools,
+      };
+    });
+
+    return { servers };
+  }
+
+  async reloadMcp(): Promise<{
+    servers: Array<{
+      name: string;
+      status: "connected" | "connecting" | "disconnected";
+      config?: unknown;
+      tools: Array<{ name: string; label?: string; description?: string }>;
+    }>;
+  }> {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    if (!this.mcpManager || !this.session) {
+      return { servers: [] };
+    }
+    try {
+      const loadResult = await this.mcpManager.discoverAndConnect();
+      await this.session.refreshMCPTools(loadResult.tools);
+      const status = this.getMcpStatus();
+      this.send({
+        type: "mcp_status",
+        ...status,
+      });
+      return status;
+    } catch (err) {
+      console.error("[SessionBridge] Failed to reload MCP tools:", err);
+      throw err;
+    }
+  }
+
+
 
   async setModel(modelName: string): Promise<void> {
     this.activeModel = modelName;
@@ -105,6 +182,11 @@ export class SessionBridge {
         this.unsubscribe = null;
         await this.session.dispose().catch(() => {});
         this.session = null;
+        if (this.mcpStatusUnsubscribe) {
+          this.mcpStatusUnsubscribe();
+          this.mcpStatusUnsubscribe = null;
+        }
+        this.mcpManager = null;
       }
 
       this.activeProjectPath = projectPath;
@@ -152,7 +234,7 @@ export class SessionBridge {
         const previewUrl = devServer?.url ?? `http://127.0.0.1:${previewPort}`;
         this.currentPreviewUrl = previewUrl;
         const appendSystemPrompt = this.buildPreviewSystemPrompt(previewUrl, devServer?.backend_port);
-        const { session, setToolUIContext } = await createAgentSession({
+        const { session, setToolUIContext, mcpManager } = await createAgentSession({
           cwd: projectPath,
           modelPattern: this.activeModel,
           sessionManager,
@@ -165,6 +247,16 @@ export class SessionBridge {
         });
         this.session = session;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));
+        this.mcpManager = mcpManager ?? null;
+        if (this.mcpManager) {
+          this.mcpStatusUnsubscribe = this.mcpManager.addConnectionStatusListener((evt) => {
+            this.send({
+              type: "mcp_status_update",
+              event: evt,
+              status: this.getMcpStatus(),
+            });
+          });
+        }
 
         ensureThemeSync();
         const uiContext: ExtensionUIContext = {
@@ -329,6 +421,10 @@ export class SessionBridge {
 
         console.log(`[SessionBridge] Initialized AgentSession for ${projectPath} with model ${session.model?.id}`);
         this.emitContextTelemetry();
+        this.send({
+          type: "mcp_status",
+          ...this.getMcpStatus(),
+        });
       } catch (err) {
         console.error(`[SessionBridge] Failed to create AgentSession:`, err);
         this.send({
@@ -953,6 +1049,11 @@ export class SessionBridge {
       await this.session.dispose().catch(() => {});
       this.session = null;
     }
+    if (this.mcpStatusUnsubscribe) {
+      this.mcpStatusUnsubscribe();
+      this.mcpStatusUnsubscribe = null;
+    }
+    this.mcpManager = null;
     this.devServerUnsubscribe?.();
     this.devServerUnsubscribe = null;
   }

@@ -208,6 +208,57 @@ export default function App() {
             return;
           }
 
+          if (data.type === 'mcp_status') {
+            updateTab(tabId, {
+              mcpState: {
+                servers: Array.isArray(data.servers) ? data.servers : [],
+                timestamp: Date.now(),
+              },
+            });
+            return;
+          }
+
+          if (data.type === 'mcp_status_update') {
+            updateTab(tabId, (t) => {
+              if (data.status?.servers) {
+                return {
+                  mcpState: {
+                    servers: data.status.servers,
+                    timestamp: Date.now(),
+                  },
+                };
+              }
+              const currentServers = t.mcpState?.servers || [];
+              const evt = data.event;
+              if (evt && evt.serverName) {
+                const nextServers = currentServers.map((s) => {
+                  if (s.name === evt.serverName) {
+                    return {
+                      ...s,
+                      status:
+                        evt.type === 'connected'
+                          ? 'connected'
+                          : evt.type === 'connecting'
+                          ? 'connecting'
+                          : evt.type === 'failed'
+                          ? 'disconnected'
+                          : s.status,
+                    };
+                  }
+                  return s;
+                });
+                return {
+                  mcpState: {
+                    servers: nextServers,
+                    timestamp: Date.now(),
+                  },
+                };
+              }
+              return {};
+            });
+            return;
+          }
+
           if (data.type === 'preview_ready') {
             updateTab(tabId, (t) => ({
               previewData: {
@@ -590,6 +641,7 @@ export default function App() {
           activeBranch: 'main',
           branches: [],
           isConnected: false,
+          mcpState: { servers: [] },
         }));
         setTabs(initialized);
 
@@ -666,6 +718,7 @@ export default function App() {
         activeBranch: 'main',
         branches: [],
         isConnected: false,
+        mcpState: { servers: [] },
       };
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(tabId);
@@ -976,6 +1029,14 @@ export default function App() {
     [activeTabId]
   );
 
+  const handleReloadMcp = useCallback(() => {
+    if (!activeTabId) return;
+    const ws = socketsRef.current.get(activeTabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'reload_mcp' }));
+    }
+  }, [activeTabId]);
+
   return (
     <div className="app-container">
       {/* Unified Top Tab Bar with Home tab and Context Gauge */}
@@ -1050,6 +1111,8 @@ export default function App() {
           onCreateBranch={handleCreateBranch}
           onDeleteBranch={handleDeleteBranch}
           onBranchFromStep={handleBranchFromStep}
+          mcpState={activeTab.mcpState}
+          onReloadMcp={handleReloadMcp}
         />
       )}
     </div>

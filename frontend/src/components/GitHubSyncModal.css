@@ -40,10 +40,10 @@
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  background: #0f1117;
+  background: #000000;
   border-radius: 14px;
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(210, 215, 225, 0.32);
+  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 24px 64px -12px rgba(0, 0, 0, 0.95);
   overflow: hidden;
   color: #f3f4f6;
   transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
@@ -73,10 +73,10 @@
 .gh-sync-icon-badge {
   width: 32px;
   height: 32px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -119,34 +119,35 @@
   gap: 4px;
   font-size: 11px;
   font-family: monospace;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.85);
   padding: 1.5px 6px;
   border-radius: 4px;
-  border: none;
-  box-shadow: none;
 }
 
 .gh-sync-close-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
-  color: rgba(255, 255, 255, 0.45);
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.5);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-sync-close-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
-
 /* Alert notifications */
 .gh-sync-alert {
   margin: 6px 22px 2px 22px;
@@ -268,11 +269,10 @@
 
 .gh-sync-tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 2.5px;
-  border-radius: 7px;
-  border: none;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(210, 215, 225, 0.14);
+  padding: 3px;
+  border-radius: 8px;
   gap: 3px;
 }
 
@@ -300,11 +300,11 @@
 }
 
 .gh-sync-tab-btn--active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(210, 215, 225, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
   color: #ffffff;
-  box-shadow: none;
 }
-
 /* Publish Form */
 .gh-sync-publish-form {
   padding: 14px 22px 20px 22px;
@@ -351,14 +351,19 @@
 .gh-sync-select {
   width: 100%;
   padding: 7px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
   border-radius: 6px;
   color: #ffffff;
   font-size: 12px;
   outline: none;
-  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.gh-sync-select:focus {
+  border-color: rgba(210, 215, 225, 0.55);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(210, 215, 225, 0.12);
 }
 
 .gh-sync-select option {
@@ -386,18 +391,19 @@
 .gh-sync-input {
   width: 100%;
   padding: 7px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
   border-radius: 6px;
   color: #ffffff;
   font-size: 12px;
   outline: none;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-sync-input:focus {
-  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(210, 215, 225, 0.55);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(210, 215, 225, 0.12);
 }
 
 .gh-sync-input--prefixed {
@@ -439,25 +445,27 @@
 
 .gh-sync-radio-card {
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.025);
-  border: none;
-  box-shadow: none;
-  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
 .gh-sync-radio-card:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(210, 215, 225, 0.22);
 }
 
 .gh-sync-radio-card--active {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(210, 215, 225, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
-
 .gh-sync-radio-header {
   display: flex;
   justify-content: space-between;
@@ -830,19 +838,20 @@
   align-items: center;
   gap: 4px;
   background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.85);
-  border: none;
-  box-shadow: none;
   padding: 5px 11px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-sync-pull-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.28);
   color: #ffffff;
 }
 
@@ -851,19 +860,20 @@
   align-items: center;
   gap: 4px;
   background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.85);
-  border: none;
-  box-shadow: none;
   padding: 5px 11px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-sync-push-all-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.28);
   color: #ffffff;
 }
 
@@ -871,22 +881,21 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 6px rgba(0, 0, 0, 0.4);
   color: #0b0c11;
-  border: none;
-  box-shadow: none;
   padding: 5px 13px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 550;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-sync-primary-btn:hover:not(:disabled) {
-  background: #e5e7eb;
+  background: #ffffff;
 }
-
 .gh-sync-primary-btn:disabled,
 .gh-sync-cancel-btn:disabled,
 .gh-sync-pull-btn:disabled,

@@ -1,7 +1,6 @@
 /* ============================================================================
    GitHub Connect Modal
-   Headless UI Dialog: Simple, solid dark, elegant, borderless, zero box shadows
-   Clean internal boxes, items, and controls
+   Black Background + Silver Border + Liquid Glass Elements
    ============================================================================ */
 
 .gh-conn-dialog-root {
@@ -12,7 +11,7 @@
 .gh-conn-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   transition: opacity 0.16s ease-out;
@@ -33,6 +32,7 @@
   overflow-y: auto;
 }
 
+/* Main Panel: Solid Pitch Black + Silver Border */
 .gh-conn-dialog-panel {
   position: relative;
   width: 100%;
@@ -40,10 +40,10 @@
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  background: #0f1117;
+  background: #000000;
   border-radius: 14px;
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(210, 215, 225, 0.32);
+  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 24px 64px -12px rgba(0, 0, 0, 0.95);
   overflow: hidden;
   color: #f3f4f6;
   transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
@@ -70,13 +70,14 @@
   align-items: flex-start;
 }
 
+/* Liquid Glass Header Icon */
 .gh-connect-logo-badge {
   width: 32px;
   height: 32px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -99,24 +100,27 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* Liquid Glass Close Button */
 .gh-connect-close-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
-  color: rgba(255, 255, 255, 0.45);
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.5);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-connect-close-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(210, 215, 225, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 /* Alert Notification */
@@ -125,10 +129,9 @@
   padding: 7px 11px;
   border-radius: 6px;
   font-size: 11.5px;
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(239, 68, 68, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.3);
   color: #fca5a5;
-  border: none;
-  box-shadow: none;
 }
 
 /* Loading State */
@@ -164,22 +167,23 @@
   gap: 12px;
 }
 
+/* Liquid Glass User Card */
 .gh-connect-user-card {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 11px 13px;
-  background: rgba(255, 255, 255, 0.025);
-  border: none;
-  box-shadow: none;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
 }
 
 .gh-connect-avatar {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .gh-connect-user-info {
@@ -210,9 +214,10 @@
   font-weight: 500;
   text-transform: uppercase;
   color: #4ade80;
-  background: rgba(34, 197, 94, 0.1);
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.25);
   padding: 1.5px 5px;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 .gh-connect-user-login {
@@ -230,35 +235,36 @@
 
 .gh-connect-disconnect-btn {
   background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
   color: #f87171;
-  border: none;
-  box-shadow: none;
   font-size: 11.5px;
   padding: 5px 12px;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .gh-connect-disconnect-btn:hover {
   background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
 }
 
 .gh-connect-close-simple-btn {
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 6px rgba(0, 0, 0, 0.4);
   color: #0b0c11;
-  border: none;
-  box-shadow: none;
   font-size: 11.5px;
   font-weight: 550;
   padding: 5px 14px;
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-connect-close-simple-btn:hover {
-  background: #e5e7eb;
+  background: #ffffff;
 }
 
 /* Unconnected View / Tabs */
@@ -269,13 +275,13 @@
   gap: 12px;
 }
 
+/* Liquid Glass Tab Switcher */
 .gh-connect-tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.035);
-  padding: 2.5px;
-  border-radius: 7px;
-  border: none;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(210, 215, 225, 0.14);
+  padding: 3px;
+  border-radius: 8px;
   gap: 3px;
 }
 
@@ -284,11 +290,10 @@
   padding: 6px 9px;
   font-size: 11.5px;
   font-weight: 500;
-  border-radius: 5px;
-  border: none;
-  box-shadow: none;
+  border-radius: 6px;
+  border: 1px solid transparent;
   background: transparent;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
   transition: all 0.12s ease;
   display: flex;
@@ -299,22 +304,23 @@
 
 .gh-connect-tab-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .gh-connect-tab-btn--active {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(210, 215, 225, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
   color: #ffffff;
-  box-shadow: none;
 }
 
-/* Method Cards */
+/* Liquid Glass Method Cards */
 .gh-connect-method-card {
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.025);
-  border: none;
-  box-shadow: none;
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  border-radius: 9px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -375,22 +381,24 @@
   text-decoration: underline;
 }
 
+/* Liquid Glass Input */
 .gh-connect-input {
   width: 100%;
   padding: 7px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: none;
-  box-shadow: none;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(210, 215, 225, 0.2);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
   border-radius: 6px;
   color: #ffffff;
   font-size: 12px;
   font-family: monospace;
   outline: none;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-connect-input:focus {
-  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(210, 215, 225, 0.55);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(210, 215, 225, 0.12);
 }
 
 .gh-connect-help-text {
@@ -402,9 +410,10 @@
 
 .gh-connect-help-text code {
   color: rgba(255, 255, 255, 0.75);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 1px 3px;
-  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 /* Footer */
@@ -417,12 +426,11 @@
 }
 
 .gh-connect-cancel-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   color: rgba(255, 255, 255, 0.55);
-  border: none;
-  box-shadow: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   padding: 5px 11px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 500;
   cursor: pointer;
@@ -430,7 +438,8 @@
 }
 
 .gh-connect-cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(210, 215, 225, 0.2);
   color: #ffffff;
 }
 
@@ -438,20 +447,20 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: #ffffff;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 6px rgba(0, 0, 0, 0.4);
   color: #0b0c11;
-  border: none;
-  box-shadow: none;
   padding: 5px 14px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 11.5px;
   font-weight: 550;
   cursor: pointer;
-  transition: background 0.12s ease;
+  transition: all 0.12s ease;
 }
 
 .gh-connect-primary-btn:hover:not(:disabled) {
-  background: #e5e7eb;
+  background: #ffffff;
 }
 
 .gh-connect-primary-btn:disabled {

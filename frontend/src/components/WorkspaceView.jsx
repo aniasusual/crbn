@@ -39,6 +39,8 @@ export default function WorkspaceView({
   onCreateBranch,
   onDeleteBranch,
   onBranchFromStep,
+  mcpState = null,
+  onReloadMcp = null,
 }) {
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
@@ -129,6 +131,8 @@ export default function WorkspaceView({
             onCreateBranch={onCreateBranch}
             onDeleteBranch={onDeleteBranch}
             onBranchFromStep={onBranchFromStep}
+            mcpState={mcpState}
+            onReloadMcp={onReloadMcp}
           />
         </div>
 
