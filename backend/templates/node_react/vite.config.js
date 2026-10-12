@@ -7,8 +7,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const frontendPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const backendPort = process.env.BACKEND_PORT ? parseInt(process.env.BACKEND_PORT, 10) : 5001;
+const frontendPort = process.env.PORT
+  ? parseInt(process.env.PORT, 10)
+  : (process.env.VITE_PORT ? parseInt(process.env.VITE_PORT, 10) : 3000);
+const backendPort = process.env.BACKEND_PORT
+  ? parseInt(process.env.BACKEND_PORT, 10)
+  : (process.env.VITE_BACKEND_PORT ? parseInt(process.env.VITE_BACKEND_PORT, 10) : 5001);
 
 // https://vitejs.dev/config/
 export default defineConfig({

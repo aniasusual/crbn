@@ -3,7 +3,8 @@ import express from 'express';
 import cors from 'cors';
 
 const app = express();
-const PORT = process.env.BACKEND_PORT || 5001;
+// CRITICAL: Always use process.env.BACKEND_PORT || process.env.PORT to allow workspace dynamic port allocation
+const PORT = process.env.BACKEND_PORT || process.env.PORT || 5001;
 
 app.use(cors());
 app.use(express.json());

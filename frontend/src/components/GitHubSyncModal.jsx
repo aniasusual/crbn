@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import GitHubConnectModal from './GitHubConnectModal';
 import './GitHubSyncModal.css';
@@ -147,13 +148,6 @@ export default function GitHubSyncModal({
     }
   }, [isOpen, fetchStatus]);
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen && !isConnectModalOpen) onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isConnectModalOpen, onClose]);
   // Handle Push to Existing Repository
   const handlePushToExisting = async (e) => {
     e?.preventDefault();
@@ -400,20 +394,21 @@ export default function GitHubSyncModal({
 
   return (
     <>
-      <div className="gh-sync-backdrop" onClick={onClose}>
-        <div className="gh-sync-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="gh-sync-glow" aria-hidden="true" />
+      <Dialog open={Boolean(isOpen)} onClose={onClose} className="gh-dialog-root">
+        <DialogBackdrop transition className="gh-dialog-backdrop" />
 
-          {/* Modal Header */}
-          <div className="gh-sync-header">
-            <div className="gh-sync-header-left">
-              <div className="gh-sync-icon-badge">
-                <GitHubIcon />
-              </div>
-              <div>
-                <h2 className="gh-sync-title">
-                  {isLinked ? 'Push to GitHub' : 'Publish to GitHub'}
-                </h2>
+        <div className="gh-dialog-wrap">
+          <DialogPanel transition className="gh-dialog-panel">
+            {/* Modal Header */}
+            <div className="gh-sync-header">
+              <div className="gh-sync-header-left">
+                <div className="gh-sync-icon-badge">
+                  <GitHubIcon />
+                </div>
+                <div>
+                  <DialogTitle className="gh-sync-title">
+                    {isLinked ? 'Push to GitHub' : 'Publish to GitHub'}
+                  </DialogTitle>
                 <div className="gh-sync-project-row">
                   <span className="gh-sync-project-name">{projectName}</span>
                   <span className="gh-sync-branch-badge">
@@ -1086,8 +1081,9 @@ export default function GitHubSyncModal({
               </div>
             </div>
           )}
+          </DialogPanel>
         </div>
-      </div>
+      </Dialog>
 
       {/* Sub-modal to connect GitHub account if unauthenticated */}
       <GitHubConnectModal

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './BranchTreeModal.css';
 
@@ -77,14 +78,6 @@ export default function BranchTreeModal({
   }, [isOpen, projectName]);
 
   // Close on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   // Global mousemove and mouseup listeners for drag and pan
   useEffect(() => {
@@ -364,13 +357,16 @@ export default function BranchTreeModal({
   };
 
   return (
-    <div className="branch-tree-backdrop" onClick={onClose}>
-      <div className="branch-tree-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
-        <div className="branch-tree__header">
-          <div className="branch-tree__header-left">
-            <div className="branch-tree__title-row">
-              <span className="branch-tree__title">Project Branch Graph</span>
+    <Dialog open={Boolean(isOpen)} onClose={onClose} className="branch-dialog-root">
+      <DialogBackdrop transition className="branch-dialog-backdrop" />
+
+      <div className="branch-dialog-wrap">
+        <DialogPanel transition className="branch-dialog-panel">
+          {/* Modal Header */}
+          <div className="branch-tree__header">
+            <div className="branch-tree__header-left">
+              <div className="branch-tree__title-row">
+                <DialogTitle className="branch-tree__title">Project Branch Graph</DialogTitle>
               <div className="branch-tree__active-badge">
                 <span className="branch-tree__active-dot" />
                 <span>active: {activeBranch}</span>
@@ -395,7 +391,7 @@ export default function BranchTreeModal({
               const isActive = b.name === activeBranch;
               return (
                 <div key={b.name} className="branch-tree__legend-item">
-                  <span className="branch-tree__legend-dot" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
+                  <span className="branch-tree__legend-dot" style={{ background: color }} />
                   <span style={{ color: isActive ? '#ffffff' : 'rgba(255,255,255,0.7)', fontWeight: isActive ? 600 : 400 }}>
                     {b.name} {isActive && '• Active'}
                   </span>
@@ -515,7 +511,7 @@ export default function BranchTreeModal({
                       {/* Visual port anchors */}
                       <div
                         className="branch-tree__port-top"
-                        style={{ background: node.color, boxShadow: `0 0 6px ${node.color}` }}
+                        style={{ background: node.color }}
                       />
                       <div className="branch-tree__port-bottom" />
 
@@ -617,16 +613,15 @@ export default function BranchTreeModal({
             </div>
 
             {/* Floating Glassmorphic HUD: Zoom, Pan, Fit */}
-            <div className="branch-tree__hud">
+            <div className="branch-tree__hud" onMouseDown={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 className="branch-tree__hud-btn"
                 onClick={() => setZoom((z) => Math.max(0.35, +(z - 0.15).toFixed(2)))}
-                title="Zoom Out (−)"
+                title="Zoom Out (-)"
               >
-                −
+                -
               </button>
-
               <span
                 className="branch-tree__hud-pct"
                 onClick={() => setZoom(1.0)}
@@ -667,7 +662,8 @@ export default function BranchTreeModal({
 
           </div>
         )}
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }

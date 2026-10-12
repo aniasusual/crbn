@@ -747,6 +747,22 @@ const _server = Bun.serve<WsData>({
             return;
           }
         }
+        if (event.type === "preview_ready" && ws.data.activeProjectName) {
+          projectManager.getProject(ws.data.activeProjectName).then(proj => {
+            let changed = false;
+            if (event.port && proj.port !== event.port) {
+              proj.port = event.port;
+              changed = true;
+            }
+            if (event.backend_port !== undefined && proj.backend_port !== event.backend_port) {
+              proj.backend_port = event.backend_port ?? null;
+              changed = true;
+            }
+            if (changed) {
+              projectManager.saveMeta(proj).catch(() => {});
+            }
+          }).catch(() => {});
+        }
         send(event);
       });
       ws.data.unsubscribeDevServer = unsubscribe;

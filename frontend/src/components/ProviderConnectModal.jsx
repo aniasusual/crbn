@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './ProviderConnectModal.css';
 
@@ -66,19 +67,6 @@ export default function ProviderConnectModal({
   const [copiedCode, setCopiedCode] = useState(false);
   const [gcpProjectId, setGcpProjectId] = useState('');
 
-  // Escape key handler
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   // Poll in-flight OAuth session
   useEffect(() => {
     if (
@@ -137,7 +125,7 @@ export default function ProviderConnectModal({
       const session = await res.json();
       setActiveSession(session);
 
-      // Launch URL in browser
+      // Launch URL in browser or electron shell
       const url = session.launchUrl || session.authUrl;
       if (url) {
         if (typeof window !== 'undefined' && window.require) {
@@ -185,206 +173,201 @@ export default function ProviderConnectModal({
     }
   };
 
-
   const extractCode = (text) => {
     if (!text) return null;
     const match = text.match(/\b([A-Z0-9]{4,8}-[A-Z0-9]{4,8})\b/i);
     return match ? match[1] : null;
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="glass-connect-backdrop" onClick={onClose}>
-      <div className="glass-connect-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Glow ambient background effect */}
-        <div className="glass-connect-modal__glow" aria-hidden="true" />
+    <Dialog open={Boolean(isOpen)} onClose={onClose} className="provider-dialog-root">
+      <DialogBackdrop transition className="provider-dialog-backdrop" />
 
-        {/* Header */}
-        <div className="glass-connect-modal__header">
-          <div className="glass-connect-modal__header-left">
-            <div className="glass-connect-modal__header-icon">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-              </svg>
+      <div className="provider-dialog-wrap">
+        <DialogPanel transition className="provider-dialog-panel">
+          {/* Header */}
+          <div className="provider-dialog-header">
+            <div className="provider-dialog-header-left">
+              <div className="provider-dialog-header-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+              </div>
+              <div>
+                <DialogTitle className="provider-dialog-title">Connect Providers</DialogTitle>
+                <p className="provider-dialog-subtitle">
+                  Sign in with Claude, ChatGPT, Copilot and more without an API key.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="glass-connect-modal__title">Connect Providers</h2>
-              <p className="glass-connect-modal__subtitle">
-                Sign in with Claude, ChatGPT, Copilot and more without an API key.
-              </p>
+            <button
+              type="button"
+              className="provider-dialog-close-btn"
+              onClick={onClose}
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Global Notifications */}
+          {errorMsg && (
+            <div className="provider-dialog-banner provider-dialog-banner--error">
+              <span>{errorMsg}</span>
             </div>
-          </div>
-          <button className="glass-connect-modal__close-btn" onClick={onClose} aria-label="Close modal">
-            ✕
-          </button>
-        </div>
+          )}
+          {successMsg && (
+            <div className="provider-dialog-banner provider-dialog-banner--success">
+              <span>{successMsg}</span>
+            </div>
+          )}
 
-        {/* Global Notifications */}
-        {errorMsg && (
-          <div className="glass-connect-banner glass-connect-banner--error">
-            <span>{errorMsg}</span>
-          </div>
-        )}
-        {successMsg && (
-          <div className="glass-connect-banner glass-connect-banner--success">
-            <span>{successMsg}</span>
-          </div>
-        )}
+          {/* Provider List */}
+          <div className="provider-dialog-list">
+            {FEATURED_PROVIDERS.map((fp) => {
+              const providerData = providers.find((p) => p.id === fp.id) || null;
+              const isConnected = Boolean(providerData?.has_auth);
+              const isConnecting =
+                connectingProvider === fp.id ||
+                (activeSession?.provider === fp.id &&
+                  (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
+              const deviceCode = activeSession?.instructions ? extractCode(activeSession.instructions) : null;
 
-        {/* Provider List */}
-        <div className="glass-connect-modal__list">
-          {FEATURED_PROVIDERS.map((fp) => {
-            const providerData = providers.find((p) => p.id === fp.id) || null;
-            const isConnected = Boolean(providerData?.has_auth);
-            const isConnecting =
-              connectingProvider === fp.id ||
-              (activeSession?.provider === fp.id &&
-                (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
-            const deviceCode = activeSession?.instructions ? extractCode(activeSession.instructions) : null;
+              return (
+                <div
+                  key={fp.id}
+                  className={`provider-dialog-row ${isConnected ? 'provider-dialog-row--connected' : ''} ${
+                    isConnecting ? 'provider-dialog-row--active' : ''
+                  }`}
+                >
+                  <div className="provider-dialog-row-main">
+                    <div className="provider-dialog-row-info">
+                      <div className="provider-dialog-row-title-row">
+                        <span className="provider-dialog-row-name">{fp.name}</span>
+                        {isConnected && (
+                          <span className="provider-dialog-row-status">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div className="provider-dialog-row-plan">{fp.plan}</div>
+                      <div className="provider-dialog-row-models">{fp.modelsText}</div>
 
-            return (
-              <div
-                key={fp.id}
-                className={`glass-connect-card ${isConnected ? 'glass-connect-card--connected' : ''} ${
-                  isConnecting ? 'glass-connect-card--active' : ''
-                }`}
-              >
-                <div className="glass-connect-card__main">
-                  <div
-                    className={`glass-connect-card__badge-dot ${
-                      isConnected ? 'glass-connect-card__badge-dot--active' : ''
-                    }`}
-                  />
-
-                  <div className="glass-connect-card__info">
-                    <div className="glass-connect-card__title-row">
-                      <span className="glass-connect-card__name">{fp.name}</span>
-                      {isConnected && (
-                        <span className="glass-connect-card__live-status">
-                          <span className="glass-connect-card__pulse-dot" />
-                          <span>Active</span>
-                        </span>
+                      {isConnected && providerData?.account_email && (
+                        <div className="provider-dialog-row-email">
+                          Logged in as: <code>{providerData.account_email}</code>
+                        </div>
                       )}
                     </div>
-                    <div className="glass-connect-card__plan-desc">{fp.plan}</div>
-                    <div className="glass-connect-card__models">{fp.modelsText}</div>
 
-                    {isConnected && providerData?.account_email && (
-                      <div className="glass-connect-card__email">
-                        Logged in as: <code>{providerData.account_email}</code>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="glass-connect-card__actions">
-                    {isConnected ? (
-                      <button
-                        type="button"
-                        className="glass-connect-btn glass-connect-btn--disconnect"
-                        onClick={() => handleDisconnect(fp.id)}
-                      >
-                        Disconnect
-                      </button>
-                    ) : isConnecting ? (
-                      <button
-                        type="button"
-                        className="glass-connect-btn glass-connect-btn--cancel"
-                        onClick={() => handleCancelOAuth(fp.id)}
-                      >
-                        Cancel
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="glass-connect-btn glass-connect-btn--connect"
-                        onClick={() => handleStartOAuth(fp.id)}
-                      >
-                        <span>Connect</span>
-                        <span className="glass-connect-btn__arrow">→</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* In-Flight Authorization Tray */}
-                {isConnecting && activeSession && (
-                  <div className="glass-connect-card__tray">
-                    <div className="glass-connect-tray__header">
-                      <span className="glass-connect-tray__spinner" />
-                      <span>Waiting for authorization in your browser...</span>
-                    </div>
-
-                    {deviceCode && (
-                      <div className="glass-connect-tray__code-box">
-                        <span className="glass-connect-tray__code">{deviceCode}</span>
+                    <div className="provider-dialog-row-actions">
+                      {isConnected ? (
                         <button
                           type="button"
-                          className="glass-connect-tray__copy-btn"
-                          onClick={() => {
-                            navigator.clipboard.writeText(deviceCode);
-                            setCopiedCode(true);
-                            setTimeout(() => setCopiedCode(false), 2000);
-                          }}
+                          className="provider-dialog-btn provider-dialog-btn--disconnect"
+                          onClick={() => handleDisconnect(fp.id)}
                         >
-                          {copiedCode ? 'Copied' : 'Copy Code'}
+                          Disconnect
                         </button>
-                      </div>
-                    )}
-
-                    {activeSession.instructions && (
-                      <p className="glass-connect-tray__instructions">{activeSession.instructions}</p>
-                    )}
-
-                    <div className="glass-connect-tray__links">
-                      {(activeSession.launchUrl || activeSession.authUrl) && (
-                        <a
-                          href={activeSession.launchUrl || activeSession.authUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="glass-connect-tray__link"
+                      ) : isConnecting ? (
+                        <button
+                          type="button"
+                          className="provider-dialog-btn provider-dialog-btn--cancel"
+                          onClick={() => handleCancelOAuth(fp.id)}
                         >
-                          Reopen Sign-In Page ↗
-                        </a>
+                          Cancel
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="provider-dialog-btn provider-dialog-btn--connect"
+                          onClick={() => handleStartOAuth(fp.id)}
+                        >
+                          <span>Connect</span>
+                          <span className="provider-dialog-btn-arrow">→</span>
+                        </button>
                       )}
                     </div>
                   </div>
-                )}
 
-                {/* Inline GCP Project ID Drawer */}
-                {fp.id === 'google-gemini-cli' && (errorMsg?.includes('GOOGLE_CLOUD_PROJECT') || activeSession?.error?.includes('GOOGLE_CLOUD_PROJECT')) && (
-                  <div className="glass-connect-card__gcp-box">
-                    <div className="glass-connect-gcp-title">Google Cloud Project Required</div>
-                    <div className="glass-connect-gcp-desc">
-                      Your Google account needs a GCP Project ID from console.cloud.google.com. Enter it below to authorize.
-                    </div>
-                    <div className="glass-connect-gcp-row">
-                      <input
-                        type="text"
-                        className="glass-connect-gcp-input"
-                        placeholder="GCP Project ID (e.g. my-app-12345)"
-                        value={gcpProjectId}
-                        onChange={(e) => setGcpProjectId(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="glass-connect-btn glass-connect-btn--connect"
-                        onClick={() => handleStartOAuth('google-gemini-cli', gcpProjectId)}
-                        disabled={!gcpProjectId.trim()}
-                      >
-                        <span>Authorize Project</span>
-                        <span className="glass-connect-btn__arrow">→</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {/* In-Flight Authorization Tray */}
+                  {isConnecting && activeSession && (
+                    <div className="provider-dialog-tray">
+                      <div className="provider-dialog-tray-header">
+                        <span className="provider-dialog-tray-spinner" />
+                        <span>Waiting for authorization in your browser...</span>
+                      </div>
 
+                      {deviceCode && (
+                        <div className="provider-dialog-tray-code-box">
+                          <span className="provider-dialog-tray-code">{deviceCode}</span>
+                          <button
+                            type="button"
+                            className="provider-dialog-tray-copy-btn"
+                            onClick={() => {
+                              navigator.clipboard.writeText(deviceCode);
+                              setCopiedCode(true);
+                              setTimeout(() => setCopiedCode(false), 2000);
+                            }}
+                          >
+                            {copiedCode ? 'Copied' : 'Copy Code'}
+                          </button>
+                        </div>
+                      )}
+
+                      {activeSession.instructions && (
+                        <p className="provider-dialog-tray-instructions">{activeSession.instructions}</p>
+                      )}
+
+                      <div className="provider-dialog-tray-links">
+                        {(activeSession.launchUrl || activeSession.authUrl) && (
+                          <a
+                            href={activeSession.launchUrl || activeSession.authUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="provider-dialog-tray-link"
+                          >
+                            Reopen Sign-In Page ↗
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Inline GCP Project ID Drawer */}
+                  {fp.id === 'google-gemini-cli' && (errorMsg?.includes('GOOGLE_CLOUD_PROJECT') || activeSession?.error?.includes('GOOGLE_CLOUD_PROJECT')) && (
+                    <div className="provider-dialog-gcp-box">
+                      <div className="provider-dialog-gcp-title">Google Cloud Project Required</div>
+                      <div className="provider-dialog-gcp-desc">
+                        Your Google account needs a GCP Project ID from console.cloud.google.com. Enter it below to authorize.
+                      </div>
+                      <div className="provider-dialog-gcp-row">
+                        <input
+                          type="text"
+                          className="provider-dialog-gcp-input"
+                          placeholder="GCP Project ID (e.g. my-app-12345)"
+                          value={gcpProjectId}
+                          onChange={(e) => setGcpProjectId(e.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="provider-dialog-btn provider-dialog-btn--connect"
+                          onClick={() => handleStartOAuth('google-gemini-cli', gcpProjectId)}
+                          disabled={!gcpProjectId.trim()}
+                        >
+                          <span>Authorize Project</span>
+                          <span className="provider-dialog-btn-arrow">→</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }
