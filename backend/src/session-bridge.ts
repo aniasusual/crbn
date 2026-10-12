@@ -977,6 +977,16 @@ export class SessionBridge {
     lines.push(
       `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server); dev servers are fully managed by the workspace.`,
       `- DO NOT alter port settings in vite.config.js or package.json.`,
+      ``,
+      `## CRITICAL NETWORK & PORT RULES (MANDATORY):`,
+      `1. FRONTEND API CALLS: ALWAYS use relative paths starting with '/api' (e.g. fetch('/api/items') or axios.get('/api/users')).`,
+      `   - NEVER hardcode absolute backend URLs (e.g. NEVER write fetch('http://localhost:5001/api/...'), fetch('http://127.0.0.1:...'), or any fixed port).`,
+      `   - The Vite dev server automatically proxies all '/api/*' requests to the active backend port. Hardcoded URLs break when the project is reopened on dynamic ports.`,
+      `2. BACKEND SERVER LISTEN PORT: When creating or editing backend servers (Express, Fastify, Node http, etc.):`,
+      `   - ALWAYS read the port dynamically from environment variables: const PORT = process.env.BACKEND_PORT || process.env.PORT || 5001;`,
+      `   - ALWAYS listen on that variable: app.listen(PORT, '0.0.0.0', ...);`,
+      `   - NEVER hardcode a static port number in app.listen(). The workspace dynamically assigns free ports to prevent port conflicts.`,
+      `3. DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.`
     );
     return lines.join("\n");
   }

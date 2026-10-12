@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './GitHubConnectModal.css';
 
@@ -70,13 +71,6 @@ export default function GitHubConnectModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape' && isOpen) onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   const handleConnectCli = async () => {
     try {
@@ -160,19 +154,19 @@ export default function GitHubConnectModal({
   if (!isOpen) return null;
 
   return (
-    <div className="gh-connect-backdrop" onClick={onClose}>
-      <div className="gh-connect-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Glow backdrop effect */}
-        <div className="gh-connect-glow" aria-hidden="true" />
+    <Dialog open={Boolean(isOpen)} onClose={onClose} className="gh-conn-dialog-root">
+      <DialogBackdrop transition className="gh-conn-dialog-backdrop" />
 
-        {/* Modal Header */}
-        <div className="gh-connect-header">
-          <div className="gh-connect-header-left">
-            <div className="gh-connect-logo-badge">
-              <GitHubIcon />
-            </div>
-            <div>
-              <h2 className="gh-connect-title">GitHub Integration</h2>
+      <div className="gh-conn-dialog-wrap">
+        <DialogPanel transition className="gh-conn-dialog-panel">
+          {/* Modal Header */}
+          <div className="gh-connect-header">
+            <div className="gh-connect-header-left">
+              <div className="gh-connect-logo-badge">
+                <GitHubIcon />
+              </div>
+              <div>
+                <DialogTitle className="gh-connect-title">GitHub Integration</DialogTitle>
               <p className="gh-connect-subtitle">
                 Connect your account to build on existing repos and push code directly.
               </p>
@@ -233,12 +227,12 @@ export default function GitHubConnectModal({
 
             <div className="gh-connect-stats-row">
               <div className="gh-connect-stat-item">
-                <span className="gh-connect-stat-num">{status.user.public_repos ?? '—'}</span>
+                <span className="gh-connect-stat-num">{status.user.public_repos ?? '-'}</span>
                 <span className="gh-connect-stat-label">Public Repos</span>
               </div>
               <div className="gh-connect-stat-item">
                 <span className="gh-connect-stat-num">
-                  {status.user.total_private_repos !== undefined ? status.user.total_private_repos : '—'}
+                  {status.user.total_private_repos !== undefined ? status.user.total_private_repos : '-'}
                 </span>
                 <span className="gh-connect-stat-label">Private Repos</span>
               </div>
@@ -355,7 +349,8 @@ export default function GitHubConnectModal({
             )}
           </div>
         )}
+        </DialogPanel>
       </div>
-    </div>
+    </Dialog>
   );
 }

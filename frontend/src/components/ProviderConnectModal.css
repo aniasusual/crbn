@@ -1,91 +1,82 @@
 /* ============================================================================
-   Glassmorphic Provider Connect Modal (Borderless & Minimalist)
+   Provider Connect Modal
+   Headless UI Dialog: Simple, solid dark, elegant, borderless, no box shadows
+   Clean internal boxes, items, trays, and controls
    ============================================================================ */
 
-.glass-connect-backdrop {
+.provider-dialog-root {
+  position: relative;
+  z-index: 10000;
+}
+
+.provider-dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: opacity 0.16s ease-out;
+}
+
+.provider-dialog-backdrop[data-closed] {
+  opacity: 0;
+}
+
+.provider-dialog-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  animation: glass-fade-in 0.16s ease-out;
+  padding: 16px;
+  overflow-y: auto;
 }
 
-@keyframes glass-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.glass-connect-modal {
+.provider-dialog-panel {
   position: relative;
   width: 100%;
-  max-width: 660px;
-  max-height: 85vh;
+  max-width: 540px;
+  max-height: 86vh;
   display: flex;
   flex-direction: column;
-  background: rgba(16, 18, 25, 0.88);
-  backdrop-filter: blur(48px) saturate(180%);
-  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  background: #0f1117;
+  border-radius: 14px;
   border: none;
-  outline: none;
-  box-shadow: 0 40px 100px -10px rgba(0, 0, 0, 0.85);
-  border-radius: 18px;
+  box-shadow: none;
   overflow: hidden;
-  animation: glass-zoom-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  color: #ffffff;
+  color: #f3f4f6;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
 }
 
-@keyframes glass-zoom-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.glass-connect-modal__glow {
-  position: absolute;
-  top: -140px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 420px;
-  height: 220px;
-  background: radial-gradient(circle, rgba(129, 140, 248, 0.14) 0%, rgba(99, 102, 241, 0.04) 50%, transparent 75%);
-  pointer-events: none;
-  filter: blur(48px);
+.provider-dialog-panel[data-closed] {
+  opacity: 0;
+  transform: scale(0.98) translateY(3px);
 }
 
 /* Header */
-.glass-connect-modal__header {
-  position: relative;
+.provider-dialog-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 24px 26px 18px 26px;
-  background: rgba(255, 255, 255, 0.015);
+  padding: 20px 22px 14px 22px;
+  background: transparent;
   border: none;
 }
 
-.glass-connect-modal__header-left {
+.provider-dialog-header-left {
   display: flex;
   align-items: flex-start;
-  gap: 13px;
+  gap: 11px;
 }
 
-.glass-connect-modal__header-icon {
+.provider-dialog-header-icon {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
   border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -93,386 +84,379 @@
   flex-shrink: 0;
 }
 
-.glass-connect-modal__title {
+.provider-dialog-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: #ffffff;
 }
 
-.glass-connect-modal__subtitle {
+.provider-dialog-subtitle {
   margin: 3px 0 0 0;
-  font-size: 12px;
-  line-height: 1.45;
+  font-size: 11.5px;
+  line-height: 1.4;
   color: rgba(255, 255, 255, 0.5);
-  letter-spacing: -0.01em;
 }
 
-.glass-connect-modal__close-btn {
-  background: rgba(255, 255, 255, 0.05);
+.provider-dialog-close-btn {
+  background: rgba(255, 255, 255, 0.04);
   border: none;
-  color: rgba(255, 255, 255, 0.5);
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.45);
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   font-size: 11px;
-  transition: all 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
-.glass-connect-modal__close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+.provider-dialog-close-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
   color: #ffffff;
 }
 
-/* Banner Notifications */
-.glass-connect-banner {
-  margin: 10px 26px 0 26px;
-  padding: 9px 13px;
-  border-radius: 8px;
-  font-size: 12px;
+/* Notifications */
+.provider-dialog-banner {
+  margin: 6px 22px 2px 22px;
+  padding: 7px 11px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 500;
   border: none;
+  box-shadow: none;
 }
 
-.glass-connect-banner--error {
-  background: rgba(239, 68, 68, 0.14);
+.provider-dialog-banner--error {
+  background: rgba(239, 68, 68, 0.12);
   color: #fca5a5;
 }
 
-.glass-connect-banner--success {
-  background: rgba(34, 197, 94, 0.14);
+.provider-dialog-banner--success {
+  background: rgba(34, 197, 94, 0.12);
   color: #86efac;
 }
 
 /* Provider List */
-.glass-connect-modal__list {
+.provider-dialog-list {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 26px;
+  padding: 10px 22px 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
-.glass-connect-modal__list::-webkit-scrollbar {
+.provider-dialog-list::-webkit-scrollbar {
   width: 4px;
 }
 
-.glass-connect-modal__list::-webkit-scrollbar-thumb {
+.provider-dialog-list::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 4px;
 }
 
-/* Provider Card */
-.glass-connect-card {
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+/* Provider Row */
+.provider-dialog-row {
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.025);
   border: none;
-  transition: all 0.14s ease;
+  box-shadow: none;
+  transition: background 0.12s ease;
   overflow: hidden;
 }
 
-.glass-connect-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+.provider-dialog-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: none;
 }
 
-.glass-connect-card--connected {
-  background: rgba(34, 197, 94, 0.035);
+.provider-dialog-row--connected {
+  background: rgba(34, 197, 94, 0.03);
 }
 
-.glass-connect-card--active {
-  background: rgba(99, 102, 241, 0.05);
+.provider-dialog-row--connected:hover {
+  background: rgba(34, 197, 94, 0.055);
 }
 
-.glass-connect-card__main {
+.provider-dialog-row--active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.provider-dialog-row-main {
   display: flex;
   align-items: center;
-  padding: 14px 16px;
-  gap: 14px;
+  padding: 9px 12px;
+  gap: 10px;
 }
 
-.glass-connect-card__badge-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.22);
-}
-
-.glass-connect-card__badge-dot--active {
-  background: #22c55e;
-  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
-}
-
-.glass-connect-card__info {
+.provider-dialog-row-info {
   flex: 1;
   min-width: 0;
 }
 
-.glass-connect-card__title-row {
+.provider-dialog-row-title-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.glass-connect-card__name {
-  font-size: 13.5px;
+.provider-dialog-row-name {
+  font-size: 13px;
   font-weight: 550;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
 
-
-.glass-connect-card__live-status {
+.provider-dialog-row-status {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 9.5px;
-  font-weight: 550;
+  font-size: 9px;
+  font-weight: 500;
   text-transform: uppercase;
   color: #4ade80;
-  background: rgba(34, 197, 94, 0.12);
+  background: rgba(34, 197, 94, 0.1);
   border: none;
-  padding: 1px 6px;
-  border-radius: 999px;
-  margin-left: 2px;
+  box-shadow: none;
+  padding: 1px 5px;
+  border-radius: 3px;
 }
 
-.glass-connect-card__pulse-dot {
-  width: 4.5px;
-  height: 4.5px;
-  border-radius: 50%;
-  background: #22c55e;
-}
-
-.glass-connect-card__plan-desc {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 2px;
-  font-weight: 450;
-}
-
-.glass-connect-card__models {
+.provider-dialog-row-plan {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 1px;
+}
+
+.provider-dialog-row-models {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.glass-connect-card__email {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 3px;
+.provider-dialog-row-email {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
 }
 
-.glass-connect-card__email code {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(255, 255, 255, 0.06);
+.provider-dialog-row-email code {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.05);
   padding: 1px 4px;
   border-radius: 3px;
   font-family: inherit;
 }
 
-/* Action Buttons */
-.glass-connect-card__actions {
+/* Actions */
+.provider-dialog-row-actions {
   flex-shrink: 0;
 }
 
-.glass-connect-btn {
+.provider-dialog-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 550;
-  padding: 6px 13px;
-  border-radius: 7px;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 5px;
   border: none;
+  box-shadow: none;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease;
   font-family: inherit;
 }
 
-.glass-connect-btn--connect {
+.provider-dialog-btn--connect {
   background: #ffffff;
-  color: #0b0c10;
+  color: #0b0c11;
+  font-weight: 550;
+  box-shadow: none;
 }
 
-.glass-connect-btn--connect:hover {
-  background: #f3f4f6;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.12);
+.provider-dialog-btn--connect:hover {
+  background: #e5e7eb;
+  box-shadow: none;
 }
 
-.glass-connect-btn__arrow {
-  transition: transform 0.12s ease;
+.provider-dialog-btn-arrow {
   font-size: 11px;
 }
 
-.glass-connect-btn--connect:hover .glass-connect-btn__arrow {
-  transform: translateX(2px);
-}
-
-.glass-connect-btn--disconnect {
-  background: rgba(239, 68, 68, 0.1);
+.provider-dialog-btn--disconnect {
+  background: rgba(239, 68, 68, 0.08);
   color: #f87171;
+  font-size: 11px;
+  padding: 4px 10px;
   border: none;
+  box-shadow: none;
 }
 
-.glass-connect-btn--disconnect:hover {
-  background: rgba(239, 68, 68, 0.18);
+.provider-dialog-btn--disconnect:hover {
+  background: rgba(239, 68, 68, 0.15);
+  box-shadow: none;
 }
 
-.glass-connect-btn--cancel {
-  background: rgba(255, 255, 255, 0.07);
-  color: rgba(255, 255, 255, 0.65);
+.provider-dialog-btn--cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  padding: 4px 10px;
   border: none;
+  box-shadow: none;
 }
 
-.glass-connect-btn--cancel:hover {
-  background: rgba(255, 255, 255, 0.12);
+.provider-dialog-btn--cancel:hover {
   color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
 }
 
 /* In-Flight Tray */
-.glass-connect-card__tray {
-  padding: 12px 16px 13px 16px;
-  background: rgba(0, 0, 0, 0.3);
+.provider-dialog-tray {
+  padding: 8px 12px 10px 12px;
+  background: rgba(0, 0, 0, 0.25);
   border: none;
+  box-shadow: none;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
-.glass-connect-tray__header {
+.provider-dialog-tray-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 450;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.glass-connect-tray__spinner {
-  width: 11px;
-  height: 11px;
+.provider-dialog-tray-spinner {
+  width: 10px;
+  height: 10px;
   border: 1.5px solid rgba(255, 255, 255, 0.2);
   border-top-color: #ffffff;
   border-radius: 50%;
-  animation: glass-spin 0.7s linear infinite;
+  animation: dialog-spin 0.7s linear infinite;
 }
 
-@keyframes glass-spin {
+@keyframes dialog-spin {
   to { transform: rotate(360deg); }
 }
 
-.glass-connect-tray__code-box {
+.provider-dialog-tray-code-box {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 12px;
-  background: rgba(0, 0, 0, 0.45);
+  padding: 5px 9px;
+  background: rgba(0, 0, 0, 0.4);
   border: none;
-  border-radius: 6px;
+  box-shadow: none;
+  border-radius: 4px;
 }
 
-.glass-connect-tray__code {
-  font-family: var(--font-mono, monospace);
-  font-size: 13.5px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
+.provider-dialog-tray-code {
+  font-family: monospace;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
   color: #ffffff;
 }
 
-.glass-connect-tray__copy-btn {
+.provider-dialog-tray-copy-btn {
   background: rgba(255, 255, 255, 0.08);
   border: none;
+  box-shadow: none;
   color: rgba(255, 255, 255, 0.85);
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
   cursor: pointer;
+  transition: background 0.12s ease;
 }
 
-.glass-connect-tray__copy-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+.provider-dialog-tray-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
 }
 
-.glass-connect-tray__instructions {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+.provider-dialog-tray-instructions {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.35;
 }
 
-.glass-connect-tray__links {
+.provider-dialog-tray-links {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
-.glass-connect-tray__link {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.8);
+.provider-dialog-tray-link {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
-  font-weight: 500;
 }
 
-.glass-connect-tray__link:hover {
+.provider-dialog-tray-link:hover {
   color: #ffffff;
   text-decoration: underline;
 }
 
-/* GCP Project ID Drawer */
-.glass-connect-card__gcp-box {
-  padding: 14px 16px;
-  background: rgba(0, 0, 0, 0.4);
+/* GCP Project ID Box */
+.provider-dialog-gcp-box {
+  padding: 9px 12px;
+  background: rgba(0, 0, 0, 0.25);
   border: none;
+  box-shadow: none;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
-.glass-connect-gcp-title {
-  font-size: 12px;
+.provider-dialog-gcp-title {
+  font-size: 11px;
   font-weight: 550;
   color: #ffffff;
 }
 
-.glass-connect-gcp-desc {
-  font-size: 11px;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.55);
+.provider-dialog-gcp-desc {
+  font-size: 10px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.45);
 }
 
-.glass-connect-gcp-row {
+.provider-dialog-gcp-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
-  margin-top: 4px;
+  margin-top: 1px;
 }
 
-.glass-connect-gcp-input {
+.provider-dialog-gcp-input {
   flex: 1;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
   border: none;
+  box-shadow: none;
   outline: none;
-  border-radius: 6px;
-  padding: 7px 10px;
-  font-size: 11.5px;
-  font-family: var(--font-mono, monospace);
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: monospace;
   color: #ffffff;
 }
 
-.glass-connect-gcp-input:focus {
-  background: rgba(255, 255, 255, 0.09);
+.provider-dialog-gcp-input:focus {
+  background: rgba(255, 255, 255, 0.07);
 }
-

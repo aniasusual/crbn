@@ -316,6 +316,7 @@ export class DevServerManager {
       return null;
     }
 
+    const needsFrontendProxySync = !entry.info.backend_port;
     const backendPort = entry.info.backend_port || (await this.findAvailablePort(5001, 5099));
 
     // Terminate existing dead or unresponsive backend process
@@ -342,6 +343,31 @@ export class DevServerManager {
       entry.info.backend_port = backendPort;
       entry.info.backend_url = `http://127.0.0.1:${backendPort}`;
       entry.info.backend_pid = backendProc.pid;
+      // If frontend was started without backend knowledge, restart frontend dev server
+      // so Vite's proxy configuration inherits the new BACKEND_PORT environment variable
+      if (needsFrontendProxySync) {
+        const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
+        if (frontendScript) {
+          try {
+            entry.frontendProc.kill();
+          } catch {}
+          const frontendEnv: Record<string, string> = {
+            ...process.env as Record<string, string>,
+            PORT: String(entry.info.port),
+            VITE_PORT: String(entry.info.port),
+            BACKEND_PORT: String(backendPort),
+            VITE_BACKEND_PORT: String(backendPort),
+          };
+          const newFrontendProc = Bun.spawn(["bun", "run", frontendScript], {
+            cwd: resolvedPath,
+            env: frontendEnv,
+            stdout: "pipe",
+            stderr: "pipe",
+          });
+          entry.frontendProc = newFrontendProc;
+          entry.info.pid = newFrontendProc.pid;
+        }
+      }
 
       this.emit({
         type: "preview_ready",

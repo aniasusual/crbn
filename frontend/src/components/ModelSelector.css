@@ -1,6 +1,6 @@
 /* =========================================================
-   80degrees — Models & Providers Modal
-   Liquid Glass Surface, Pure Translucency & Zero Borders / Zero Shadows
+   80degrees: Models & Providers Modal
+   Solid Dark Surface, Zero Borders and Zero Shadows
    ========================================================= */
 
 .notion-modal__backdrop {
@@ -34,10 +34,10 @@
   height: 84vh;
   min-height: 540px;
   max-height: 840px;
-  background: rgba(18, 18, 26, 0.58);
+  background: #0f1117;
   border: none;
   box-shadow: none;
-  border-radius: 24px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -473,8 +473,7 @@
   flex-direction: column;
   gap: 8px;
 }
-
-/* Model Cards — Frosted Liquid Glass Pills */
+/* Model Cards: Frosted Pills */
 .notion-model-card {
   background: rgba(255, 255, 255, 0.04);
   border: none;
@@ -614,8 +613,7 @@
   border: none;
   box-shadow: none;
 }
-
-/* Buttons — Clean Borderless & Shadowless */
+/* Buttons: Clean Borderless & Shadowless */
 .notion-btn {
   display: inline-flex;
   align-items: center;
@@ -736,8 +734,7 @@
   box-shadow: none;
   color: #ffffff;
 }
-
-/* Focused Provider Unlock Dialog — Liquid Glass Card */
+/* Focused Provider Unlock Dialog: Modal Card */
 .notion-unlock-dialog__backdrop {
   position: absolute;
   inset: 0;
@@ -755,10 +752,10 @@
 .notion-unlock-dialog__card {
   width: 100%;
   max-width: 440px;
-  background: rgba(20, 20, 28, 0.75);
+  background: #0f1117;
   border: none;
   box-shadow: none;
-  border-radius: 20px;
+  border-radius: 14px;
   padding: 22px 24px;
   display: flex;
   flex-direction: column;
@@ -971,13 +968,13 @@
   border: none;
   cursor: pointer;
   transition: all 0.14s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
 }
 
 .notion-unlock-dialog__oauth-btn:hover:not(:disabled) {
   background: #f1f2f4;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
+  box-shadow: none;
 }
 
 .notion-unlock-dialog__oauth-btn:disabled {

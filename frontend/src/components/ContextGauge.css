@@ -1,7 +1,7 @@
 /* =========================================================
-   80degrees — Context Gauge
-   Museum-Grade Precision Telemetry, Glassmorphic Capsule,
-   Tabular Typography & Ambient Glowing Indicators
+   80degrees: Context Gauge
+   Precision Telemetry, Dark Capsule,
+   Tabular Typography & Indicators
    ========================================================= */
 
 .context-gauge {
@@ -52,17 +52,17 @@
 
 .context-gauge__dot--normal {
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  box-shadow: none;
 }
 
 .context-gauge__dot--warning {
   background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  box-shadow: none;
 }
 
 .context-gauge__dot--critical {
   background: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+  box-shadow: none;
   animation: pulse-dot 1.2s infinite ease-in-out;
 }
 
@@ -106,15 +106,12 @@
   bottom: calc(100% + 10px);
   left: 0;
   width: 250px;
-  background: rgba(18, 18, 26, 0.94);
+  background: #0f1117;
   border: none;
-  border-radius: 16px;
-  box-shadow: 
-    0 24px 56px -10px rgba(0, 0, 0, 0.85),
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 0 20px 0 rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(36px) saturate(190%);
-  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  border-radius: 10px;
+  box-shadow: none;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   padding: 14px 16px;
   z-index: 9999;
   animation: context-gauge-fade-up 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -134,9 +131,9 @@
   transform: rotate(45deg);
   width: 10px;
   height: 10px;
-  background: rgba(18, 18, 26, 0.94);
+  background: #0f1117;
   border: none;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
   z-index: 10000;
   pointer-events: none;
 }
@@ -238,22 +235,22 @@
 .context-gauge__fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
 }
 
 .context-gauge__fill--normal {
   background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+  box-shadow: none;
 }
 
 .context-gauge__fill--warning {
   background: #f59e0b;
-  box-shadow: 0 0 6px rgba(245, 158, 11, 0.4);
+  box-shadow: none;
 }
 
 .context-gauge__fill--critical {
   background: #ef4444;
-  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  box-shadow: none;
 }
 
 /* Properties Table */

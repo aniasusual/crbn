@@ -1,86 +1,82 @@
 /* ============================================================================
-   GitHub Sync Modal Styles (Minimalist, Glassmorphic, High-End Dark)
+   GitHub Sync & Push Modal
+   Headless UI Dialog: Simple, solid dark, elegant, borderless, no box shadows
+   Clean internal boxes, items, stats, and controls
    ============================================================================ */
 
-.gh-sync-backdrop {
+.gh-dialog-root {
+  position: relative;
+  z-index: 10000;
+}
+
+.gh-dialog-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: opacity 0.16s ease-out;
+}
+
+.gh-dialog-backdrop[data-closed] {
+  opacity: 0;
+}
+
+.gh-dialog-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
-  animation: gh-sync-fade-in 0.18s ease-out;
+  padding: 16px;
+  overflow-y: auto;
 }
 
-@keyframes gh-sync-fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.gh-sync-modal {
+.gh-dialog-panel {
   position: relative;
   width: 100%;
-  max-width: 580px;
-  background: rgba(14, 16, 22, 0.94);
-  backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 30px 90px -10px rgba(0, 0, 0, 0.85);
-  border-radius: 18px;
-  overflow: hidden;
-  animation: gh-sync-zoom-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  color: #ffffff;
+  max-width: 540px;
+  max-height: 86vh;
   display: flex;
   flex-direction: column;
+  background: #0f1117;
+  border-radius: 14px;
+  border: none;
+  box-shadow: none;
+  overflow: hidden;
+  color: #f3f4f6;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
 }
 
-@keyframes gh-sync-zoom-in {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+.gh-dialog-panel[data-closed] {
+  opacity: 0;
+  transform: scale(0.98) translateY(3px);
 }
 
-.gh-sync-glow {
-  position: absolute;
-  top: -120px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 420px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, rgba(99, 102, 241, 0.03) 50%, transparent 75%);
-  pointer-events: none;
-  filter: blur(40px);
-}
-
+/* Header */
 .gh-sync-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 22px 26px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 20px 22px 14px 22px;
+  background: transparent;
+  border: none;
 }
 
 .gh-sync-header-left {
   display: flex;
-  gap: 14px;
-  align-items: center;
+  gap: 11px;
+  align-items: flex-start;
 }
 
 .gh-sync-icon-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,31 +86,31 @@
 
 .gh-sync-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
   color: #ffffff;
 }
 
 .gh-sync-project-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   margin-top: 3px;
 }
 
 .gh-sync-project-name {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .gh-sync-parent-hint {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .gh-sync-parent-hint strong {
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.65);
 }
 
 .gh-sync-branch-badge {
@@ -123,66 +119,69 @@
   gap: 4px;
   font-size: 11px;
   font-family: monospace;
-  background: rgba(56, 189, 248, 0.12);
-  color: #38bdf8;
-  padding: 2px 7px;
-  border-radius: 6px;
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  border: none;
+  box-shadow: none;
 }
 
 .gh-sync-close-btn {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   border: none;
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.45);
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .gh-sync-close-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.09);
 }
 
 /* Alert notifications */
 .gh-sync-alert {
-  margin: 16px 26px 0;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 12px;
+  margin: 6px 22px 2px 22px;
+  padding: 7px 11px;
+  border-radius: 6px;
+  font-size: 11.5px;
   line-height: 1.4;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  border: none;
+  box-shadow: none;
 }
 
 .gh-sync-alert--error {
   background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
   color: #fca5a5;
 }
 
 .gh-sync-alert--success {
   background: rgba(34, 197, 94, 0.12);
-  border: 1px solid rgba(34, 197, 94, 0.25);
   color: #86efac;
 }
 
 .gh-sync-success-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
 .gh-sync-external-link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   color: inherit;
   font-weight: 500;
   text-decoration: underline;
@@ -194,699 +193,704 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
-  gap: 14px;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
+  padding: 38px 22px;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
 }
 
 .gh-sync-spinner {
-  width: 26px;
-  height: 26px;
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-top-color: #38bdf8;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #ffffff;
   border-radius: 50%;
-  animation: gh-sync-spin 0.7s linear infinite;
+  animation: gh-spin 0.7s linear infinite;
 }
 
 .gh-sync-spinner-small {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
   border-top-color: #ffffff;
   border-radius: 50%;
-  animation: gh-sync-spin 0.7s linear infinite;
+  animation: gh-spin 0.7s linear infinite;
 }
 
-@keyframes gh-sync-spin {
+@keyframes gh-spin {
   to { transform: rotate(360deg); }
 }
 
 /* Unauthenticated view */
 .gh-sync-unauth-box {
-  padding: 40px 26px;
+  padding: 32px 22px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .gh-sync-unauth-icon {
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .gh-sync-unauth-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 600;
+  color: #ffffff;
 }
 
 .gh-sync-unauth-desc {
   margin: 0;
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-  max-width: 360px;
-  line-height: 1.45;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  max-width: 330px;
+  line-height: 1.4;
 }
 
-/* Tabs Switcher (Existing Repo vs New Repo) */
+/* Tabs Switcher */
 .gh-sync-publish-tabs-wrap {
-  padding: 16px 26px 0;
+  padding: 10px 22px 0 22px;
   display: flex;
   flex-direction: column;
 }
 
 .gh-sync-tabs {
   display: flex;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 3px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 4px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 2.5px;
+  border-radius: 7px;
+  border: none;
+  box-shadow: none;
+  gap: 3px;
 }
 
 .gh-sync-tab-btn {
   flex: 1;
-  padding: 8px 12px;
-  font-size: 12px;
+  padding: 6px 9px;
+  font-size: 11.5px;
   font-weight: 500;
-  border-radius: 7px;
+  border-radius: 5px;
   border: none;
+  box-shadow: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.12s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .gh-sync-tab-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .gh-sync-tab-btn--active {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: none;
 }
 
-/* Select Dropdown */
-.gh-sync-select {
-  width: 100%;
-  padding: 10px 12px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  color: #ffffff;
-  font-size: 13px;
-  outline: none;
-  cursor: pointer;
-  transition: border-color 0.15s ease;
-}
-
-.gh-sync-select:focus {
-  border-color: #38bdf8;
-}
-
-.gh-sync-select option {
-  background: #18181b;
-  color: #ffffff;
-}
-
-/* Retarget styles in linked view */
-.gh-sync-retarget-btn {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.85);
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.gh-sync-retarget-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-}
-
-.gh-sync-retarget-box {
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 16px;
-  margin: 12px 26px 0;
+/* Publish Form */
+.gh-sync-publish-form {
+  padding: 14px 22px 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* Publish Form */
-.gh-sync-publish-form {
-  padding: 20px 26px 26px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
 .gh-sync-info-banner {
-  background: rgba(56, 189, 248, 0.06);
-  border: 1px solid rgba(56, 189, 248, 0.15);
-  border-radius: 12px;
-  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  box-shadow: none;
+  border-radius: 7px;
+  padding: 8px 11px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .gh-sync-info-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: #38bdf8;
+  color: #ffffff;
 }
 
 .gh-sync-info-desc {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.65);
-  line-height: 1.4;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.35;
 }
 
 .gh-sync-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .gh-sync-label {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.gh-sync-select {
+  width: 100%;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  box-shadow: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.gh-sync-select option {
+  background: #101217;
+  color: #ffffff;
 }
 
 .gh-sync-input-prefix-wrap {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding-left: 12px;
-  transition: border-color 0.15s ease;
-}
-
-.gh-sync-input-prefix-wrap:focus-within {
-  border-color: #38bdf8;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  box-shadow: none;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .gh-sync-input-prefix {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  padding: 7px 0 7px 10px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.4);
   font-family: monospace;
 }
 
 .gh-sync-input {
   width: 100%;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 10px 12px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: none;
+  box-shadow: none;
+  border-radius: 6px;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
-  transition: border-color 0.15s ease;
+  transition: background 0.12s ease;
 }
 
 .gh-sync-input:focus {
-  border-color: #38bdf8;
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .gh-sync-input--prefixed {
   background: transparent;
-  border: none;
-  padding-left: 6px;
+  padding-left: 4px;
 }
 
-.gh-sync-radio-group {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.gh-sync-radio-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 12px 14px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.15s ease;
-}
-
-.gh-sync-radio-card:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
-}
-
-.gh-sync-radio-card--active {
-  background: rgba(56, 189, 248, 0.06);
-  border-color: rgba(56, 189, 248, 0.4);
-}
-
-.gh-sync-radio-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.gh-sync-radio-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-}
-
-.gh-sync-radio-check {
-  font-size: 12px;
-  color: #38bdf8;
-}
-
-.gh-sync-radio-desc {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.35;
-}
-
-.gh-sync-meta-note {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.5);
-  line-height: 1.4;
-}
-
-/* Linked Repo View */
-.gh-sync-linked-view {
-  padding: 20px 26px 26px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.gh-sync-remote-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.gh-sync-remote-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.gh-sync-remote-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.gh-sync-remote-url {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: #38bdf8;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.gh-sync-remote-url:hover {
-  text-decoration: underline;
-}
-
-.gh-sync-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  background: rgba(34, 197, 94, 0.12);
-  color: #4ade80;
-  padding: 3px 8px;
-  border-radius: 100px;
-}
-
-.gh-sync-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 10px;
-}
-
-.gh-sync-stat-card {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.gh-sync-stat-header {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.gh-sync-stat-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: #ffffff;
-  margin-top: 2px;
-}
-
-.gh-sync-stat-hint {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-.gh-sync-last-commit {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.gh-sync-commit-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.gh-sync-commit-hash {
+.gh-sync-input--branch {
+  margin-top: 5px;
   font-family: monospace;
-  font-size: 11px;
-  color: #38bdf8;
-  background: rgba(56, 189, 248, 0.1);
-  padding: 1px 5px;
-  border-radius: 4px;
-}
-
-.gh-sync-commit-date {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.gh-sync-commit-msg {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.85);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .gh-sync-custom-branch-toggle {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 3px;
 }
 
 .gh-sync-checkbox-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-}
-
-.gh-sync-checkbox-label input {
-  cursor: pointer;
-}
-
-.gh-sync-input--branch {
-  font-family: monospace;
-}
-
-.gh-sync-links-row {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding-top: 4px;
+  gap: 6px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  user-select: none;
 }
 
-.gh-sync-quick-link {
+.gh-sync-checkbox-label input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* Visibility Radio Group */
+.gh-sync-radio-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.gh-sync-radio-card {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: none;
+  box-shadow: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gh-sync-radio-card:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.gh-sync-radio-card--active {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.gh-sync-radio-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gh-sync-radio-title {
   font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.6);
+  font-weight: 550;
+  color: #ffffff;
+}
+
+.gh-sync-radio-check {
+  font-size: 10px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.gh-sync-radio-desc {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.3;
+}
+
+.gh-sync-meta-note {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.35;
+}
+
+/* Linked View */
+.gh-sync-linked-view {
+  padding: 8px 22px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.gh-sync-remote-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.025);
+  border: none;
+  box-shadow: none;
+  border-radius: 7px;
+  gap: 8px;
+}
+
+.gh-sync-remote-left {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.gh-sync-remote-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.gh-sync-remote-url {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: monospace;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: color 0.15s ease;
+  gap: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.gh-sync-quick-link:hover {
-  color: #38bdf8;
+.gh-sync-remote-url:hover {
   text-decoration: underline;
+  color: #ffffff;
 }
 
-/* Footer & Buttons */
-.gh-sync-footer {
+.gh-sync-remote-right {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 6px;
-}
-
-.gh-sync-cancel-btn {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-  padding: 8px 16px;
-  border-radius: 10px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.gh-sync-cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-}
-
-.gh-sync-pull-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  padding: 9px 16px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
   gap: 6px;
-  transition: all 0.15s ease;
+  flex-shrink: 0;
 }
 
-.gh-sync-pull-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.gh-sync-pull-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.gh-sync-primary-btn {
-  background: linear-gradient(135deg, #38bdf8 0%, #2563eb 100%);
+.gh-sync-retarget-btn {
+  background: rgba(255, 255, 255, 0.05);
   border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 2.5px 7px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.gh-sync-retarget-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
   color: #ffffff;
-  padding: 9px 18px;
-  border-radius: 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
+}
+
+.gh-sync-status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-}
-
-.gh-sync-primary-btn:hover:not(:disabled) {
-  opacity: 0.95;
-  transform: translateY(-1px);
-}
-
-.gh-sync-primary-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.gh-sync-push-all-btn {
-  background: rgba(168, 85, 247, 0.12);
-  border: 1px solid rgba(168, 85, 247, 0.28);
-  color: #c084fc;
-  padding: 9px 14px;
-  border-radius: 10px;
-  font-size: 12px;
+  gap: 3px;
+  font-size: 9.5px;
   font-weight: 500;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
+  text-transform: uppercase;
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.1);
+  border: none;
+  box-shadow: none;
+  padding: 1.5px 6px;
+  border-radius: 4px;
 }
 
-.gh-sync-push-all-btn:hover:not(:disabled) {
-  background: rgba(168, 85, 247, 0.22);
-  border-color: rgba(168, 85, 247, 0.45);
-  color: #e9d5ff;
+/* Retarget Box */
+.gh-sync-retarget-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: none;
+  box-shadow: none;
+  border-radius: 8px;
+  padding: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.gh-sync-push-all-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Branch Tree Box */
+/* Branch Tree Hierarchy Box */
 .gh-sync-branch-tree-box {
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  border-radius: 7px;
   overflow: hidden;
 }
 
 .gh-sync-branch-tree-header {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  align-items: center;
+  padding: 7px 10px;
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.02);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
   transition: background 0.12s ease;
 }
 
 .gh-sync-branch-tree-header:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.035);
+  color: #ffffff;
 }
 
 .gh-sync-branch-tree-title {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 5px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
 }
 
 .gh-sync-branch-tree-toggle {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .gh-sync-branch-list {
-  padding: 8px 12px 10px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  max-height: 180px;
-  overflow-y: auto;
+  padding: 2px 8px 6px 8px;
+  gap: 3px;
 }
 
 .gh-sync-branch-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  font-size: 12px;
+  align-items: center;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.015);
+  font-size: 10.5px;
 }
 
 .gh-sync-branch-row--active {
-  background: rgba(56, 189, 248, 0.08);
-  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .gh-sync-branch-row-left {
   display: flex;
   align-items: center;
-  gap: 6px;
-  overflow: hidden;
+  gap: 5px;
+  font-family: monospace;
 }
 
 .gh-sync-branch-icon {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
   display: flex;
-  align-items: center;
 }
 
 .gh-sync-branch-name {
-  font-weight: 500;
   color: #ffffff;
-  font-family: monospace;
-  font-size: 11.5px;
 }
 
 .gh-sync-branch-parent {
-  font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.4);
-  font-family: monospace;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 9.5px;
 }
 
 .gh-sync-branch-row-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .gh-sync-active-tag {
-  font-size: 9.5px;
+  font-size: 8.5px;
   text-transform: uppercase;
-  font-weight: 600;
-  background: rgba(56, 189, 248, 0.18);
-  color: #38bdf8;
-  padding: 1px 5px;
-  border-radius: 4px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .gh-sync-tracking-tag {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 4px;
+  font-size: 8.5px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .gh-sync-tracking-tag--synced {
-  background: rgba(34, 197, 94, 0.12);
   color: #4ade80;
+  background: rgba(34, 197, 94, 0.1);
 }
 
-.gh-sync-tracking-tag--local {
-  background: rgba(255, 255, 255, 0.06);
+/* Stats Summary Row */
+.gh-sync-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.gh-sync-stat-card {
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: none;
+  box-shadow: none;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.gh-sync-stat-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
   color: rgba(255, 255, 255, 0.45);
+}
+
+.gh-sync-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.gh-sync-stat-hint {
+  font-size: 9.5px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Last Commit */
+.gh-sync-last-commit {
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.025);
+  border: none;
+  box-shadow: none;
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.gh-sync-commit-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gh-sync-commit-hash {
+  font-family: monospace;
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.gh-sync-commit-date {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.gh-sync-commit-msg {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quick links row */
+.gh-sync-links-row {
+  display: flex;
+  gap: 10px;
+  padding: 1px 1px;
+}
+
+.gh-sync-quick-link {
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.gh-sync-quick-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Footer & Action Buttons */
+.gh-sync-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.gh-sync-cancel-btn {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  border: none;
+  box-shadow: none;
+  padding: 5px 11px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.gh-sync-cancel-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.gh-sync-pull-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  box-shadow: none;
+  padding: 5px 11px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.gh-sync-pull-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.gh-sync-push-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.85);
+  border: none;
+  box-shadow: none;
+  padding: 5px 11px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.gh-sync-push-all-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+}
+
+.gh-sync-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffffff;
+  color: #0b0c11;
+  border: none;
+  box-shadow: none;
+  padding: 5px 13px;
+  border-radius: 5px;
+  font-size: 11.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.gh-sync-primary-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+}
+
+.gh-sync-primary-btn:disabled,
+.gh-sync-cancel-btn:disabled,
+.gh-sync-pull-btn:disabled,
+.gh-sync-push-all-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
