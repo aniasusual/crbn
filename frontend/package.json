@@ -5,6 +5,10 @@
   "version": "0.1.0",
   "type": "module",
   "main": "electron/main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aniasusual/crbn.git"
+  },
   "scripts": {
     "dev:react": "vite",
     "dev:electron": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
@@ -15,14 +19,14 @@
     "build:backend": "cd ../backend && bun run build",
     "build:all": "npm run stage:bun && npm run build:backend && npm run build",
     "pack": "npm run build:all && electron-builder --dir",
-    "dist": "npm run build:all && electron-builder",
-    "dist:mac": "npm run build:all && electron-builder --mac",
-    "dist:mac:arm64": "npm run build:all && electron-builder --mac --arm64",
-    "dist:mac:x64": "npm run build:all && electron-builder --mac --x64",
-    "dist:mac:all": "npm run build:all && electron-builder --mac --arm64 --x64",
-    "dist:win": "npm run build:all && electron-builder --win",
-    "dist:linux": "npm run build:all && electron-builder --linux",
-    "dist:all": "npm run build:all && electron-builder -mwl",
+    "dist": "npm run build:all && electron-builder --publish never",
+    "dist:mac": "npm run build:all && electron-builder --mac --publish never",
+    "dist:mac:arm64": "npm run build:all && electron-builder --mac --arm64 --publish never",
+    "dist:mac:x64": "npm run build:all && electron-builder --mac --x64 --publish never",
+    "dist:mac:all": "npm run build:all && electron-builder --mac --arm64 --x64 --publish never",
+    "dist:win": "npm run build:all && electron-builder --win --publish never",
+    "dist:linux": "npm run build:all && electron-builder --linux --publish never",
+    "dist:all": "npm run build:all && electron-builder -mwl --publish never",
     "lint": "oxlint",
     "preview": "vite preview"
   },
@@ -53,6 +57,11 @@
   "build": {
     "appId": "com.80degrees.app",
     "productName": "80degrees",
+    "publish": {
+      "provider": "github",
+      "owner": "aniasusual",
+      "repo": "crbn"
+    },
     "directories": {
       "output": "release"
     },
