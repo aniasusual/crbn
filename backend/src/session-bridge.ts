@@ -932,13 +932,32 @@ export class SessionBridge {
             this.turnHadError = true;
             const candidateMsg = msg as unknown as { errorMessage?: string };
             const errMsg = candidateMsg.errorMessage || "An error occurred during model generation.";
+            let friendlyError = `⚠️ **Model Error**: ${errMsg}`;
+            if (
+              errMsg.includes("Individual quota reached") ||
+              errMsg.includes("QUOTA_EXHAUSTED") ||
+              (errMsg.includes("429") && errMsg.includes("Cloud Code Assist"))
+            ) {
+              const matchReset = errMsg.match(/Resets in ([^."\n]+)/);
+              const resetNotice = matchReset ? ` (resets in ${matchReset[1]})` : "";
+              friendlyError = `⚠️ **Google Antigravity Quota Limit Reached**\n\nYour weekly quota for third-party models (Claude / GPT) on Google Antigravity has been reached${resetNotice}.\n\n👉 **To continue**: Switch to **Gemini 3.8 Flash** or **Gemini 2.5 Flash** in the Model Selector (✦), or connect an Anthropic / OpenAI API key directly.`;
+            } else if (
+              errMsg.includes("No capacity available for model") ||
+              (errMsg.includes("503") && errMsg.includes("Cloud Code Assist"))
+            ) {
+              friendlyError = `⚠️ **Google Antigravity Server Busy**\n\nGoogle's Antigravity server is temporarily out of capacity for this model.\n\n👉 **To continue**: Switch to **Gemini 3.8 Flash** (active & available) in the Model Selector (✦).`;
+            } else if (
+              errMsg.includes("Requested entity was not found") ||
+              (errMsg.includes("404") && errMsg.includes("Cloud Code Assist"))
+            ) {
+              friendlyError = `⚠️ **Google Antigravity Model Unavailable**\n\nThis model is no longer available on Google Antigravity.\n\n👉 **To continue**: Switch to **Gemini 3.8 Flash** or **Gemini 2.5 Flash** in the Model Selector (✦).`;
+            }
             const errorMsg = {
               role: "assistant",
-              content: `⚠️ **Model Error**: ${errMsg}`,
+              content: friendlyError,
               is_error: true,
               timestamp,
             };
-            this.activeTurns.push(errorMsg);
             if (this.activeProjectPath) {
               ChatHistoryManager.appendEvent(
                 this.activeProjectPath,
