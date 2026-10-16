@@ -1,7 +1,7 @@
 {
   "name": "frontend",
   "description": "AI-powered autonomous software engineering environment",
-  "author": "80degrees",
+  "author": "80degrees <support@80degrees.dev>",
   "version": "0.1.0",
   "type": "module",
   "main": "electron/main.js",
@@ -123,6 +123,7 @@
     },
     "linux": {
       "icon": "build/icon.png",
+      "maintainer": "80degrees <support@80degrees.dev>",
       "target": ["AppImage", "deb"]
     }
   }
