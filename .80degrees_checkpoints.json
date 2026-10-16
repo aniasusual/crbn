@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "project_name": "crbn",
+  "steps": [
+    {
+      "step_id": "step_0",
+      "step_number": 0,
+      "commit_hash": "59bcbefdda483b54f6ef6029c2742121b8fb7fbe",
+      "prompt": "Initial Repository State",
+      "timestamp": "2026-10-16T14:23:00.561Z"
+    }
+  ],
+  "updated_at": "2026-10-16T14:23:00.561Z"
+}
