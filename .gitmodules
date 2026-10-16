@@ -4,3 +4,4 @@
 [submodule "pi-harness"]
 	path = pi-harness
 	url = https://github.com/aniasusual/oh-my-pi.git
+	branch = 80degrees
