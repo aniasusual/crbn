@@ -437,7 +437,7 @@ export class CheckpointManager {
     state.active_branch = finalName;
     await this.saveBranches(projectPath, state);
 
-    console.log(`[CheckpointManager] Created & switched to branch "${finalName}" (${gitBranch}) from ${targetStep.step_id}`);
+    console.log(`[CheckpointManager] Created & switched to branch "${finalName}" (${gitBranch}) from ${targetStep?.step_id ?? "initial"}`);
     return newBranch;
   }
 

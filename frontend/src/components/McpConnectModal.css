@@ -1,20 +1,20 @@
 /* ============================================================================
-   MCP Connect Modal
-   Black Background + Silver Border + Liquid Glass Elements
+   McpConnectModal
+   Minimalist Liquid Glass (Pure Black Background, No Borders, No Shadows)
    ============================================================================ */
 
 .mcp-dialog-root {
   position: relative;
-  z-index: 10000;
+  z-index: 50;
 }
 
 .mcp-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: opacity 0.16s ease-out;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 0.18s ease-out;
 }
 
 .mcp-dialog-backdrop[data-closed] {
@@ -24,34 +24,37 @@
 .mcp-dialog-wrap {
   position: fixed;
   inset: 0;
-  z-index: 10001;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  overflow-y: auto;
+  padding: 1.5rem;
+  pointer-events: none;
 }
 
-/* Main Panel: Solid Pitch Black + Silver Border */
+/* Modal Panel Container: Translucent Liquid Glass */
 .mcp-dialog-panel {
-  position: relative;
+  pointer-events: auto;
   width: 100%;
-  max-width: 580px;
-  max-height: 86vh;
+  max-width: 44rem;
+  max-height: 84vh;
   display: flex;
   flex-direction: column;
-  background: #000000;
-  border-radius: 14px;
-  border: 1px solid rgba(210, 215, 225, 0.32);
-  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 24px 64px -12px rgba(0, 0, 0, 0.95);
+  background: rgba(12, 12, 16, 0.52);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: none;
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 30px 80px rgba(0, 0, 0, 0.5);
+  color: #f4f4f5;
   overflow: hidden;
-  color: #f3f4f6;
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .mcp-dialog-panel[data-closed] {
   opacity: 0;
-  transform: scale(0.98) translateY(3px);
+  transform: scale(0.97) translateY(8px);
 }
 
 /* Header */
@@ -59,385 +62,456 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 20px 22px 14px 22px;
-  background: transparent;
+  padding: 1.75rem 1.75rem 0.625rem 1.75rem;
   border: none;
+  background: transparent;
 }
 
 .mcp-dialog-header-left {
   display: flex;
   align-items: flex-start;
-  gap: 11px;
+  gap: 0.875rem;
 }
 
-/* Liquid Glass Header Icon */
 .mcp-dialog-header-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   color: #60a5fa;
   flex-shrink: 0;
+  margin-top: 0.125rem;
 }
 
 .mcp-dialog-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 1.25rem;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: #ffffff;
-  letter-spacing: -0.015em;
-  line-height: 1.25;
 }
 
 .mcp-dialog-subtitle {
-  margin: 3px 0 0 0;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.55);
   line-height: 1.4;
 }
 
 .mcp-dialog-header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.625rem;
 }
 
-/* Liquid Glass Reload Button */
+/* Glassmorphic Reload Button */
 .mcp-dialog-reload-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  height: 28px;
-  padding: 0 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 7px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.8);
+  gap: 0.4375rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  padding: 0.4375rem 0.9375rem;
+  border-radius: 9999px;
   cursor: pointer;
+  transition: all 0.15s ease;
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 500;
-  transition: all 0.12s ease;
+  line-height: 1;
 }
 
 .mcp-dialog-reload-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(210, 215, 225, 0.35);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
+  transform: translateY(-0.5px);
 }
 
 .mcp-dialog-reload-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
-/* Liquid Glass Close Button */
+/* Glassmorphic Close Button */
 .mcp-dialog-close-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  transition: all 0.12s ease;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .mcp-dialog-close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(210, 215, 225, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
+  transform: scale(1.05);
 }
 
-/* Navigation Tabs: Silver Border Bottom */
+/* Navigation Tabs: Glassmorphic Pills */
 .mcp-dialog-tabs {
   display: flex;
-  gap: 6px;
-  padding: 0 22px 12px 22px;
-  border-bottom: 1px solid rgba(210, 215, 225, 0.15);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.75rem 0.75rem 1.75rem;
+  background: transparent;
+  border: none;
+  flex-wrap: wrap;
 }
 
 .mcp-dialog-tab {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 12px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  color: rgba(255, 255, 255, 0.6);
+  gap: 0.4375rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  padding: 0.4375rem 0.9375rem;
+  border-radius: 9999px;
   cursor: pointer;
+  transition: all 0.15s ease;
   font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 500;
-  transition: all 0.12s ease;
+  line-height: 1;
 }
 
 .mcp-dialog-tab:hover {
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-0.5px);
 }
 
-/* Liquid Glass Active Tab */
 .mcp-dialog-tab--active {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(210, 215, 225, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
-}
-
-.mcp-dialog-tab-badge {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* Banners */
-.mcp-dialog-banner {
-  margin: 10px 22px 0 22px;
-  padding: 8px 12px;
-  border-radius: 7px;
-  font-size: 12px;
-}
-
-.mcp-dialog-banner--error {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #fca5a5;
-}
-
-.mcp-dialog-banner--success {
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #86efac;
-}
-
-/* Content Body */
-.mcp-dialog-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 22px 22px 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Empty State */
-.mcp-dialog-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 36px 16px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.mcp-dialog-empty-icon {
-  font-size: 32px;
-  margin-bottom: 12px;
-}
-
-.mcp-dialog-empty h4 {
-  margin: 0 0 6px 0;
-  font-size: 14px;
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
   font-weight: 600;
 }
 
+.mcp-dialog-tab-badge {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.2;
+}
+
+.mcp-dialog-tab--active .mcp-dialog-tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Alerts / Banners */
+.mcp-dialog-banner {
+  margin: 0 1.75rem 0.75rem 1.75rem;
+  padding: 0.625rem 1rem;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.mcp-dialog-banner--error {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+.mcp-dialog-banner--success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+}
+
+/* Scrollable Container */
+.mcp-dialog-content {
+  flex: 1;
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem 1.75rem 1.75rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.mcp-dialog-content::-webkit-scrollbar {
+  width: 5px;
+}
+
+.mcp-dialog-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+
+.mcp-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Empty State */
+.mcp-dialog-empty {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: none;
+  box-shadow: none;
+  padding: 2.75rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mcp-dialog-empty-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  border: none;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+.mcp-dialog-empty-title,
+.mcp-dialog-empty h4 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.mcp-dialog-empty-desc,
 .mcp-dialog-empty p {
-  margin: 0 0 16px 0;
-  font-size: 12.5px;
-  max-width: 340px;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.55);
+  max-width: 22rem;
   line-height: 1.45;
 }
 
-/* Server Cards: Liquid Glass Card */
+/* Server List & Cards */
 .mcp-dialog-servers-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.5rem;
 }
 
 .mcp-server-card {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 16px rgba(0, 0, 0, 0.4);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.875rem 1.125rem;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: all 0.12s ease;
+  gap: 0.625rem;
+  transition: background-color 0.05s ease;
+  will-change: background-color;
 }
 
 .mcp-server-card:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(210, 215, 225, 0.25);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 16px rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 .mcp-server-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 1rem;
 }
 
 .mcp-server-card-info {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  gap: 0.25rem;
 }
 
 .mcp-server-card-title-row {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  gap: 7px;
 }
 
 .mcp-server-card-name {
-  font-size: 13.5px;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
 
+/* Glassmorphic Badges */
 .mcp-server-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 0.3125rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
   font-weight: 500;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.1875rem 0.5625rem;
+  border: none;
+  box-shadow: none;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .mcp-server-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
   background: currentColor;
 }
 
 .mcp-status--connected {
+  background: rgba(34, 197, 94, 0.2);
   color: #4ade80;
-  background: rgba(74, 222, 128, 0.1);
-  border-color: rgba(74, 222, 128, 0.25);
 }
 
 .mcp-status--connecting {
+  background: rgba(234, 179, 8, 0.2);
   color: #facc15;
-  background: rgba(250, 204, 21, 0.1);
-  border-color: rgba(250, 204, 21, 0.25);
 }
 
 .mcp-status--configured {
-  color: #93c5fd;
-  background: rgba(147, 197, 253, 0.1);
-  border-color: rgba(147, 197, 253, 0.25);
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
 }
 
 .mcp-status--disabled {
-  color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .mcp-status--disconnected {
+  background: rgba(239, 68, 68, 0.2);
   color: #f87171;
-  background: rgba(248, 113, 113, 0.1);
-  border-color: rgba(248, 113, 113, 0.25);
 }
 
 .mcp-server-type-tag,
 .mcp-server-source-tag {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.6);
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.1875rem 0.5625rem;
+  border: none;
+  box-shadow: none;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
-  font-weight: 600;
   letter-spacing: 0.03em;
 }
 
 .mcp-server-card-meta {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.75rem;
 }
 
 .mcp-server-cmd {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 2px 6px;
-  border-radius: 5px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  box-shadow: none;
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 6px;
   word-break: break-all;
 }
 
 .mcp-server-card-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.4375rem;
   flex-shrink: 0;
 }
 
-/* Liquid Glass Card Action Buttons */
+/* Glassmorphic Action Buttons */
 .mcp-action-btn {
-  height: 24px;
-  padding: 0 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.75);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.875rem;
+  padding: 0 0.8125rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.85);
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 550;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
 }
 
 .mcp-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(210, 215, 225, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
+  transform: scale(1.02);
+}
+
+.mcp-action-btn--danger {
+  color: #f87171;
 }
 
 .mcp-action-btn--danger:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.26);
   color: #fca5a5;
 }
 
-/* Tools section within server card */
+/* Tools Section within Server Card */
 .mcp-server-tools-section {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 8px;
+  padding-top: 0.5rem;
 }
 
 .mcp-server-tools-toggle {
@@ -447,210 +521,226 @@
   justify-content: space-between;
   background: transparent;
   border: none;
-  padding: 2px 0;
+  box-shadow: none;
+  padding: 0.25rem 0;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.55);
   cursor: pointer;
-  transition: color 0.12s ease;
+  transition: color 0.15s ease;
 }
 
 .mcp-server-tools-toggle:hover {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
 }
 
 .mcp-tools-toggle-icon {
-  font-size: 9px;
+  font-size: 0.625rem;
   color: rgba(255, 255, 255, 0.4);
 }
 
 .mcp-server-tools-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: 8px;
-  padding-left: 4px;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
 }
 
 .mcp-tools-empty {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.45);
   font-style: italic;
-  padding: 4px 0;
+  padding: 0.375rem 0;
 }
 
 .mcp-tool-item {
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none;
+  box-shadow: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
 }
 
 .mcp-tool-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 0.5rem;
 }
 
 .mcp-tool-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11.5px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8125rem;
   font-weight: 600;
-  color: #93c5fd;
+  color: #60a5fa;
 }
 
 .mcp-tool-label {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.45);
 }
 
 .mcp-tool-desc {
-  margin: 3px 0 0 0;
-  font-size: 11.5px;
+  margin: 0.25rem 0 0 0;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.6);
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
-/* Mode Selector in Add Tab: Liquid Glass Segment */
+/* Mode Selector in Add Tab: Glassmorphic Pills */
 .mcp-mode-selector {
   display: flex;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .mcp-mode-btn {
   flex: 1;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.6);
+  height: 2.125rem;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 500;
-  transition: all 0.12s ease;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  transition: all 0.15s ease;
 }
 
 .mcp-mode-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(210, 215, 225, 0.2);
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
 }
 
 .mcp-mode-btn--active {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(210, 215, 225, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
+  font-weight: 600;
 }
 
 /* Presets Grid */
 .mcp-presets-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
+  gap: 0.5rem;
 }
 
 .mcp-preset-card {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.875rem 1.125rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  transition: all 0.12s ease;
+  gap: 1rem;
+  transition: background-color 0.05s ease;
+  will-change: background-color;
 }
 
 .mcp-preset-card:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(210, 215, 225, 0.25);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
 }
 
 .mcp-preset-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0.25rem;
   min-width: 0;
+  flex: 1;
 }
 
 .mcp-preset-title-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .mcp-preset-title {
-  font-size: 13px;
+  font-size: 0.9375rem;
   font-weight: 600;
   color: #ffffff;
-}
-
-.mcp-preset-key-tag {
-  font-size: 10px;
-  font-weight: 500;
-  padding: 1px 6px;
-  border-radius: 5px;
   letter-spacing: -0.01em;
 }
 
+.mcp-preset-key-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.1875rem 0.5625rem;
+  border: none;
+  box-shadow: none;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
 .mcp-preset-key-tag--free {
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #86efac;
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
 }
 
 .mcp-preset-key-tag--req {
-  background: rgba(234, 179, 8, 0.15);
-  border: 1px solid rgba(234, 179, 8, 0.3);
-  color: #fde047;
+  background: rgba(234, 179, 8, 0.2);
+  color: #facc15;
 }
 
 .mcp-preset-key-hint {
-  font-size: 10.5px;
+  font-size: 0.6875rem;
   color: rgba(250, 204, 21, 0.85);
-  margin-top: 1px;
 }
 
 .mcp-preset-desc {
-  font-size: 11.5px;
+  font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
 }
 
 .mcp-preset-cmd {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 10.5px;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(0, 0, 0, 0.35);
-  padding: 2px 5px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 6px;
+  border: none;
+  box-shadow: none;
+  margin-top: 0.25rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: inline-block;
+  max-width: fit-content;
 }
 
 /* Custom Form */
 .mcp-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0.875rem;
 }
 
 .mcp-form-row {
   display: flex;
-  gap: 10px;
+  gap: 0.75rem;
 }
 
 .mcp-form-group {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 0.375rem;
 }
 
 .mcp-form-group--half {
@@ -658,129 +748,171 @@
 }
 
 .mcp-form-label {
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 0.8125rem;
+  font-weight: 550;
   color: rgba(255, 255, 255, 0.7);
 }
 
 .mcp-form-hint {
-  font-size: 10.5px;
+  font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* Liquid Glass Input & Textarea */
-.mcp-form-input,
-.mcp-form-textarea {
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(210, 215, 225, 0.2);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
-  border-radius: 7px;
-  padding: 7px 10px;
+/* Borderless Glass Input & Textarea */
+.mcp-form-input {
+  display: flex;
+  height: 2.375rem;
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.25rem 0.875rem;
+  font-size: 0.875rem;
   color: #ffffff;
-  font-family: inherit;
-  font-size: 12px;
   outline: none;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-sizing: border-box;
 }
 
-.mcp-form-input:focus,
+.mcp-form-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.mcp-form-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.mcp-form-textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.625rem 0.875rem;
+  font-size: 0.8125rem;
+  color: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.mcp-form-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
 .mcp-form-textarea:focus {
-  border-color: rgba(210, 215, 225, 0.55);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(210, 215, 225, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
 }
 
 .mcp-form-textarea--code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 11.5px;
-  line-height: 1.4;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
 }
 
 .mcp-transport-toggle {
   display: flex;
-  gap: 6px;
+  gap: 0.5rem;
 }
 
 .mcp-transport-btn {
   flex: 1;
-  height: 28px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  color: rgba(255, 255, 255, 0.6);
+  height: 2.125rem;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.65);
   cursor: pointer;
   font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 500;
-  transition: all 0.12s ease;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  transition: all 0.15s ease;
 }
 
 .mcp-transport-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(210, 215, 225, 0.2);
+  background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
 }
 
 .mcp-transport-btn--active {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(210, 215, 225, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
+  font-weight: 600;
 }
 
 .mcp-form-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 0.625rem;
+  margin-top: 0.5rem;
 }
 
-/* Button Variants */
+/* Glass Buttons */
 .mcp-dialog-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 30px;
-  padding: 0 14px;
-  border-radius: 7px;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  height: 2.125rem;
+  padding: 0 1.125rem;
   cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
   border: none;
-  transition: all 0.12s ease;
+  box-shadow: none;
+  line-height: 1;
 }
 
-/* Primary Liquid Glass Button */
 .mcp-dialog-btn--primary {
-  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 2px 8px rgba(37, 99, 235, 0.4);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #000000;
+  font-weight: 600;
 }
 
 .mcp-dialog-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 2px 10px rgba(37, 99, 235, 0.55);
+  background: #ffffff;
+  box-shadow: none;
+  transform: scale(1.02);
 }
 
 .mcp-dialog-btn--primary:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  transform: none;
 }
 
-/* Secondary Liquid Glass Button */
 .mcp-dialog-btn--secondary {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #ffffff;
 }
 
 .mcp-dialog-btn--secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(210, 215, 225, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: none;
+}
+
+.mcp-dialog-btn--secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Spin animation */

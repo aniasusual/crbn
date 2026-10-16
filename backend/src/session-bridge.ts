@@ -8,6 +8,7 @@ import {
   type AgentSession,
   type MCPManager,
 } from "../../pi-harness/packages/coding-agent/src/index";
+import type { Model } from "../../pi-harness/packages/ai/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
 import type {
   ExtensionUIContext,
@@ -44,7 +45,7 @@ export class SessionBridge {
   private unsubscribe: (() => void) | null = null;
   private activeProjectPath: string | null = null;
   private activeBranchName: string = "main";
-  private activeModel: string = "gemini-2.5-flash";
+  private activeModel: string = "gemini-3.8-flash";
   private isGenerating: boolean = false;
   private wasStoppedByUser: boolean = false;
   private initPromise: Promise<void> | null = null;
@@ -56,6 +57,7 @@ export class SessionBridge {
   private lastPromptText: string = "";
   private mcpManager: MCPManager | null = null;
   private mcpStatusUnsubscribe: (() => void) | null = null;
+  private turnHadError: boolean = false;
 
   constructor(
     private readonly send: WebSocketSender,
@@ -138,29 +140,98 @@ export class SessionBridge {
     }
   }
 
+  private isProviderAuthenticated(providerId: string, authStorage: AuthStorage): boolean {
+    const oauthMatch = this.modelsService?.oauthManager.getOAuthProviders().find(
+      (p) => p.id === providerId || p.storeCredentialsAs === providerId
+    );
+    const targetId = oauthMatch?.storeCredentialsAs ?? providerId;
+    const identity =
+      authStorage.oauth.identity(targetId) ||
+      (targetId !== providerId ? authStorage.oauth.identity(providerId) : undefined);
 
+    const hasOAuth = Boolean(
+      authStorage.credentials.hasOAuth(providerId) ||
+        (targetId !== providerId && authStorage.credentials.hasOAuth(targetId)) ||
+        identity
+    );
 
-  async setModel(modelName: string): Promise<void> {
-    this.activeModel = modelName;
-    if (this.initPromise) {
-      await this.initPromise;
-    }
-    if (this.session && this.modelsService) {
-      try {
-        const registry = await this.modelsService.getRegistry();
-        const parts = modelName.split("/");
-        let found = parts.length === 2 ? registry.find(parts[0], parts[1]) : undefined;
-        if (!found) {
-          found = registry.getAll().find(m => m.id === modelName || `${m.provider}/${m.id}` === modelName);
-        }
-        if (found && this.session) {
-          await this.session.setModel(found);
-          console.log(`[SessionBridge] Switched active session model to ${found.provider}/${found.id}`);
-          this.emitContextTelemetry();
-        }
-      } catch (err) {
-        console.warn("[SessionBridge] Failed to switch model on active session:", err);
+    const storedApiKey =
+      authStorage.credentials.get(providerId) ||
+      (targetId !== providerId ? authStorage.credentials.get(targetId) : undefined);
+    const hasVaultKey = Boolean(
+      storedApiKey && storedApiKey.type === "api_key" && storedApiKey.key
+    );
+
+    const keySource = authStorage.keys.source(providerId);
+    const hasRuntimeKey = Boolean(
+      keySource?.concrete && (keySource.kind === "runtime" || keySource.kind === "config")
+    );
+    const hasEnvKey = Boolean(
+      keySource?.concrete &&
+        keySource.kind === "env" &&
+        keySource.envVar &&
+        Boolean(process.env[keySource.envVar])
+    );
+
+    const isLocalRunning = providerId === "ollama";
+    return hasOAuth || hasVaultKey || hasRuntimeKey || hasEnvKey || isLocalRunning;
+  }
+
+  async resolveModel(modelName: string): Promise<Record<string, unknown> | undefined> {
+    if (!this.modelsService) return undefined;
+    const registry = await this.modelsService.getRegistry();
+    const authStorage = await this.modelsService.getAuthStorage();
+
+    // 1. If explicit provider is specified (provider/modelId), check if that provider has auth
+    const slashIdx = modelName.indexOf("/");
+    if (slashIdx > 0) {
+      const provider = modelName.slice(0, slashIdx);
+      const modelId = modelName.slice(slashIdx + 1);
+      if (this.isProviderAuthenticated(provider, authStorage)) {
+        const found = registry.find(provider, modelId);
+        if (found) return found as unknown as Record<string, unknown>;
       }
+    }
+
+    // 2. Find all models matching modelName (by id, canonical_id, or provider/id)
+    const allMatches = registry.getAll().filter(
+      (m) => m.id === modelName || m.canonical_id === modelName || `${m.provider}/${m.id}` === modelName
+    );
+
+    // 3. Filter strictly to providers for which the user HAS authenticated
+    const authenticatedMatches = allMatches.filter((m) => this.isProviderAuthenticated(m.provider, authStorage));
+    if (authenticatedMatches.length > 0) {
+      return authenticatedMatches[0] as unknown as Record<string, unknown>;
+    }
+    // 4. Zero matching authenticated providers -> return undefined
+    console.log(`[SessionBridge] No authenticated provider found for model "${modelName}".`);
+    return undefined;
+  }
+  async setModel(modelName: string): Promise<void> {
+    if (this.initPromise) {
+      await this.initPromise.catch(() => {});
+    }
+    const resolved = await this.resolveModel(modelName);
+    const targetModel = resolved
+      ? ((resolved.canonical_id as string) || `${resolved.provider}/${resolved.id}`)
+      : modelName;
+    this.activeModel = targetModel;
+
+    if (this.session && resolved) {
+      try {
+        await this.session.setModel(resolved as unknown as Model);
+        console.log(`[SessionBridge] Switched active session model to ${this.activeModel}`);
+        this.emitContextTelemetry();
+        return;
+      } catch (err) {
+        console.warn("[SessionBridge] Direct session.setModel failed, recreating session with new model:", err);
+      }
+      if (this.activeProjectPath) {
+        await this.openProject(this.activeProjectPath, this.activeModel);
+      }
+    } else if (this.activeProjectPath) {
+      console.log(`[SessionBridge] Reviving session for project ${this.activeProjectPath} with model ${this.activeModel}`);
+      await this.openProject(this.activeProjectPath, this.activeModel);
     }
   }
 
@@ -169,10 +240,20 @@ export class SessionBridge {
   }
 
   async openProject(projectPath: string, modelName?: string): Promise<void> {
-    if (modelName) {
-      this.activeModel = modelName;
+    const requestedModel = modelName || this.activeModel;
+    const resolved = await this.resolveModel(requestedModel);
+
+    if (!resolved) {
+      console.log(`[SessionBridge] openProject: No authenticated model available for "${requestedModel}". Session paused until credentials configured.`);
+      this.activeModel = requestedModel;
+      this.send({
+        type: "auth_required",
+        message: "No model provider has active credentials. Please connect an API key or log in with OAuth to activate the agent.",
+      });
+      return;
     }
 
+    this.activeModel = (resolved.canonical_id as string) || `${resolved.provider}/${resolved.id}`;
     this.initPromise = (async () => {
       if (this.session) {
         if (this.isGenerating) {
@@ -427,8 +508,15 @@ export class SessionBridge {
         });
       } catch (err) {
         console.error(`[SessionBridge] Failed to create AgentSession:`, err);
+        const errorMsg = err instanceof Error ? err.message : String(err);
         this.send({
-          content: `Harness Error: ${err instanceof Error ? err.message : String(err)}`,
+          type: "status",
+          content: `Harness Error: ${errorMsg}`,
+        });
+        this.send({
+          type: "assistant_error",
+          error: errorMsg,
+          message: `Failed to initialize agent: ${errorMsg}`,
         });
       }
     })();
@@ -438,7 +526,7 @@ export class SessionBridge {
 
   async prompt(promptText: string, attachments?: PromptAttachments): Promise<void> {
     if (this.initPromise) {
-      await this.initPromise;
+      await this.initPromise.catch(() => {});
     }
 
     // Ensure the latest preview server URL is synchronized before dispatching prompt
@@ -453,8 +541,13 @@ export class SessionBridge {
     const session = this.session;
     if (!session) {
       this.send({
-        type: "status",
-        content: "Harness Error: No active session. Please open a project first.",
+        type: "auth_required",
+        message: "Authentication required: No model provider has active credentials. Please connect an API key or log in with OAuth to activate the agent.",
+      });
+      this.send({
+        type: "assistant_error",
+        error: "No active credentials",
+        message: "⚠️ **No Provider Connected**\n\nNo model is currently unlocked with valid credentials.\n\n👉 **To fix this**: Click the **Model Selector (`✦`)** at the bottom of the chat and connect your provider (OAuth or API key).",
       });
       return;
     }
@@ -465,8 +558,8 @@ export class SessionBridge {
     }
 
     this.wasStoppedByUser = false;
+    this.turnHadError = false;
     this.isGenerating = true;
-
     this.lastPromptText = promptText;
     // Record user message in UI events with any attached media
     const now = new Date().toISOString();
@@ -515,9 +608,42 @@ export class SessionBridge {
       });
     } catch (err) {
       if (!this.wasStoppedByUser) {
+        this.turnHadError = true;
+        const errText = err instanceof Error ? err.message : String(err);
+        let friendlyNotice = errText;
+        if (
+          errText.includes("No API key found") ||
+          errText.includes("unauthorized") ||
+          errText.includes("authentication")
+        ) {
+          friendlyNotice = `⚠️ **Authentication Required**\n\n${errText}\n\n👉 **To fix this**: Open the **Model Selector** (✦) and either connect your provider with OAuth (Claude, ChatGPT, Copilot) or enter an API key, or switch to an authenticated model.`;
+        } else {
+          friendlyNotice = `⚠️ **Agent Error**\n\n${errText}`;
+        }
+        const errorAssistantMsg = {
+          role: "assistant",
+          content: friendlyNotice,
+          is_error: true,
+          timestamp: new Date().toISOString(),
+        };
+        this.activeTurns.push(errorAssistantMsg);
+        if (this.activeProjectPath) {
+          ChatHistoryManager.appendEvent(
+            this.activeProjectPath,
+            errorAssistantMsg,
+            this.activeBranchName
+          ).catch(() => {});
+        }
+        this.send({
+          type: "assistant_error",
+          message: errorAssistantMsg,
+          error: errText,
+          timestamp: errorAssistantMsg.timestamp,
+        });
         this.send({
           type: "status",
-          content: `Harness Error: ${err instanceof Error ? err.message : String(err)}`,
+          content: `Error: ${errText}`,
+          timestamp: errorAssistantMsg.timestamp,
         });
       }
     } finally {
@@ -789,6 +915,36 @@ export class SessionBridge {
           if (msg.stopReason === "aborted") {
             this.wasStoppedByUser = true;
           }
+          if (msg.stopReason === "error") {
+            this.turnHadError = true;
+            const candidateMsg = msg as unknown as { errorMessage?: string };
+            const errMsg = candidateMsg.errorMessage || "An error occurred during model generation.";
+            const errorMsg = {
+              role: "assistant",
+              content: `⚠️ **Model Error**: ${errMsg}`,
+              is_error: true,
+              timestamp,
+            };
+            this.activeTurns.push(errorMsg);
+            if (this.activeProjectPath) {
+              ChatHistoryManager.appendEvent(
+                this.activeProjectPath,
+                errorMsg,
+                this.activeBranchName
+              ).catch(() => {});
+            }
+            this.send({
+              type: "assistant_error",
+              message: errorMsg,
+              error: errMsg,
+              timestamp,
+            });
+            this.send({
+              type: "status",
+              content: `Error: ${errMsg}`,
+              timestamp,
+            });
+          }
           if (Array.isArray(msg.content)) {
             let text = "";
             for (const block of msg.content) {
@@ -979,7 +1135,9 @@ export class SessionBridge {
 
       case "agent_end": {
         const wasStopped = this.wasStoppedByUser;
+        const hadError = this.turnHadError;
         this.wasStoppedByUser = false;
+        this.turnHadError = false;
         this.isGenerating = false;
         if (wasStopped) {
           this.send({
@@ -987,6 +1145,8 @@ export class SessionBridge {
             content: "Stopped: Agent execution stopped by user.",
             timestamp,
           });
+        } else if (hadError) {
+          console.log("[SessionBridge] Agent turn ended with error, skipping 'Done' status");
         } else {
           this.send({
             type: "status",

@@ -4,3 +4,15 @@ dist/
 .env.local
 .env.*.local
 *.log
+
+# Electron packaging output
+release/
+**/release/
+dist-electron/
+
+# Local test & template runtime caches
+.80degrees/
+
+# Native binary artifacts
+*.node
+backend/native/

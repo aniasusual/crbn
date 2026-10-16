@@ -149,23 +149,72 @@ export class ProjectManager {
     const cachedTplDir = path.join(this.templateCacheDir, templateName);
     const cachedNodeModules = path.join(cachedTplDir, "node_modules");
 
+    const osPlatform = process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux";
+    const osArch = process.arch === "arm64" ? "arm64" : process.arch === "ia32" ? "ia32" : "x64";
+    const esbuildPlatformPkg = `@esbuild/${osPlatform}-${osArch}`;
+
+    // If cached node_modules exists, verify it is not a broken/read-only symlink pointing inside an .app bundle
+    // and verify that the native compiler package (@esbuild) matches the current host platform/architecture
     if (fsSync.existsSync(cachedNodeModules)) {
-      return cachedNodeModules;
+      try {
+        const stat = fsSync.lstatSync(cachedNodeModules);
+        if (stat.isSymbolicLink()) {
+          const linkTarget = fsSync.readlinkSync(cachedNodeModules);
+          if (linkTarget.includes(".app/") || linkTarget.includes("Resources/backend/templates")) {
+            console.log(`[ProjectManager] Removing read-only symlink in template cache: ${cachedNodeModules} -> ${linkTarget}`);
+            fsSync.unlinkSync(cachedNodeModules);
+          }
+        }
+      } catch {}
+
+      const esbuildPkgPath = path.join(cachedNodeModules, esbuildPlatformPkg);
+      if (fsSync.existsSync(cachedNodeModules) && fsSync.existsSync(esbuildPkgPath)) {
+        this.repairBinSymlinks(cachedNodeModules);
+        return cachedNodeModules;
+      }
+      console.log(`[ProjectManager] Template cache needs ${esbuildPlatformPkg} for ${process.platform}-${process.arch}, refreshing cache...`);
+      try {
+        fsSync.rmSync(cachedNodeModules, { recursive: true, force: true });
+      } catch {}
     }
 
     const templateSrc = path.join(this.templatesDir, templateName);
-    const srcPackageJson = path.join(templateSrc, "package.json");
+    const srcNodeModules = path.join(templateSrc, "node_modules");
+    const srcHasMatchingEsbuild = fsSync.existsSync(path.join(srcNodeModules, esbuildPlatformPkg));
 
+    // If pre-installed template node_modules exists and matches current host architecture, copy to user-writable cache
+    if (fsSync.existsSync(srcNodeModules) && srcHasMatchingEsbuild) {
+      try {
+        console.log(`[ProjectManager] Initializing writable template cache from ${srcNodeModules}...`);
+        await fs.mkdir(cachedTplDir, { recursive: true });
+        await this.copyDirRecursive(srcNodeModules, cachedNodeModules);
+        this.repairBinSymlinks(cachedNodeModules);
+        return cachedNodeModules;
+      } catch (err) {
+        console.warn(`[ProjectManager] Warning: failed to copy template node_modules to cache: ${err}`);
+      }
+    }
+
+    const srcPackageJson = path.join(templateSrc, "package.json");
     if (fsSync.existsSync(srcPackageJson)) {
       await fs.mkdir(cachedTplDir, { recursive: true });
       await fs.copyFile(srcPackageJson, path.join(cachedTplDir, "package.json"));
       console.log(`[ProjectManager] Installing template dependencies into cache (${cachedTplDir})...`);
-      const proc = Bun.spawn(["bun", "install"], {
+      const bunBinDir = path.dirname(process.execPath);
+      const augmentedPath = process.env.PATH?.includes(bunBinDir)
+        ? process.env.PATH
+        : `${bunBinDir}:${process.env.PATH || ""}`;
+      const proc = Bun.spawn([process.execPath, "install"], {
         cwd: cachedTplDir,
+        env: {
+          ...process.env as Record<string, string>,
+          PATH: augmentedPath,
+        },
         stdout: "inherit",
         stderr: "inherit",
       });
       await proc.exited;
+      this.repairBinSymlinks(cachedNodeModules);
     }
 
     return cachedNodeModules;
@@ -187,19 +236,30 @@ export class ProjectManager {
       await this.copyDirRecursive(templateSrc, projectDir, ["node_modules", ".git"]);
     }
 
-    // Link node_modules from cache for instant zero-install startup
+    // Link node_modules from user-writable cache for instant zero-install startup without read-only EROFS errors
     try {
+      const targetLink = path.join(projectDir, "node_modules");
       const cachedNodeModules = await this.ensureTemplateCache(template);
-      if (fsSync.existsSync(cachedNodeModules)) {
-        const targetLink = path.join(projectDir, "node_modules");
-        if (!fsSync.existsSync(targetLink)) {
+      if (!fsSync.existsSync(targetLink)) {
+        if (fsSync.existsSync(cachedNodeModules) && !fsSync.existsSync(targetLink)) {
           await fs.symlink(cachedNodeModules, targetLink, "junction");
         }
+      } else {
+        // If targetLink is a broken symlink, heal it
+        try {
+          const stat = fsSync.lstatSync(targetLink);
+          if (stat.isSymbolicLink()) {
+            const linkTarget = fsSync.readlinkSync(targetLink);
+            if (!fsSync.existsSync(linkTarget) || !fsSync.existsSync(targetLink)) {
+              fsSync.unlinkSync(targetLink);
+              await fs.symlink(cachedNodeModules, targetLink, "junction");
+            }
+          }
+        } catch {}
       }
     } catch (err) {
       console.warn(`[ProjectManager] Warning: failed to symlink template node_modules: ${err}`);
     }
-
     const now = new Date().toISOString();
     const project: ProjectInfo = {
       name: validatedName,
@@ -330,19 +390,120 @@ export class ProjectManager {
   }
 
   private async copyDirRecursive(src: string, dest: string, exclude: string[] = []): Promise<void> {
-    await fs.mkdir(dest, { recursive: true });
-    const entries = await fs.readdir(src, { withFileTypes: true });
+    try {
+      await fs.cp(src, dest, {
+        recursive: true,
+        verbatimSymlinks: true,
+        filter: (sourcePath) => {
+          const name = path.basename(sourcePath);
+          return !exclude.includes(name);
+        },
+      });
+    } catch {
+      await fs.mkdir(dest, { recursive: true });
+      const entries = await fs.readdir(src, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (exclude.includes(entry.name)) continue;
-      const srcPath = path.join(src, entry.name);
-      const destPath = path.join(dest, entry.name);
+      for (const entry of entries) {
+        if (exclude.includes(entry.name)) continue;
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
 
-      if (entry.isDirectory()) {
-        await this.copyDirRecursive(srcPath, destPath, exclude);
-      } else {
-        await fs.copyFile(srcPath, destPath);
+        if (entry.isDirectory()) {
+          await this.copyDirRecursive(srcPath, destPath, exclude);
+        } else if (entry.isSymbolicLink()) {
+          try {
+            const linkTarget = await fs.readlink(srcPath);
+            await fs.symlink(linkTarget, destPath);
+          } catch {
+            await fs.copyFile(srcPath, destPath);
+          }
+        } else {
+          await fs.copyFile(srcPath, destPath);
+        }
       }
+    }
+  }
+
+  private repairBinSymlinks(nodeModulesDir: string): void {
+    try {
+      const binDir = path.join(nodeModulesDir, ".bin");
+      if (!fsSync.existsSync(binDir)) return;
+
+      // Dynamically discover all declared binaries across all packages in node_modules
+      const discoveredBins: Record<string, string> = {
+        vite: "../vite/bin/vite.js",
+        esbuild: "../esbuild/bin/esbuild",
+        tailwindcss: "../tailwindcss/lib/cli.js",
+        concurrently: "../concurrently/dist/bin/concurrently.js",
+      };
+
+      try {
+        const topEntries = fsSync.readdirSync(nodeModulesDir, { withFileTypes: true });
+        for (const entry of topEntries) {
+          if (entry.name.startsWith(".")) continue;
+          if (entry.isDirectory()) {
+            if (entry.name.startsWith("@")) {
+              try {
+                const subEntries = fsSync.readdirSync(path.join(nodeModulesDir, entry.name), { withFileTypes: true });
+                for (const sub of subEntries) {
+                  if (!sub.isDirectory()) continue;
+                  const pkgJsonPath = path.join(nodeModulesDir, entry.name, sub.name, "package.json");
+                  if (fsSync.existsSync(pkgJsonPath)) {
+                    const parsed = JSON.parse(fsSync.readFileSync(pkgJsonPath, "utf-8"));
+                    if (parsed.bin) {
+                      const binMap = typeof parsed.bin === "string" ? { [parsed.name?.split("/").pop() || sub.name]: parsed.bin } : parsed.bin;
+                      for (const [binName, binRel] of Object.entries(binMap)) {
+                        discoveredBins[binName] = path.join("..", entry.name, sub.name, String(binRel));
+                      }
+                    }
+                  }
+                }
+              } catch {}
+            } else {
+              const pkgJsonPath = path.join(nodeModulesDir, entry.name, "package.json");
+              if (fsSync.existsSync(pkgJsonPath)) {
+                try {
+                  const parsed = JSON.parse(fsSync.readFileSync(pkgJsonPath, "utf-8"));
+                  if (parsed.bin) {
+                    const binMap = typeof parsed.bin === "string" ? { [entry.name]: parsed.bin } : parsed.bin;
+                    for (const [binName, binRel] of Object.entries(binMap)) {
+                      discoveredBins[binName] = path.join("..", entry.name, String(binRel));
+                    }
+                  }
+                } catch {}
+              }
+            }
+          }
+        }
+      } catch {}
+
+      // Ensure every binary in .bin is a working relative symbolic link
+      for (const [name, relTarget] of Object.entries(discoveredBins)) {
+        const targetFile = path.resolve(binDir, relTarget);
+        if (fsSync.existsSync(targetFile)) {
+          const bFile = path.join(binDir, name);
+          let needsFix = true;
+          if (fsSync.existsSync(bFile)) {
+            try {
+              const stat = fsSync.lstatSync(bFile);
+              if (stat.isSymbolicLink()) {
+                const currentLink = fsSync.readlinkSync(bFile);
+                if (currentLink === relTarget) {
+                  needsFix = false;
+                }
+              }
+            } catch {}
+          }
+          if (needsFix) {
+            try { fsSync.rmSync(bFile, { force: true }); } catch {}
+            try {
+              fsSync.symlinkSync(relTarget, bFile);
+            } catch {}
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[ProjectManager] Warning: failed to repair .bin symlinks: ${err}`);
     }
   }
   private resolveSafePath(projectRoot: string, relativePath: string): string {

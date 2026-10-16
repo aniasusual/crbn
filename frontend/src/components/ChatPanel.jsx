@@ -143,10 +143,9 @@ export default function ChatPanel({
   const scrollContainerRef = useRef(null);
   const isUserScrolledRef = useRef(false);
 
-  const currentModelObj = models.find((m) => m.id === selectedModel || m.canonical_id === selectedModel) || {
-    name: selectedModel || 'gemini-3.8-flash',
-    compatibility_label: 'Optimal',
-  };
+  const currentModelObj = models.find((m) => m.id === selectedModel || m.canonical_id === selectedModel) || (
+    selectedModel ? { name: selectedModel, compatibility_label: 'Optimal' } : null
+  );
 
   const handleOpenSubagent = (msg) => {
     if (msg && isSubagentTool(msg.name)) {
@@ -223,6 +222,14 @@ export default function ChatPanel({
     const hasContent = input.trim() || attachments.length > 0;
     if (!hasContent || !isConnected || isAgentRunning) return;
 
+    // Guard: ensure selected model belongs to an authenticated provider
+    const isModelAuth = models.some(
+      (m) => (m.canonical_id === selectedModel || m.id === selectedModel) && (m.has_auth || m.installed)
+    );
+    if (models.length > 0 && (!selectedModel || !isModelAuth)) {
+      setIsModelSelectorOpen(true);
+      return;
+    }
     const images = attachments
       .filter((a) => a.type === 'image')
       .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
@@ -550,7 +557,7 @@ export default function ChatPanel({
               >
                 <span className="chat-panel__model-pill-icon">✦</span>
                 <span className="chat-panel__model-name">
-                  {currentModelObj.name || selectedModel}
+                  {currentModelObj?.name || selectedModel || 'Select a model...'}
                 </span>
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="6 9 12 15 18 9"></polyline>
