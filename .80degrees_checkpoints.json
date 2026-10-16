@@ -16,7 +16,15 @@
       "prompt": "Say hello",
       "timestamp": "2026-10-16T14:23:04.877Z",
       "entry_id": "704f28e8"
+    },
+    {
+      "step_id": "step_1792160609935",
+      "step_number": 2,
+      "commit_hash": "4ebf793ff6c3d845053c553fc45c51f9ba795a81",
+      "prompt": "Say hello",
+      "timestamp": "2026-10-16T14:23:29.935Z",
+      "entry_id": "5f0b7ca1"
     }
   ],
-  "updated_at": "2026-10-16T14:23:04.918Z"
+  "updated_at": "2026-10-16T14:23:29.976Z"
 }

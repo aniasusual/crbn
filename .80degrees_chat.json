@@ -1,8 +1,8 @@
 {
   "version": 3,
   "project_name": "crbn",
-  "created_at": "2026-10-16T14:23:29.935Z",
-  "updated_at": "2026-10-16T14:23:29.935Z",
+  "created_at": "2026-10-16T14:23:30.597Z",
+  "updated_at": "2026-10-16T14:23:30.597Z",
   "active_branch": "main",
   "branches": {
     "main": [
@@ -26,12 +26,19 @@
         "role": "assistant",
         "content": "⚠️ **Model Error**: Cloud Code Assist API error (404): {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
         "is_error": true,
-        "timestamp": "2026-10-16T14:23:29.853Z"
+        "timestamp": "2026-10-16T14:23:29.853Z",
+        "step_id": "step_1792160609935"
+      },
+      {
+        "role": "assistant",
+        "content": "⚠️ **Model Error**: Cloud Code Assist API error (404): {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+        "is_error": true,
+        "timestamp": "2026-10-16T14:23:30.536Z"
       },
       {
         "role": "user",
         "content": "Say hello",
-        "timestamp": "2026-10-16T14:23:29.935Z"
+        "timestamp": "2026-10-16T14:23:30.597Z"
       }
     ]
   },
@@ -56,12 +63,19 @@
       "role": "assistant",
       "content": "⚠️ **Model Error**: Cloud Code Assist API error (404): {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
       "is_error": true,
-      "timestamp": "2026-10-16T14:23:29.853Z"
+      "timestamp": "2026-10-16T14:23:29.853Z",
+      "step_id": "step_1792160609935"
+    },
+    {
+      "role": "assistant",
+      "content": "⚠️ **Model Error**: Cloud Code Assist API error (404): {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+      "is_error": true,
+      "timestamp": "2026-10-16T14:23:30.536Z"
     },
     {
       "role": "user",
       "content": "Say hello",
-      "timestamp": "2026-10-16T14:23:29.935Z"
+      "timestamp": "2026-10-16T14:23:30.597Z"
     }
   ]
 }
