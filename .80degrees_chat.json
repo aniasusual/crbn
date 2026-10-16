@@ -1,8 +1,8 @@
 {
   "version": 3,
   "project_name": "crbn",
-  "created_at": "2026-10-16T14:43:36.538Z",
-  "updated_at": "2026-10-16T14:43:36.538Z",
+  "created_at": "2026-10-16T14:43:38.985Z",
+  "updated_at": "2026-10-16T14:43:38.985Z",
   "active_branch": "main",
   "branches": {
     "main": [
@@ -95,12 +95,18 @@
       {
         "role": "assistant",
         "content": "Hello. Ready when you are.",
-        "timestamp": "2026-10-16T14:43:36.469Z"
+        "timestamp": "2026-10-16T14:43:36.469Z",
+        "step_id": "step_1792161816538"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello.",
+        "timestamp": "2026-10-16T14:43:38.912Z"
       },
       {
         "role": "user",
         "content": "Say hello",
-        "timestamp": "2026-10-16T14:43:36.537Z"
+        "timestamp": "2026-10-16T14:43:38.985Z"
       }
     ]
   },
@@ -194,12 +200,18 @@
     {
       "role": "assistant",
       "content": "Hello. Ready when you are.",
-      "timestamp": "2026-10-16T14:43:36.469Z"
+      "timestamp": "2026-10-16T14:43:36.469Z",
+      "step_id": "step_1792161816538"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello.",
+      "timestamp": "2026-10-16T14:43:38.912Z"
     },
     {
       "role": "user",
       "content": "Say hello",
-      "timestamp": "2026-10-16T14:43:36.537Z"
+      "timestamp": "2026-10-16T14:43:38.985Z"
     }
   ]
 }
