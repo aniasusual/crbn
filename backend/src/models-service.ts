@@ -331,13 +331,22 @@ export class ModelsService {
       });
 
       // A. Models declared in static catalog
+      const DEAD_ANTIGRAVITY_MODELS = new Set([
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+        "gemini-3.1-pro",
+        "gemini-3.6-flash",
+        "gemini-3.7-flash",
+        "gemini-3-flash",
+      ]);
+
       for (const mId in rawJsonModels) {
         const m = rawJsonModels[mId];
+        if (pid === "google-antigravity" && DEAD_ANTIGRAVITY_MODELS.has(m.id)) continue;
         const canonicalId = `${pid}/${m.id}`;
         if (seenModelCanonicalIds.has(canonicalId)) continue;
         seenModelCanonicalIds.add(canonicalId);
         providerModelCount++;
-
         const isVision = Array.isArray(m.input) && m.input.includes("image");
         const contextTokens = m.contextWindow || 128_000;
         const formattedContext = formatContext(m.contextWindow);
@@ -345,8 +354,14 @@ export class ModelsService {
         modelList.push({
           id: m.id,
           canonical_id: canonicalId,
-          name: m.name || m.id,
-          provider: pid,
+          name:
+            pid === "google-antigravity" && m.id === "claude-opus-4-6"
+              ? "Claude Opus 4.6 (Thinking)"
+              : pid === "google-antigravity" && m.id === "claude-sonnet-4-6"
+              ? "Claude Sonnet 4.6 (Thinking)"
+              : pid === "google-antigravity" && m.id === "gpt-oss-120b"
+              ? "GPT-OSS 120B (Medium)"
+              : m.name || m.id,
           provider_label: label,
           context_length: formattedContext,
           context_tokens: contextTokens,
@@ -372,11 +387,11 @@ export class ModelsService {
       // B. Models dynamically registered in ModelRegistry not present in static JSON
       const regModelsForP = registryModels.filter((m) => m.provider === pid);
       for (const rm of regModelsForP) {
+        if (pid === "google-antigravity" && DEAD_ANTIGRAVITY_MODELS.has(rm.id)) continue;
         const canonicalId = `${pid}/${rm.id}`;
         if (seenModelCanonicalIds.has(canonicalId)) continue;
         seenModelCanonicalIds.add(canonicalId);
         providerModelCount++;
-
         const isVision = Array.isArray(rm.input) && rm.input.includes("image");
         const contextTokens = rm.contextWindow || 128_000;
         const formattedContext = formatContext(rm.contextWindow);

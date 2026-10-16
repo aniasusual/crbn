@@ -617,6 +617,19 @@ export class SessionBridge {
           errText.includes("authentication")
         ) {
           friendlyNotice = `⚠️ **Authentication Required**\n\n${errText}\n\n👉 **To fix this**: Open the **Model Selector** (✦) and either connect your provider with OAuth (Claude, ChatGPT, Copilot) or enter an API key, or switch to an authenticated model.`;
+        } else if (
+          errText.includes("Individual quota reached") ||
+          errText.includes("QUOTA_EXHAUSTED") ||
+          (errText.includes("429") && errText.includes("Cloud Code Assist"))
+        ) {
+          const matchReset = errText.match(/Resets in ([^."\n]+)/);
+          const resetNotice = matchReset ? ` (resets in ${matchReset[1]})` : "";
+          friendlyNotice = `⚠️ **Google Antigravity Quota Limit Reached**\n\nYour weekly quota for third-party models (Claude / GPT) on Google Antigravity has been exhausted${resetNotice}.\n\n👉 **To fix this**: Switch to **Gemini 3.8 Flash** or **Gemini 2.5 Flash** (which have active quota), or connect directly with an Anthropic / OpenAI API key in the Model Selector (✦).`;
+        } else if (
+          errText.includes("No capacity available for model") ||
+          (errText.includes("503") && errText.includes("Cloud Code Assist"))
+        ) {
+          friendlyNotice = `⚠️ **Google Antigravity Server Busy**\n\nGoogle's Antigravity server is temporarily out of capacity for this model.\n\n👉 **To fix this**: Switch to **Gemini 3.8 Flash** (active & available) in the Model Selector (✦).`;
         } else {
           friendlyNotice = `⚠️ **Agent Error**\n\n${errText}`;
         }
