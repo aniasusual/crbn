@@ -12,7 +12,7 @@ dist-electron/
 
 # Local test & template runtime caches
 .80degrees/
-
+.80degrees_*.json
 # Native binary artifacts
 *.node
 backend/native/
