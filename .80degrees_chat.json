@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "project_name": "crbn",
+  "created_at": "2026-10-16T14:23:04.877Z",
+  "updated_at": "2026-10-16T14:23:04.877Z",
+  "active_branch": "main",
+  "branches": {
+    "main": [
+      {
+        "role": "user",
+        "content": "Say hello",
+        "timestamp": "2026-10-16T14:23:00.661Z"
+      },
+      {
+        "role": "assistant",
+        "content": "Hello. How can I assist you with the project today?",
+        "timestamp": "2026-10-16T14:23:04.805Z"
+      }
+    ]
+  },
+  "ui_events": [
+    {
+      "role": "user",
+      "content": "Say hello",
+      "timestamp": "2026-10-16T14:23:00.661Z"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello. How can I assist you with the project today?",
+      "timestamp": "2026-10-16T14:23:04.805Z"
+    }
+  ]
+}
