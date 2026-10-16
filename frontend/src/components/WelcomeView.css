@@ -1024,80 +1024,96 @@
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
 }
 
-/* Target Repo Banner in Composer */
+/* Target Repo Banner in Composer: Minimalist Liquid Glass */
 .degrees-composer--has-target {
-  border-color: rgba(56, 189, 248, 0.35) !important;
+  box-shadow: 
+    0 32px 72px -14px rgba(0, 0, 0, 0.8),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 0 24px 0 rgba(255, 255, 255, 0.03);
 }
 
 .degrees-composer__target-ribbon {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(56, 189, 248, 0.07);
-  border-bottom: 1px solid rgba(56, 189, 248, 0.15);
-  padding: 7px 14px;
-  border-top-left-radius: 14px;
-  border-top-right-radius: 14px;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 20px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-sizing: border-box;
 }
 
 .degrees-composer__target-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   overflow: hidden;
+  min-width: 0;
+  flex: 1;
 }
 
 .degrees-composer__target-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 10px;
+  gap: 5px;
+  font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: rgba(56, 189, 248, 0.18);
-  color: #38bdf8;
-  padding: 2px 6px;
-  border-radius: 4px;
+  letter-spacing: 0.01em;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 3px 9px;
+  border-radius: 9999px;
   flex-shrink: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.degrees-composer__target-badge svg {
+  color: rgba(255, 255, 255, 0.75);
 }
 
 .degrees-composer__target-name {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: -0.01em;
 }
 
-.degrees-composer__target-branch {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  font-family: monospace;
-  flex-shrink: 0;
-}
 .degrees-composer__target-branch-wrap {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-  font-family: monospace;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: var(--font-mono, monospace);
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.06);
-  padding: 1px 6px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+}
+
+.degrees-composer__target-branch-wrap:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.degrees-composer__target-branch-wrap svg {
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .degrees-composer__target-branch-select {
   background: transparent;
   border: none;
-  color: #a78bfa;
+  color: #ffffff;
   font-size: 11px;
   font-family: inherit;
   font-weight: 500;
@@ -1107,12 +1123,13 @@
 }
 
 .degrees-composer__target-branch-select option {
-  background: #18181b;
+  background: #141418;
   color: #ffffff;
+  padding: 4px;
 }
 
 .degrees-composer__target-branch-text {
-  color: #a78bfa;
+  color: #ffffff;
   font-weight: 500;
 }
 
@@ -1121,31 +1138,56 @@
   font-size: 10px;
 }
 
-
 .degrees-composer__target-vis {
   font-size: 10px;
+  font-weight: 500;
   color: rgba(255, 255, 255, 0.45);
-  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
   flex-shrink: 0;
+}
+
+.degrees-composer__target-vis--private {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
 }
 
 .degrees-composer__deselect-btn {
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: none;
-  color: rgba(255, 255, 255, 0.5);
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.65);
   font-size: 11px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: all 0.12s ease;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  transition: all 0.14s ease;
   flex-shrink: 0;
+  font-family: inherit;
+  line-height: 1;
 }
 
 .degrees-composer__deselect-btn:hover {
-  color: #f87171;
-  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.18);
+  transform: scale(1.02);
 }
 
+.degrees-composer__deselect-btn svg {
+  opacity: 0.7;
+  transition: opacity 0.14s ease;
+}
+
+.degrees-composer__deselect-btn:hover svg {
+  opacity: 1;
+}
 /* Welcome Nav Tabs Switcher */
 .degrees-welcome-nav-tabs {
   display: inline-flex;

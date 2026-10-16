@@ -339,10 +339,7 @@ export default function WelcomeView({
 
   const currentModelObj = models.find(
     (m) => m.id === selectedModel || m.canonical_id === selectedModel
-  ) || {
-    name: selectedModel || 'gemini-3.8-flash',
-    compatibility_label: 'Optimal',
-  };
+  ) || (selectedModel ? { name: selectedModel, compatibility_label: 'Optimal' } : null);
 
   const handleDeleteProject = async (arg1, arg2) => {
     const e = (arg1 && typeof arg1 === 'object' && 'stopPropagation' in arg1) ? arg1 : ((arg2 && typeof arg2 === 'object' && 'stopPropagation' in arg2) ? arg2 : null);
@@ -377,6 +374,12 @@ export default function WelcomeView({
     const value = prompt.trim();
     if (!value && attachments.length === 0 && !selectedRepo) return;
 
+    // Guard: ensure the user has configured at least one authenticated model
+    const hasAnyAuth = models.some((m) => Boolean(m.has_auth || m.installed));
+    if (!hasAnyAuth) {
+      setIsModelSelectorOpen(true);
+      return;
+    }
     // Case 1: Building on a selected GitHub repository
     if (selectedRepo) {
       const images = attachments
@@ -445,7 +448,7 @@ export default function WelcomeView({
             <div className="degrees-welcome__ascii-frame">
               <AsciiEffect
                 variant="flow"
-                imageSrc="/images/portrait.jpg"
+                imageSrc="./images/portrait.jpg"
                 fontSize={5}
                 flowSpeed={0.22}
                 flowStrength={12}
@@ -509,7 +512,7 @@ export default function WelcomeView({
             <header className="degrees-welcome__header">
               <div className="degrees-logo-container">
                 <img
-                  src="/logo-white.png"
+                  src="./logo-white.png"
                   alt="crbn"
                   className="degrees-logo-img"
                 />
@@ -564,9 +567,12 @@ export default function WelcomeView({
                   <div className="degrees-composer__target-ribbon">
                     <div className="degrees-composer__target-left">
                       <span className="degrees-composer__target-badge">
-                        <GitHubIcon size={12} /> Target Repo
+                        <GitHubIcon size={12} />
+                        <span>Target Repo</span>
                       </span>
-                      <span className="degrees-composer__target-name">{selectedRepo.full_name}</span>
+                      <span className="degrees-composer__target-name" title={selectedRepo.full_name}>
+                        {selectedRepo.full_name}
+                      </span>
                       <div className="degrees-composer__target-branch-wrap" title="Select branch to build on">
                         <BranchIcon />
                         {isLoadingBranches ? (
@@ -587,7 +593,11 @@ export default function WelcomeView({
                           <span className="degrees-composer__target-branch-text">{selectedBranch}</span>
                         )}
                       </div>
-                      <span className="degrees-composer__target-vis">
+                      <span
+                        className={`degrees-composer__target-vis ${
+                          selectedRepo.private ? 'degrees-composer__target-vis--private' : ''
+                        }`}
+                      >
                         {selectedRepo.private ? 'Private' : 'Public'}
                       </span>
                     </div>
@@ -596,8 +606,13 @@ export default function WelcomeView({
                       className="degrees-composer__deselect-btn"
                       onClick={() => setSelectedRepo(null)}
                       title="Deselect repository (build new from scratch)"
+                      aria-label="Clear target repository"
                     >
-                      ✕ Clear target
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                      <span>Clear target</span>
                     </button>
                   </div>
                 )}
@@ -654,7 +669,7 @@ export default function WelcomeView({
                     >
                       <span className="degrees-model-pill__icon">✦</span>
                       <span className="degrees-model-pill__name">
-                        {currentModelObj.name || selectedModel}
+                        {currentModelObj?.name || selectedModel || 'Select a model...'}
                       </span>
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="6 9 12 15 18 9"></polyline>
@@ -945,7 +960,7 @@ export default function WelcomeView({
             <div className="degrees-naming-card">
             <div className="degrees-logo-container degrees-logo-container--naming">
               <img
-                src="/logo-white.png"
+                src="./logo-white.png"
                 alt="crbn"
                 className="degrees-logo-img degrees-logo-img--small"
               />

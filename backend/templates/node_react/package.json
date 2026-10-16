@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k -n \"api,web\" -c \"yellow,cyan\" \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:backend": "node --watch server/index.js",
+    "dev": "concurrently -k -n \"api,web\" -c \"yellow,cyan\" \"bun run dev:backend\" \"bun run dev:frontend\"",
+    "dev:backend": "bun --watch server/index.js",
     "dev:frontend": "vite",
     "build": "vite build",
     "preview": "vite preview"

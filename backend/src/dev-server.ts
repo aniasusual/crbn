@@ -1,7 +1,7 @@
 import type { Subprocess } from "bun";
 import * as path from "node:path";
 import * as fsSync from "node:fs";
-
+import * as os from "node:os";
 export interface DevServerInfo {
   port: number;
   url: string;
@@ -19,6 +19,37 @@ export type PreviewEventCallback = (event: {
   backend_url?: string | null;
   project_path?: string;
 }) => void;
+
+function killSubprocessTree(proc?: Subprocess | null): void {
+  if (!proc) return;
+  const pid = proc.pid;
+  try {
+    proc.kill();
+  } catch {}
+
+  if (pid && pid > 0) {
+    if (process.platform === "win32") {
+      try {
+        Bun.spawnSync(["taskkill", "/pid", String(pid), "/T", "/F"]);
+      } catch {}
+    } else {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {}
+      try {
+        process.kill(-pid, "SIGTERM");
+      } catch {}
+      setTimeout(() => {
+        try {
+          process.kill(pid, "SIGKILL");
+        } catch {}
+        try {
+          process.kill(-pid, "SIGKILL");
+        } catch {}
+      }, 500);
+    }
+  }
+}
 
 export class DevServerManager {
   private activeServers = new Map<string, {
@@ -106,16 +137,19 @@ export class DevServerManager {
   }
 
   detectBackendCommand(resolvedPath: string, scripts: Record<string, string>): string[] | null {
+    const directServer = path.join(resolvedPath, "server", "index.js");
+    if (fsSync.existsSync(directServer)) {
+      return [process.execPath, "--watch", "server/index.js"];
+    }
     if (scripts["dev:backend"]) {
-      return ["bun", "run", "dev:backend"];
+      return [process.execPath, "run", "dev:backend"];
     }
     if (scripts["server"]) {
-      return ["bun", "run", "server"];
+      return [process.execPath, "run", "server"];
     }
     if (scripts["api"]) {
-      return ["bun", "run", "api"];
+      return [process.execPath, "run", "api"];
     }
-
     const candidateFiles = [
       "server/index.js",
       "server/index.ts",
@@ -129,7 +163,7 @@ export class DevServerManager {
     for (const rel of candidateFiles) {
       const full = path.join(resolvedPath, rel);
       if (fsSync.existsSync(full)) {
-        return ["bun", "--watch", rel];
+        return [process.execPath, "--watch", rel];
       }
     }
 
@@ -185,8 +219,13 @@ export class DevServerManager {
 
     console.log(`[DevServerManager] Starting frontend for ${resolvedPath} on port ${targetPort}...`);
 
+    const bunBinDir = path.dirname(process.execPath);
+    const projectBinDir = path.join(resolvedPath, "node_modules", ".bin");
+    const augmentedPath = [projectBinDir, bunBinDir, process.env.PATH || ""].filter(Boolean).join(path.delimiter);
+
     const frontendEnv: Record<string, string> = {
       ...process.env as Record<string, string>,
+      PATH: augmentedPath,
       PORT: String(targetPort),
       VITE_PORT: String(targetPort),
     };
@@ -195,8 +234,15 @@ export class DevServerManager {
       frontendEnv.VITE_BACKEND_PORT = String(backendPort);
     }
 
-    // Launch frontend dev server using bun
-    const frontendProc = Bun.spawn(["bun", "run", frontendScript], {
+    // Launch frontend dev server: prefer project vite.js directly or run project dev script with explicit port
+    const directViteJs = path.join(resolvedPath, "node_modules", "vite", "bin", "vite.js");
+    let frontendCmd: string[];
+    if (fsSync.existsSync(directViteJs)) {
+      frontendCmd = [process.execPath, directViteJs, "--port", String(targetPort), "--strictPort"];
+    } else {
+      frontendCmd = [process.execPath, "run", frontendScript, "--", "--port", String(targetPort), "--strictPort"];
+    }
+    const frontendProc = Bun.spawn(frontendCmd, {
       cwd: resolvedPath,
       env: frontendEnv,
       stdout: "pipe",
@@ -212,6 +258,7 @@ export class DevServerManager {
           cwd: resolvedPath,
           env: {
             ...process.env as Record<string, string>,
+            PATH: augmentedPath,
             PORT: String(backendPort),
             BACKEND_PORT: String(backendPort),
           },
@@ -234,6 +281,22 @@ export class DevServerManager {
 
     this.activeServers.set(resolvedPath, { frontendProc, backendProc, info });
 
+    let emittedReady = false;
+    const emitReady = (port: number) => {
+      if (emittedReady) return;
+      emittedReady = true;
+      info.port = port;
+      info.url = `http://127.0.0.1:${port}`;
+      this.emit({
+        type: "preview_ready",
+        port: info.port,
+        url: info.url,
+        backend_port: info.backend_port,
+        backend_url: info.backend_url,
+        project_path: resolvedPath,
+      });
+    };
+
     // Stream frontend logs and detect ready URL
     (async () => {
       const reader = frontendProc.stdout.getReader();
@@ -251,19 +314,7 @@ export class DevServerManager {
           const match = /(?:http:\/\/(?:localhost|127\.0\.0\.1):)(\d+)/.exec(buffer);
           if (match) {
             const detectedPort = parseInt(match[1], 10);
-            if (detectedPort !== targetPort) {
-              targetPort = detectedPort;
-              info.port = detectedPort;
-              info.url = `http://127.0.0.1:${detectedPort}`;
-            }
-            this.emit({
-              type: "preview_ready",
-              port: info.port,
-              url: info.url,
-              backend_port: info.backend_port,
-              backend_url: info.backend_url,
-              project_path: resolvedPath,
-            });
+            emitReady(detectedPort);
             break;
           }
         }
@@ -272,19 +323,35 @@ export class DevServerManager {
       }
     })();
 
-    // Always emit ready fallback after 1.5 seconds if process is still alive
-    setTimeout(() => {
-      if (this.activeServers.has(resolvedPath)) {
-        this.emit({
-          type: "preview_ready",
-          port: info.port,
-          url: info.url,
-          backend_port: info.backend_port,
-          backend_url: info.backend_url,
-          project_path: resolvedPath,
-        });
+    // Stream frontend stderr for error visibility
+    (async () => {
+      try {
+        const errReader = frontendProc.stderr.getReader();
+        const decoder = new TextDecoder();
+        while (true) {
+          const { done, value } = await errReader.read();
+          if (done) break;
+          const errText = decoder.decode(value, { stream: true });
+          if (errText.includes("error") || errText.includes("failed") || errText.includes("Port")) {
+            console.warn(`[DevServerManager] [${path.basename(resolvedPath)} stderr]:`, errText.trim());
+          }
+        }
+      } catch {}
+    })();
+
+    // Actively poll until port is listening or detected via stdout
+    (async () => {
+      const startTime = Date.now();
+      const maxWaitMs = 10000;
+      while (Date.now() - startTime < maxWaitMs && !emittedReady) {
+        if (!this.activeServers.has(resolvedPath)) break;
+        if (await this.isPortListening(info.port)) {
+          emitReady(info.port);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 250));
       }
-    }, 1500);
+    })();
 
     return info;
   }
@@ -348,17 +415,20 @@ export class DevServerManager {
       if (needsFrontendProxySync) {
         const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
         if (frontendScript) {
-          try {
-            entry.frontendProc.kill();
-          } catch {}
+          killSubprocessTree(entry.frontendProc);
+          const bunBinDir = path.dirname(process.execPath);
+          const augmentedPath = process.env.PATH?.includes(bunBinDir)
+            ? process.env.PATH
+            : `${bunBinDir}:${process.env.PATH || ""}`;
           const frontendEnv: Record<string, string> = {
             ...process.env as Record<string, string>,
+            PATH: augmentedPath,
             PORT: String(entry.info.port),
             VITE_PORT: String(entry.info.port),
             BACKEND_PORT: String(backendPort),
             VITE_BACKEND_PORT: String(backendPort),
           };
-          const newFrontendProc = Bun.spawn(["bun", "run", frontendScript], {
+          const newFrontendProc = Bun.spawn([process.execPath, "run", frontendScript], {
             cwd: resolvedPath,
             env: frontendEnv,
             stdout: "pipe",
@@ -417,18 +487,10 @@ export class DevServerManager {
     const entry = this.activeServers.get(resolvedPath);
     if (!entry) return;
 
-    try {
-      entry.frontendProc.kill();
-    } catch {
-      // Process might already be dead
-    }
+    killSubprocessTree(entry.frontendProc);
 
     if (entry.backendProc) {
-      try {
-        entry.backendProc.kill();
-      } catch {
-        // Backend process might already be dead
-      }
+      killSubprocessTree(entry.backendProc);
     }
 
     this.activeServers.delete(resolvedPath);

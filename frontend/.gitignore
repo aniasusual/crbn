@@ -16,6 +16,15 @@ node_modules/
 dist/
 dist-ssr/
 build/
+release/
+dist-electron/
+builder-debug.yml
+builder-effective-config.yaml
+*.dmg
+*.blockmap
+*.AppImage
+*.exe
+resources/bin/
 *.local
 
 # Environment variables

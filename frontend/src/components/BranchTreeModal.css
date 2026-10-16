@@ -1,20 +1,20 @@
 /* ==========================================================================
-   BranchTreeModal (Graph Data Structure Tree)
-   Headless UI Dialog: Simple, solid dark, elegant, borderless, zero box shadows
+   BranchTreeModal
+   Minimalist Liquid Glass (Pure Black Background, No Borders, No Shadows)
    ========================================================================== */
 
 .branch-dialog-root {
   position: relative;
-  z-index: 100000;
+  z-index: 50;
 }
 
 .branch-dialog-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: opacity 0.16s ease-out;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 0.18s ease-out;
 }
 
 .branch-dialog-backdrop[data-closed] {
@@ -24,125 +24,134 @@
 .branch-dialog-wrap {
   position: fixed;
   inset: 0;
-  z-index: 100001;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 18px;
-  overflow-y: auto;
+  padding: 1.5rem;
+  pointer-events: none;
 }
 
+/* Modal Panel Container: Translucent Liquid Glass */
 .branch-dialog-panel {
-  position: relative;
-  width: min(1080px, 88vw);
-  height: 78vh;
-  max-height: 78vh;
+  pointer-events: auto;
+  width: min(1120px, 92vw);
+  height: 82vh;
+  max-height: 84vh;
   display: flex;
   flex-direction: column;
-  background: #000000;
-  border-radius: 14px;
-  border: 1px solid rgba(210, 215, 225, 0.32);
-  box-shadow: 0 0 0 1px rgba(192, 192, 192, 0.12), 0 24px 64px -12px rgba(0, 0, 0, 0.95);
+  background: rgba(12, 12, 16, 0.65);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: none;
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 30px 80px rgba(0, 0, 0, 0.5);
+  color: #f4f4f5;
   overflow: hidden;
-  color: #f1f5f9;
   user-select: none;
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.16s ease-out;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .branch-dialog-panel[data-closed] {
   opacity: 0;
-  transform: scale(0.98) translateY(3px);
+  transform: scale(0.97) translateY(8px);
 }
 
 /* Header */
 .branch-tree__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 18px 22px 14px 22px;
+  padding: 1.75rem 1.75rem 0.625rem 1.75rem;
+  border: none;
   background: transparent;
-  border-bottom: 1px solid rgba(210, 215, 225, 0.14);
-  box-shadow: none;
   flex-shrink: 0;
 }
 
 .branch-tree__header-left {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0.3rem;
 }
 
 .branch-tree__title-row {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 0.625rem;
+  flex-wrap: wrap;
 }
 
 .branch-tree__title {
-  font-size: 15px;
+  margin: 0;
+  font-size: 1.25rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: #ffffff;
 }
 
 .branch-tree__active-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 7px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  border-radius: 5px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 11px;
-  font-family: monospace;
+  gap: 0.3125rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
   font-weight: 500;
+  padding: 0.1875rem 0.5625rem;
+  border: none;
+  box-shadow: none;
+  line-height: 1.2;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .branch-tree__active-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #38bdf8;
-  box-shadow: none;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: currentColor;
 }
 
 .branch-tree__subtitle {
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
 }
 
 .branch-tree__close-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.5);
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: all 0.15s ease;
 }
 
 .branch-tree__close-btn:hover {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(210, 215, 225, 0.3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.05);
 }
 
-/* Nav Bar / Legend */
+/* Nav Bar / Legend: Glassmorphic Pills */
 .branch-tree__nav-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 7px 22px;
-  background: rgba(0, 0, 0, 0.3);
-  border-bottom: 1px solid rgba(210, 215, 225, 0.1);
+  padding: 0 1.75rem 0.75rem 1.75rem;
+  background: transparent;
+  border: none;
   box-shadow: none;
   flex-shrink: 0;
 }
@@ -150,23 +159,31 @@
 .branch-tree__nav-legend {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .branch-tree__legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 0.1875rem 0.5625rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: none;
+  line-height: 1.2;
 }
 
 .branch-tree__legend-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
   flex-shrink: 0;
-  box-shadow: none;
 }
 
 /* Canvas Area */
@@ -174,7 +191,7 @@
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #000000;
+  background: rgba(0, 0, 0, 0.25);
   cursor: default;
 }
 
@@ -210,22 +227,24 @@
   transition: stroke 0.15s ease;
 }
 
-/* Node (Vertex) Card */
+/* Node (Vertex) Card: Borderless Glass Card */
 .branch-tree__node {
   position: absolute;
   width: 250px;
-  height: 94px;
-  background: rgba(255, 255, 255, 0.035);
+  height: 96px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   box-shadow: none;
-  padding: 11px 13px;
+  padding: 0.75rem 0.875rem;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   z-index: 2;
-  transition: background 0.14s ease;
+  transition: background-color 0.12s ease;
   cursor: grab;
 }
 
@@ -233,19 +252,19 @@
   cursor: grabbing !important;
   z-index: 100 !important;
   opacity: 0.95;
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.12) !important;
   box-shadow: none !important;
 }
 
 .branch-tree__node:hover:not(.branch-tree__node--dragging) {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.09);
   box-shadow: none;
   z-index: 10;
 }
 
 .branch-tree__node--active {
-  background: rgba(255, 255, 255, 0.07) !important;
-  box-shadow: none !important;
+  background: rgba(255, 255, 255, 0.09) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
 }
 
 /* Ports */
@@ -271,7 +290,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.4);
   border: none;
   box-shadow: none;
   z-index: 5;
@@ -282,39 +301,39 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
 .branch-tree__node-badge {
   display: inline-flex;
   align-items: center;
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 550;
   color: rgba(255, 255, 255, 0.8);
-  font-family: monospace;
+  font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .branch-tree__node-branch {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
   font-weight: 500;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-family: monospace;
+  padding: 0.125rem 0.4375rem;
+  border-radius: 9999px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
 }
 
 .branch-tree__node-hash {
-  font-family: monospace;
-  font-size: 9.5px;
-  color: rgba(255, 255, 255, 0.35);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.625rem;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .branch-tree__node-prompt {
-  font-size: 11px;
+  font-size: 0.75rem;
   line-height: 1.35;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.7);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -325,108 +344,208 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 0.375rem;
 }
 
-.branch-tree__node-action-btn {
-  background: rgba(255, 255, 255, 0.06);
-  border: none;
-  box-shadow: none;
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 10px;
-  font-weight: 500;
-  padding: 3px 7px;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
+.branch-tree__node-head-tag {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #4ade80;
 }
 
-.branch-tree__node-action-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-}
-
-.branch-tree__node-action-btn--primary {
-  background: #ffffff;
-  color: #0b0c11;
-  font-weight: 550;
-}
-
-.branch-tree__node-action-btn--primary:hover {
-  background: #e5e7eb;
-}
-
-/* Branch Drawer */
-.branch-tree__branch-input-box {
+.branch-tree__node-actions {
   display: flex;
   align-items: center;
-  gap: 5px;
-  width: 100%;
+  gap: 0.3125rem;
 }
 
-.branch-tree__branch-input {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.05);
+.branch-tree__btn-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  height: 1.5rem;
+  padding: 0 0.625rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
   border: none;
   box-shadow: none;
-  border-radius: 4px;
-  padding: 3px 6px;
-  color: #ffffff;
-  font-size: 10.5px;
-  outline: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
 }
 
-.branch-tree__branch-input:focus {
+.branch-tree__btn-switch:hover {
+  background: #ffffff;
+  transform: scale(1.02);
+}
+
+.branch-tree__btn-branch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  height: 1.5rem;
+  padding: 0 0.625rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  border: none;
+  box-shadow: none;
   background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.branch-tree__btn-branch:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+/* Inline Branch Creator overlay */
+.branch-tree__inline-form {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(14, 14, 18, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 14px;
+  padding: 0.625rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.375rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.branch-tree__inline-input {
+  height: 1.75rem;
+  width: 100%;
+  border-radius: 8px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.branch-tree__inline-input:focus {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.branch-tree__inline-btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.branch-tree__inline-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.5rem;
+  padding: 0 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  transition: all 0.12s ease;
+}
+
+.branch-tree__inline-cancel:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.branch-tree__inline-confirm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.5rem;
+  padding: 0 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
+  transition: all 0.12s ease;
+}
+
+.branch-tree__inline-confirm:hover:not(:disabled) {
+  background: #ffffff;
+}
+
+.branch-tree__inline-confirm:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Floating HUD Controls */
 .branch-tree__hud,
 .branch-tree__controls {
   position: absolute;
-  bottom: 16px;
-  right: 16px;
+  bottom: 1.25rem;
+  right: 1.25rem;
   display: flex;
   align-items: center;
-  gap: 5px;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(210, 215, 225, 0.25);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  padding: 4px 6px;
-  border-radius: 8px;
+  gap: 0.375rem;
+  background: rgba(14, 14, 18, 0.75);
+  backdrop-filter: blur(32px);
+  -webkit-backdrop-filter: blur(32px);
+  border: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 12px 36px rgba(0, 0, 0, 0.5);
+  padding: 0.3125rem 0.5rem;
+  border-radius: 9999px;
   z-index: 50;
   pointer-events: auto;
 }
+
 .branch-tree__hud-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.05);
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
   border: none;
   box-shadow: none;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 12px;
-  transition: background 0.12s ease, color 0.12s ease;
+  font-size: 0.875rem;
+  transition: all 0.12s ease;
 }
 
 .branch-tree__hud-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
+  transform: scale(1.05);
 }
 
 .branch-tree__hud-pct,
 .branch-tree__hud-zoom {
-  font-size: 11px;
-  font-family: monospace;
-  color: rgba(255, 255, 255, 0.65);
-  padding: 0 4px;
+  font-size: 0.6875rem;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 0 0.375rem;
   cursor: pointer;
   user-select: none;
   transition: color 0.12s ease;
@@ -439,33 +558,37 @@
 
 .branch-tree__hud-divider {
   width: 1px;
-  height: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 0 2px;
+  height: 0.875rem;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 0.125rem;
 }
 
 .branch-tree__hud-text-btn {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   border: none;
   box-shadow: none;
-  border-radius: 4px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 10.5px;
-  font-weight: 500;
-  padding: 3px 8px;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.6875rem;
+  font-weight: 550;
+  padding: 0.25rem 0.625rem;
+  height: 1.5rem;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: all 0.12s ease;
+  display: inline-flex;
+  align-items: center;
 }
 
 .branch-tree__hud-text-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
+
 .branch-tree__loading {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+  font-size: 0.8125rem;
 }

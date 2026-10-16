@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './McpConnectModal.css';
 
@@ -360,9 +360,9 @@ export default function McpConnectModal({
               </div>
               <div>
                 <DialogTitle className="mcp-dialog-title">Model Context Protocol</DialogTitle>
-                <p className="mcp-dialog-subtitle">
+                <Description className="mcp-dialog-subtitle">
                   Connect external tools, databases, and APIs {isGlobalScope ? 'globally across projects' : 'for this project'}.
-                </p>
+                </Description>
               </div>
             </div>
 
@@ -396,9 +396,12 @@ export default function McpConnectModal({
                 type="button"
                 className="mcp-dialog-close-btn"
                 onClick={onClose}
-                aria-label="Close modal"
+                aria-label="Close"
               >
-                ✕
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
               </button>
             </div>
           </div>
@@ -443,9 +446,16 @@ export default function McpConnectModal({
                 <div className="mcp-dialog-empty">Loading servers...</div>
               ) : servers.length === 0 ? (
                 <div className="mcp-dialog-empty">
-                  <div className="mcp-dialog-empty-icon">🔌</div>
-                  <h4>No MCP servers connected yet</h4>
-                  <p>
+                  <div className="mcp-dialog-empty-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22v-5"/>
+                      <path d="M9 8V2"/>
+                      <path d="M15 8V2"/>
+                      <path d="M18 8v5a6 6 0 0 1-12 0V8z"/>
+                    </svg>
+                  </div>
+                  <div className="mcp-dialog-empty-title">No MCP servers connected yet</div>
+                  <p className="mcp-dialog-empty-desc">
                     Add a server to give the coding agent tools like Web Fetch, SQLite, GitHub, or custom CLI commands.
                   </p>
                   <button

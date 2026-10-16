@@ -9,6 +9,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "allowArbitraryExtensions": true,
     "forceConsistentCasingInFileNames": true
   },
   "include": [

@@ -15,8 +15,23 @@ import {
   validateServerName,
 } from "../../pi-harness/packages/coding-agent/src/mcp/config-writer";
 import type { MCPServerConfig } from "../../pi-harness/packages/coding-agent/src/mcp/types";
-const PORT = Number(process.env.BACKEND_PORT || process.env.PORT || 8000);
+const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
+const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
+
+const bunBinDir = path.dirname(process.execPath);
+const home = os.homedir();
+const extraBinPaths = [
+  bunBinDir,
+  path.join(home, ".bun", "bin"),
+  "/opt/homebrew/bin",
+  "/usr/local/bin",
+  "/usr/bin",
+  "/bin",
+  process.platform === "win32" ? "C:\\Program Files\\Git\\cmd" : "",
+].filter(Boolean);
+const existingPaths = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+process.env.PATH = Array.from(new Set([...extraBinPaths, ...existingPaths])).join(path.delimiter);
 
 const devServerManager = new DevServerManager();
 const projectManager = new ProjectManager({ devServerManager });
@@ -58,6 +73,19 @@ const _server = Bun.serve<WsData>({
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
       return new Response(null, { headers: CORS_HEADERS });
+    }
+
+    // Liveness & health check for desktop process handshake
+    if (url.pathname === "/healthz" || url.pathname === "/api/healthz") {
+      return Response.json(
+        {
+          status: "ok",
+          port: _server.port,
+          uptime: process.uptime(),
+          pid: process.pid,
+        },
+        { headers: CORS_HEADERS }
+      );
     }
 
     // WebSocket upgrade
@@ -120,10 +148,51 @@ const _server = Bun.serve<WsData>({
         );
       }
     }
-    // Auth: List OAuth Providers
+    // Auth: Get Stored Credentials Summary
+    if (url.pathname === "/api/auth/credentials" && req.method === "GET") {
+      try {
+        const credentials = await modelsService.getCredentialsSummary();
+        return Response.json(credentials, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+    // Auth: Switch active authentication method (OAuth vs API Key)
+    if (url.pathname === "/api/auth/active-method" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { provider?: string; method?: "oauth" | "api_key" };
+        if (!body.provider || !body.method) {
+          return Response.json(
+            { detail: "Provider and method (oauth or api_key) are required" },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+        await modelsService.setActiveAuthMethod(body.provider, body.method);
+        return Response.json(
+          { status: "updated", provider: body.provider, method: body.method },
+          { headers: CORS_HEADERS },
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+    // Auth: List OAuth Providers (Dynamic, all 23 providers with categories & live status)
     if (url.pathname === "/api/auth/oauth/providers" && req.method === "GET") {
-      const providers = modelsService.oauthManager.getOAuthProviders();
-      return Response.json(providers, { headers: CORS_HEADERS });
+      try {
+        const providers = await modelsService.oauthManager.getOAuthProvidersDetailed();
+        return Response.json(providers, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
     }
 
     // Auth: Start OAuth Sign-in Flow
@@ -139,6 +208,23 @@ const _server = Bun.serve<WsData>({
           { projectId: body.projectId },
         );
         return Response.json(session, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Auth: Submit Response for Interactive OAuth Prompt (Paste-Code Flows)
+    if (url.pathname === "/api/auth/oauth/prompt" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { provider?: string; response?: string };
+        if (!body.provider || body.response === undefined) {
+          return Response.json({ detail: "Provider and response are required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const ok = modelsService.oauthManager.submitPromptResponse(body.provider, body.response);
+        return Response.json({ status: ok ? "submitted" : "no_pending_prompt", provider: body.provider }, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },
@@ -1079,7 +1165,7 @@ const _server = Bun.serve<WsData>({
 
             // Prefer explicit model > project persisted model > bridge active model
             const modelName = (data.model as string | undefined) || project.model || bridge.getActiveModel();
-            if (!project.model && modelName) {
+            if (modelName && project.model !== modelName) {
               project.model = modelName;
               projectManager.saveMeta(project).catch(() => {});
             }
@@ -1097,6 +1183,11 @@ const _server = Bun.serve<WsData>({
 
             // 2. Open project session (now devServerManager.getServerInfo has the real port & url)
             await bridge.openProject(project.path, modelName);
+            const activeCanonicalModel = bridge.getActiveModel();
+            if (activeCanonicalModel && project.model !== activeCanonicalModel) {
+              project.model = activeCanonicalModel;
+              projectManager.saveMeta(project).catch(() => {});
+            }
 
             activeBridges.set(projectName, bridge);
             ws.send(JSON.stringify({ type: "project_opened", project }));
@@ -1194,12 +1285,12 @@ const _server = Bun.serve<WsData>({
         const images = rawImages.filter(
           (item): item is { data: string; mimeType: string } => {
             return (
-              Boolean(item) &&
+              item !== null &&
               typeof item === "object" &&
               "data" in item &&
-              typeof item.data === "string" &&
+              typeof (item as Record<string, unknown>).data === "string" &&
               "mimeType" in item &&
-              typeof item.mimeType === "string"
+              typeof (item as Record<string, unknown>).mimeType === "string"
             );
           }
         );
@@ -1207,12 +1298,12 @@ const _server = Bun.serve<WsData>({
         const files = rawFiles.filter(
           (item): item is { name: string; content: string; mimeType?: string; size?: number } => {
             return (
-              Boolean(item) &&
+              item !== null &&
               typeof item === "object" &&
               "name" in item &&
-              typeof item.name === "string" &&
+              typeof (item as Record<string, unknown>).name === "string" &&
               "content" in item &&
-              typeof item.content === "string"
+              typeof (item as Record<string, unknown>).content === "string"
             );
           }
         );
@@ -1253,8 +1344,9 @@ const _server = Bun.serve<WsData>({
     },
   },
 });
-
+const actualPort = _server.port;
 console.log(`\n======================================================`);
-console.log(`⚡ 80degrees OMP Bridge Server running on http://${HOST}:${PORT}`);
-console.log(`🔌 WebSocket available at ws://${HOST}:${PORT}/ws`);
+console.log(`⚡ 80degrees OMP Bridge Server running on http://${HOST}:${actualPort}`);
+console.log(`🔌 WebSocket available at ws://${HOST}:${actualPort}/ws`);
+console.log(`80DEGREES_BACKEND_READY:port=${actualPort}:host=${HOST}:pid=${process.pid}`);
 console.log(`======================================================\n`);

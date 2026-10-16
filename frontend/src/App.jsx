@@ -39,7 +39,7 @@ export default function App() {
   const [models, setModels] = useState([]);
   const [providers, setProviders] = useState([]);
   const [globalDefaultModel, setGlobalDefaultModel] = useState(() => {
-    return localStorage.getItem('80degrees_selected_model') || 'gemini-3.8-flash';
+    return localStorage.getItem('80degrees_selected_model') || null;
   });
   const [welcomePrompt, setWelcomePrompt] = useState('');
 
@@ -87,34 +87,40 @@ export default function App() {
         setModels(data.models || []);
         setProviders(data.providers || []);
 
-        // Validate or set default selected model
+        // Validate or set default selected model strictly among AUTHENTICATED models
         if (data.models && data.models.length > 0) {
+          const authenticatedModels = data.models.filter((m) => Boolean(m.has_auth || m.installed));
           const savedModel = localStorage.getItem('80degrees_selected_model');
-          const matching = data.models.find(
-            (m) =>
-              (m.id === savedModel || m.canonical_id === savedModel) &&
-              (m.has_auth || m.installed)
+
+          const savedMatch = authenticatedModels.find(
+            (m) => m.canonical_id === savedModel || m.id === savedModel
           );
-          if (matching) {
-            const targetId = matching.canonical_id || matching.id;
-            setGlobalDefaultModel(targetId);
-            localStorage.setItem('80degrees_selected_model', targetId);
-          } else {
-            const defaultModel =
-              data.models.find(
-                (m) =>
-                  (m.id === data.active_model || m.canonical_id === data.active_model) &&
-                  (m.has_auth || m.installed)
-              ) ||
-              data.models.find((m) => m.id === 'gemini-3.8-flash' && m.has_auth) ||
-              data.models.find((m) => m.id === 'gemini-2.5-flash' && m.has_auth) ||
-              data.models.find((m) => m.has_auth || m.installed) ||
-              data.models[0];
-            if (defaultModel) {
-              const targetId = defaultModel.canonical_id || defaultModel.id;
-              setGlobalDefaultModel(targetId);
-              localStorage.setItem('80degrees_selected_model', targetId);
-            }
+
+          // ONLY set an effective model if the user has authenticated for at least one model
+          const effectiveModel = savedMatch
+            ? (savedMatch.canonical_id || `${savedMatch.provider}/${savedMatch.id}`)
+            : authenticatedModels.length > 0
+            ? (authenticatedModels[0].canonical_id || `${authenticatedModels[0].provider}/${authenticatedModels[0].id}`)
+            : null;
+
+          setGlobalDefaultModel(effectiveModel);
+
+          if (effectiveModel) {
+            setTabs((prev) =>
+              prev.map((t) => {
+                const isTabModelAuth = authenticatedModels.some(
+                  (am) => am.canonical_id === t.model || am.id === t.model
+                );
+                if (!t.model || !isTabModelAuth) {
+                  const socket = socketsRef.current.get(t.id);
+                  if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'set_model', model: effectiveModel }));
+                  }
+                  return { ...t, model: effectiveModel };
+                }
+                return t;
+              })
+            );
           }
         }
       }
@@ -559,6 +565,27 @@ export default function App() {
             });
             return;
           }
+          if (data.type === 'assistant_error' && data.message) {
+            updateTab(tabId, (t) => ({
+              agentStatus: 'error',
+              messages: [...t.messages, data.message],
+            }));
+            return;
+          }
+          if (data.type === 'auth_required') {
+            updateTab(tabId, (t) => ({
+              agentStatus: 'error',
+              messages: [
+                ...t.messages,
+                {
+                  role: 'assistant',
+                  content: data.message || '⚠️ **Authentication Required**: Please configure an API key or sign in via the Model Selector (✦) to activate your agent.',
+                  timestamp,
+                },
+              ],
+            }));
+            return;
+          }
 
           const isTerminalStatus =
             data.type === 'status' &&
@@ -575,6 +602,8 @@ export default function App() {
                   ? 'awaiting_human'
                   : data.content === 'Done'
                   ? 'done'
+                  : data.content?.startsWith('Error') || data.content?.startsWith('Harness Error')
+                  ? 'error'
                   : null,
               lastChangeTimestamp: data.content === 'Done' ? Date.now() : t.lastChangeTimestamp,
               messages: t.messages.map((m) =>
