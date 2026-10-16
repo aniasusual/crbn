@@ -1,8 +1,8 @@
 {
   "version": 3,
   "project_name": "crbn",
-  "created_at": "2026-10-16T14:23:04.877Z",
-  "updated_at": "2026-10-16T14:23:04.877Z",
+  "created_at": "2026-10-16T14:23:29.935Z",
+  "updated_at": "2026-10-16T14:23:29.935Z",
   "active_branch": "main",
   "branches": {
     "main": [
@@ -14,7 +14,24 @@
       {
         "role": "assistant",
         "content": "Hello. How can I assist you with the project today?",
-        "timestamp": "2026-10-16T14:23:04.805Z"
+        "timestamp": "2026-10-16T14:23:04.805Z",
+        "step_id": "step_1792160584877"
+      },
+      {
+        "role": "user",
+        "content": "Say hello",
+        "timestamp": "2026-10-16T14:23:28.964Z"
+      },
+      {
+        "role": "assistant",
+        "content": "⚠️ **Model Error**: Cloud Code Assist API error (404): {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+        "is_error": true,
+        "timestamp": "2026-10-16T14:23:29.853Z"
+      },
+      {
+        "role": "user",
+        "content": "Say hello",
+        "timestamp": "2026-10-16T14:23:29.935Z"
       }
     ]
   },
@@ -27,7 +44,24 @@
     {
       "role": "assistant",
       "content": "Hello. How can I assist you with the project today?",
-      "timestamp": "2026-10-16T14:23:04.805Z"
+      "timestamp": "2026-10-16T14:23:04.805Z",
+      "step_id": "step_1792160584877"
+    },
+    {
+      "role": "user",
+      "content": "Say hello",
+      "timestamp": "2026-10-16T14:23:28.964Z"
+    },
+    {
+      "role": "assistant",
+      "content": "⚠️ **Model Error**: Cloud Code Assist API error (404): {\n  \"error\": {\n    \"code\": 404,\n    \"message\": \"Requested entity was not found.\",\n    \"status\": \"NOT_FOUND\"\n  }\n}\n",
+      "is_error": true,
+      "timestamp": "2026-10-16T14:23:29.853Z"
+    },
+    {
+      "role": "user",
+      "content": "Say hello",
+      "timestamp": "2026-10-16T14:23:29.935Z"
     }
   ]
 }
