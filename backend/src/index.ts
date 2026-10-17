@@ -67,7 +67,7 @@ const _server = Bun.serve<WsData>({
   port: PORT,
   hostname: HOST,
 
-  async fetch(req, srv) {
+  async fetch(req, srv): Promise<Response | undefined> {
     const url = new URL(req.url);
 
     // Handle CORS preflight
@@ -80,7 +80,7 @@ const _server = Bun.serve<WsData>({
       return Response.json(
         {
           status: "ok",
-          port: _server.port,
+          port: srv.port,
           uptime: process.uptime(),
           pid: process.pid,
         },
@@ -141,6 +141,64 @@ const _server = Bun.serve<WsData>({
       try {
         await modelsService.removeApiKey(provider);
         return Response.json({ status: "deleted", provider }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Auth: Gateway Configuration (e.g. OmniRoute)
+    if (url.pathname.startsWith("/api/auth/gateway/") && req.method === "GET") {
+      const provider = decodeURIComponent(url.pathname.replace("/api/auth/gateway/", ""));
+      try {
+        const info = await modelsService.getGatewayProvider(provider);
+        return Response.json(info, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    if (url.pathname === "/api/auth/gateway" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as {
+          provider?: string;
+          base_url?: string;
+          baseUrl?: string;
+          api_key?: string;
+          apiKey?: string;
+        };
+        const baseUrl = body.base_url || body.baseUrl;
+        if (!baseUrl) {
+          return Response.json(
+            { detail: "Base URL is required" },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+        const result = await modelsService.saveGatewayProvider({
+          provider: body.provider || "omniroute",
+          baseUrl,
+          apiKey: body.api_key || body.apiKey,
+        });
+
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    if (url.pathname.startsWith("/api/auth/gateway/") && req.method === "DELETE") {
+      const provider = decodeURIComponent(url.pathname.replace("/api/auth/gateway/", ""));
+      try {
+        await modelsService.removeGatewayProvider(provider);
+        return Response.json({ success: true, provider }, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },
@@ -552,7 +610,7 @@ const _server = Bun.serve<WsData>({
 
         const servers = Object.entries(configuredServers).map(([name, srvConfig]) => {
           const rt = runtimeMap.get(name);
-          const isDisabled = disabledSet.has(name);
+          const isDisabled = disabledSet.has(name) || (srvConfig as MCPServerConfig).enabled === false;
           return {
             name,
             config: srvConfig,
@@ -668,7 +726,19 @@ const _server = Bun.serve<WsData>({
         const mcpConfigPath = isGlobal
           ? path.join(os.homedir(), ".omp", "agent", "mcp.json")
           : path.join((await projectManager.getProject(projectName)).path, ".omp", "mcp.json");
-        await setServerDisabled(mcpConfigPath, serverName, Boolean(body.disabled));
+        if (isGlobal) {
+          await setServerDisabled(mcpConfigPath, serverName, Boolean(body.disabled));
+        } else {
+          const config = await readMCPConfigFile(mcpConfigPath);
+          const srv = config.mcpServers?.[serverName];
+          if (srv) {
+            await updateMCPServer(mcpConfigPath, serverName, {
+              ...srv,
+              enabled: !body.disabled,
+            });
+          }
+          await setServerDisabled(mcpConfigPath, serverName, Boolean(body.disabled));
+        }
 
         const activeBridge = activeBridges.get(projectName);
         if (activeBridge) {
