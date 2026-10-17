@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as yaml from "yaml";
 import MODELS from "../../pi-harness/packages/catalog/src/models.json";
 import { providerEntries, providerEntry } from "../../pi-harness/packages/catalog/src/compat/providers";
-import { getEnvApiKeyName } from "../../pi-harness/packages/ai/src/stream";
+import { getEnvApiKeyName } from "../../pi-harness/packages/ai/src/env-api-key";
 import {
   discoverAuthStorage,
   ModelRegistry,

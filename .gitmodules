@@ -1,6 +1,3 @@
-[submodule "engine"]
-	path = engine
-	url = ../oh-my-pi
 [submodule "pi-harness"]
 	path = pi-harness
 	url = https://github.com/aniasusual/oh-my-pi.git
