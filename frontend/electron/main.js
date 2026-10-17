@@ -62,16 +62,7 @@ function findBunBinary() {
 
   // 1. Packaged production: inspect inside process.resourcesPath/bin
   if (app.isPackaged) {
-    // Primary: standard binary name
-    const bundledDefault = path.join(process.resourcesPath, 'bin', binaryName);
-    if (fs.existsSync(bundledDefault)) {
-      if (process.platform !== 'win32') {
-        try { fs.chmodSync(bundledDefault, 0o755); } catch {}
-      }
-      return bundledDefault;
-    }
-
-    // Secondary: arch-specific binary name on macOS
+    // Primary on macOS: arch-specific binary first (bun-arm64 or bun-x64) to prevent arch mismatch
     if (process.platform === 'darwin') {
       const archBin = path.join(process.resourcesPath, 'bin', `bun-${process.arch}`);
       if (fs.existsSync(archBin)) {
@@ -79,18 +70,27 @@ function findBunBinary() {
         return archBin;
       }
     }
+
+    // Standard binary name
+    const bundledDefault = path.join(process.resourcesPath, 'bin', binaryName);
+    if (fs.existsSync(bundledDefault)) {
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(bundledDefault, 0o755); } catch {}
+      }
+      return bundledDefault;
+    }
   }
 
   // 2. Local development: inspect inside resources/bin
-  const localDefault = path.join(__dirname, '../resources/bin', binaryName);
-  if (fs.existsSync(localDefault)) {
-    return localDefault;
-  }
   if (process.platform === 'darwin') {
     const localArch = path.join(__dirname, '../resources/bin', `bun-${process.arch}`);
     if (fs.existsSync(localArch)) {
       return localArch;
     }
+  }
+  const localDefault = path.join(__dirname, '../resources/bin', binaryName);
+  if (fs.existsSync(localDefault)) {
+    return localDefault;
   }
 
   // 3. User system paths fallback
@@ -196,6 +196,8 @@ async function startBackend() {
     HOST: '127.0.0.1',
     BACKEND_HOST: '127.0.0.1',
     NODE_ENV: isDev ? 'development' : 'production',
+    TEMPLATES_DIR: path.join(backendDir, 'templates'),
+    RESOURCES_PATH: process.resourcesPath || path.join(__dirname, '..'),
   };
 
   try {

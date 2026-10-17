@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "build": "bun install --cwd templates/node_react && mkdir -p native && cp -f ../pi-harness/packages/natives/native/pi_natives*.node native/ 2>/dev/null || true && bun build src/index.ts --target=bun --outdir dist --external omp-legacy-pi-modules"
+    "build": "bun install --cwd templates/node_react && bun build src/index.ts --target=bun --outdir dist --external omp-legacy-pi-modules"
   },
   "devDependencies": {
     "@types/bun": "^1.2.0",

@@ -104,7 +104,9 @@ export class ProjectManager {
     this.devServerManager = options?.devServerManager ?? null;
     this.root = options?.root ?? process.env.PROJECTS_ROOT ?? path.join(os.homedir(), ".80degrees", "projects");
     this.templatesDir =
-      options?.templatesDir ?? path.join(import.meta.dir, "..", "templates");
+      options?.templatesDir ??
+      process.env.TEMPLATES_DIR ??
+      path.join(import.meta.dir, "..", "templates");
     this.templateCacheDir =
       options?.templateCacheDir ?? path.join(os.homedir(), ".80degrees", "template_cache");
 
@@ -199,6 +201,10 @@ export class ProjectManager {
     if (fsSync.existsSync(srcPackageJson)) {
       await fs.mkdir(cachedTplDir, { recursive: true });
       await fs.copyFile(srcPackageJson, path.join(cachedTplDir, "package.json"));
+      const srcLock = path.join(templateSrc, "bun.lock");
+      if (fsSync.existsSync(srcLock)) {
+        await fs.copyFile(srcLock, path.join(cachedTplDir, "bun.lock"));
+      }
       console.log(`[ProjectManager] Installing template dependencies into cache (${cachedTplDir})...`);
       const bunBinDir = path.dirname(process.execPath);
       const augmentedPath = process.env.PATH?.includes(bunBinDir)
