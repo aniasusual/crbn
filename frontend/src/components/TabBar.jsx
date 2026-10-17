@@ -61,33 +61,17 @@ export default function TabBar({
                 onClick={() => onSelectTab(tab.id)}
                 title={tab.projectName || 'Project'}
               >
-                {isActive ? (
-                  <AnnotatedText variant="circle" color="text-orange-500">
-                    <span className="tab-bar__tab-inner">
-                      <div className="tab-bar__tab-icon">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <polyline points="14 2 14 8 20 8"></polyline>
-                        </svg>
-                      </div>
-                      <span className="tab-bar__tab-name">
-                        {tab.projectName || 'Untitled'}
-                      </span>
-                    </span>
-                  </AnnotatedText>
-                ) : (
-                  <span className="tab-bar__tab-inner">
-                    <div className="tab-bar__tab-icon">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                      </svg>
-                    </div>
-                    <span className="tab-bar__tab-name">
-                      {tab.projectName || 'Untitled'}
-                    </span>
+                <span className="tab-bar__tab-inner">
+                  <div className="tab-bar__tab-icon">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                  </div>
+                  <span className="tab-bar__tab-name">
+                    {tab.projectName || 'Untitled'}
                   </span>
-                )}
+                </span>
 
                 {/* Status Indicator Dot */}
                 <div className="tab-bar__tab-status">

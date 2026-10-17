@@ -44,6 +44,8 @@
   scrollbar-width: none;
   padding: 2px 4px;
   margin: 0;
+  flex: 1;
+  min-width: 0;
 }
 
 .tab-bar__tabs-scroll::-webkit-scrollbar {
@@ -52,11 +54,11 @@
 
 /* Individual Tab */
 .tab-bar__tab {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 10px;
-  height: 32px;
+  gap: 6px;
+  padding: 0 6px 0 10px;
+  height: 30px;
   margin: 0;
   background: transparent;
   border: none;
@@ -68,10 +70,12 @@
   letter-spacing: -0.01em;
   cursor: pointer;
   transition: color 0.14s ease, opacity 0.14s ease, background 0.14s ease;
-  max-width: 220px;
-  min-width: 60px;
+  max-width: 190px;
+  min-width: 70px;
+  flex-shrink: 0;
   position: relative;
-  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .tab-bar__tab:hover {
@@ -81,7 +85,7 @@
 }
 
 .tab-bar__tab--active {
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.08) !important;
   border: none !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
@@ -94,22 +98,19 @@
 }
 
 .tab-bar__tab--active:hover {
-  background: transparent !important;
+  background: rgba(255, 255, 255, 0.12) !important;
   transform: none !important;
   color: #ffffff;
 }
 
 .tab-bar__tab-inner {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   position: relative;
-  white-space: nowrap;
-}
-
-.tab-bar__tab--active .tab-bar__tab-inner,
-.tab-bar__tab--active .tab-bar__tab-name {
-  overflow: visible;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 /* Home / Projects Pinned Tab */
@@ -166,10 +167,12 @@
 }
 
 .tab-bar__tab-name {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
+  min-width: 0;
 }
 
 /* Status Indicator Dot */
@@ -229,28 +232,35 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 17px;
-  height: 17px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
   border-radius: 4px;
   background: transparent;
   border: none;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
   padding: 0;
   transition: all 0.12s ease;
   flex-shrink: 0;
   opacity: 0;
   margin-left: 2px;
+  z-index: 3;
 }
 
-.tab-bar__tab:hover .tab-bar__tab-close,
+.tab-bar__tab:hover .tab-bar__tab-close {
+  opacity: 0.85;
+}
+
 .tab-bar__tab--active .tab-bar__tab-close {
-  opacity: 1;
+  opacity: 0.7;
 }
 
 .tab-bar__tab-close:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
   transform: scale(1.06);
 }
 
