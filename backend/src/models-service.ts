@@ -1,4 +1,7 @@
 import * as os from "node:os";
+import * as fs from "node:fs/promises";
+import * as path from "node:path";
+import * as yaml from "yaml";
 import MODELS from "../../pi-harness/packages/catalog/src/models.json";
 import { providerEntries, providerEntry } from "../../pi-harness/packages/catalog/src/compat/providers";
 import { getEnvApiKeyName } from "../../pi-harness/packages/ai/src/stream";
@@ -86,6 +89,67 @@ function formatContext(tokens: number | null | undefined): string {
   }
   const k = Math.round(tokens / 1000);
   return `${k}k`;
+}
+
+export interface GatewayConfigInput {
+  provider?: string;
+  baseUrl: string;
+  apiKey?: string;
+  label?: string;
+}
+
+export interface GatewayConfigResult {
+  success: boolean;
+  provider: string;
+  baseUrl: string;
+  modelCount: number;
+  models: Array<{ id: string; name: string }>;
+  message?: string;
+}
+
+export function normalizeGatewayBaseUrl(rawUrl: string): string {
+  let trimmed = rawUrl.trim().replace(/\/+$/, "");
+  if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+    trimmed = `http://${trimmed}`;
+  }
+  const urlObj = new URL(trimmed);
+  if (urlObj.pathname === "" || urlObj.pathname === "/") {
+    trimmed = `${trimmed}/v1`;
+  }
+  return trimmed;
+}
+
+export async function probeGatewayModels(baseUrl: string, apiKey?: string): Promise<Array<{ id: string }>> {
+  const probeUrl = `${baseUrl}/models`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  const res = await fetch(probeUrl, {
+    headers,
+    signal: AbortSignal.timeout(4000),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    throw new Error(`Gateway returned HTTP ${res.status}: ${errorText.slice(0, 150) || res.statusText}`);
+  }
+
+  const data = (await res.json()) as { data?: Array<{ id?: string }>; models?: Array<{ id?: string }> } | Array<{ id?: string }>;
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data?.models)
+    ? data.models
+    : [];
+
+  return list
+    .filter((item): item is { id: string } => typeof item?.id === "string" && Boolean(item.id.trim()))
+    .map((item) => ({ id: item.id.trim() }));
 }
 
 export class ModelsService {
@@ -215,7 +279,7 @@ export class ModelsService {
     return true;
   }
 
-  async getModelCatalog(hw: HardwareInfo): Promise<ModelCatalogResponse> {
+  async getModelCatalog(hw?: HardwareInfo): Promise<ModelCatalogResponse> {
     const registry = await this.getRegistry();
     const entries = providerEntries();
     const ollamaRunning = await this.checkOllamaRunning();
@@ -237,13 +301,18 @@ export class ModelsService {
 
     for (const pid of allProviderIds) {
       const pEntry = entries[pid] ?? providerEntry(pid);
-      const label = pEntry?.discovery?.label || pid.charAt(0).toUpperCase() + pid.slice(1);
+      const label =
+        pid === "omniroute"
+          ? "OmniRoute"
+          : pEntry?.discovery?.label || pid.charAt(0).toUpperCase() + pid.slice(1);
       const envVar =
-        pEntry?.envVars?.[0] ||
-        getEnvApiKeyName(pid) ||
-        (pid !== "ollama" && pid !== "local" && pid !== "web"
-          ? `${pid.toUpperCase().replace(/-/g, "_")}_API_KEY`
-          : null);
+        pid === "omniroute"
+          ? "OMNIROUTE_API_KEY"
+          : pEntry?.envVars?.[0] ||
+            getEnvApiKeyName(pid) ||
+            (pid !== "ollama" && pid !== "local" && pid !== "web"
+              ? `${pid.toUpperCase().replace(/-/g, "_")}_API_KEY`
+              : null);
 
       const oauthMatch = oauthProviders.find(
         (p) => p.id === pid || p.storeCredentialsAs === pid
@@ -362,6 +431,7 @@ export class ModelsService {
               : pid === "google-antigravity" && m.id === "gpt-oss-120b"
               ? "GPT-OSS 120B (Medium)"
               : m.name || m.id,
+          provider: pid,
           provider_label: label,
           context_length: formattedContext,
           context_tokens: contextTokens,
@@ -491,7 +561,7 @@ export class ModelsService {
     }
 
     return {
-      hardware: hw,
+      hardware: hw ?? detectHardware(),
       providers: providerList,
       models: modelList,
       active_model: activeModel,
@@ -601,5 +671,188 @@ export class ModelsService {
     } catch {}
 
     return true;
+  }
+
+  /**
+   * Persist and register a custom OpenAI-compatible gateway provider (e.g. OmniRoute)
+   * into ~/.omp/agent/models.yml and refresh the dynamic model registry.
+   */
+  async saveGatewayProvider(input: GatewayConfigInput): Promise<GatewayConfigResult> {
+    const providerId = (input.provider || "omniroute").trim().toLowerCase();
+    const normalizedUrl = normalizeGatewayBaseUrl(input.baseUrl);
+    const apiKey = input.apiKey?.trim() || undefined;
+
+    // 1. Probe the gateway endpoint to verify reachability and discover models
+    const discoveredModels = await probeGatewayModels(normalizedUrl, apiKey);
+
+    // 2. Load or initialize ~/.omp/agent/models.yml
+    const agentDir = path.join(os.homedir(), ".omp", "agent");
+    await fs.mkdir(agentDir, { recursive: true });
+    const modelsYmlPath = path.join(agentDir, "models.yml");
+
+    let doc: { providers?: Record<string, Record<string, unknown>> } = { providers: {} };
+    try {
+      const content = await fs.readFile(modelsYmlPath, "utf-8");
+      const parsed = yaml.parse(content);
+      if (parsed && typeof parsed === "object") {
+        doc = parsed as { providers?: Record<string, Record<string, unknown>> };
+        doc.providers = doc.providers || {};
+      }
+    } catch {
+      // File doesn't exist yet, start with empty document
+    }
+
+    if (!doc.providers) {
+      doc.providers = {};
+    }
+
+    // 3. Configure provider entry with openai-models-list dynamic discovery
+    const providerEntry: Record<string, unknown> = {
+      baseUrl: normalizedUrl,
+      api: "openai-completions",
+      discovery: {
+        type: "openai-models-list",
+      },
+    };
+
+    if (apiKey) {
+      providerEntry.apiKey = apiKey;
+    } else {
+      providerEntry.auth = "none";
+    }
+
+    // Seed initial models directly so they are immediately queryable in Crbn catalog
+    if (discoveredModels.length > 0) {
+      providerEntry.models = discoveredModels.map((m) => ({
+        id: m.id,
+        name: m.id,
+        contextWindow: 128_000,
+        maxTokens: 16_384,
+      }));
+    }
+
+    doc.providers[providerId] = providerEntry;
+
+    // 4. Atomically persist models.yml
+    await fs.writeFile(modelsYmlPath, yaml.stringify(doc), "utf-8");
+
+    // 5. Update authStorage in-memory
+    const authStorage = await this.getAuthStorage();
+    if (apiKey) {
+      authStorage.keys.setRuntime(providerId, apiKey);
+      await authStorage.credentials.set(providerId, {
+        type: "api_key",
+        key: apiKey,
+        source: "login" as const,
+      });
+      process.env[`${providerId.toUpperCase()}_API_KEY`] = apiKey;
+    } else {
+      try {
+        authStorage.keys.removeRuntime(providerId);
+        await authStorage.credentials.remove(providerId);
+      } catch {}
+    }
+
+    // 6. Refresh ModelRegistry online
+    const registry = await this.getRegistry();
+    await registry.refresh("online");
+
+    return {
+      success: true,
+      provider: providerId,
+      baseUrl: normalizedUrl,
+      modelCount: discoveredModels.length,
+      models: discoveredModels.map((m) => ({ id: m.id, name: m.id })),
+      message: `Connected successfully. ${discoveredModels.length} models discovered.`,
+    };
+  }
+
+  /**
+   * Remove a gateway provider from ~/.omp/agent/models.yml and reload the registry.
+   */
+  async removeGatewayProvider(providerId: string): Promise<boolean> {
+    const id = providerId.trim().toLowerCase();
+    const agentDir = path.join(os.homedir(), ".omp", "agent");
+    const modelsYmlPath = path.join(agentDir, "models.yml");
+
+    try {
+      const content = await fs.readFile(modelsYmlPath, "utf-8");
+      const parsed = yaml.parse(content);
+      if (parsed && typeof parsed === "object") {
+        const doc = parsed as { providers?: Record<string, unknown> };
+        if (doc.providers && id in doc.providers) {
+          delete doc.providers[id];
+          await fs.writeFile(modelsYmlPath, yaml.stringify(doc), "utf-8");
+        }
+      }
+    } catch {}
+
+    const authStorage = await this.getAuthStorage();
+    try {
+      authStorage.keys.removeRuntime(id);
+      await authStorage.credentials.remove(id);
+    } catch {}
+
+    const envKey = `${id.toUpperCase()}_API_KEY`;
+    if (process.env[envKey]) {
+      delete process.env[envKey];
+    }
+
+    const registry = await this.getRegistry();
+    await registry.refresh("online");
+    return true;
+  }
+
+  /**
+   * Read gateway provider configuration from ~/.omp/agent/models.yml.
+   */
+  async getGatewayProvider(providerId: string): Promise<{
+    configured: boolean;
+    provider: string;
+    baseUrl?: string;
+    apiKeyPreview?: string;
+    modelCount: number;
+    models: Array<{ id: string; name: string }>;
+  }> {
+    const id = providerId.trim().toLowerCase();
+    const agentDir = path.join(os.homedir(), ".omp", "agent");
+    const modelsYmlPath = path.join(agentDir, "models.yml");
+
+    try {
+      const content = await fs.readFile(modelsYmlPath, "utf-8");
+      const parsed = yaml.parse(content);
+      if (parsed && typeof parsed === "object") {
+        const doc = parsed as { providers?: Record<string, Record<string, unknown>> };
+        const entry = doc.providers?.[id];
+        if (entry) {
+          const baseUrl = typeof entry.baseUrl === "string" ? entry.baseUrl : undefined;
+          const apiKey = typeof entry.apiKey === "string" ? entry.apiKey : undefined;
+          let apiKeyPreview: string | undefined;
+          if (apiKey) {
+            apiKeyPreview = apiKey.length > 8 ? `${apiKey.slice(0, 4)}••••${apiKey.slice(-4)}` : "••••••••";
+          }
+          const rawModels = Array.isArray(entry.models) ? (entry.models as Array<{ id?: string; name?: string }>) : [];
+          const models = rawModels
+            .filter((m): m is { id: string; name?: string } => typeof m?.id === "string")
+            .map((m) => ({ id: m.id, name: m.name || m.id }));
+
+          return {
+            configured: true,
+            provider: id,
+            baseUrl,
+            apiKeyPreview,
+            modelCount: models.length,
+            models,
+          };
+        }
+      }
+    } catch {}
+
+    return {
+      configured: false,
+      provider: id,
+      modelCount: 0,
+      models: [],
+    };
   }
 }

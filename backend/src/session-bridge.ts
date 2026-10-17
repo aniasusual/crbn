@@ -7,6 +7,7 @@ import {
   USER_INTERRUPT_LABEL,
   type AgentSession,
   type MCPManager,
+  type AuthStorage,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { Model } from "../../pi-harness/packages/ai/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
@@ -18,6 +19,7 @@ import type {
   ExtensionUIDialogOptions,
 } from "../../pi-harness/packages/coding-agent/src/extensibility/extensions/types";
 import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tui/src/theme/theme";
+import { clearCache as clearFsCache } from "../../pi-harness/packages/coding-agent/src/capability/fs";
 import { ChatHistoryManager } from "./chat-history";
 import { CheckpointManager } from "./checkpoint-manager";
 import type { ModelsService } from "./models-service";
@@ -126,8 +128,10 @@ export class SessionBridge {
       return { servers: [] };
     }
     try {
-      const loadResult = await this.mcpManager.discoverAndConnect();
-      await this.session.refreshMCPTools(loadResult.tools);
+      await this.mcpManager.disconnectAll();
+      clearFsCache();
+      await this.mcpManager.discoverAndConnect();
+      await this.session.refreshMCPTools(this.mcpManager.getTools());
       const status = this.getMcpStatus();
       this.send({
         type: "mcp_status",
@@ -194,9 +198,10 @@ export class SessionBridge {
     }
 
     // 2. Find all models matching modelName (by id, canonical_id, or provider/id)
-    const allMatches = registry.getAll().filter(
-      (m) => m.id === modelName || m.canonical_id === modelName || `${m.provider}/${m.id}` === modelName
-    );
+    const allMatches = registry.getAll().filter((m) => {
+      const canonical = "canonical_id" in m && typeof m.canonical_id === "string" ? m.canonical_id : undefined;
+      return m.id === modelName || canonical === modelName || `${m.provider}/${m.id}` === modelName;
+    });
 
     // 3. Filter strictly to providers for which the user HAS authenticated
     const authenticatedMatches = allMatches.filter((m) => this.isProviderAuthenticated(m.provider, authStorage));
