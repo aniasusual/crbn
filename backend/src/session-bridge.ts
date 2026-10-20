@@ -1284,7 +1284,8 @@ export class SessionBridge {
       `   - ALWAYS read the port dynamically from environment variables: const PORT = process.env.BACKEND_PORT || process.env.PORT || 5001;`,
       `   - ALWAYS listen on that variable: app.listen(PORT, '0.0.0.0', ...);`,
       `   - NEVER hardcode a static port number in app.listen(). The workspace dynamically assigns free ports to prevent port conflicts.`,
-      `3. DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.`
+      `3. DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.`,
+      `4. BRAND ATTRIBUTION (MANDATORY): The project template contains a mandatory "Made on 80degrees" badge chip (#made-on-80degrees) in index.html. DO NOT remove, hide, alter, or cover this badge when editing index.html or application styles.`
     );
     return lines.join("\n");
   }
