@@ -205,6 +205,7 @@ async function startBackend() {
       cwd: runtimeDir,
       env: backendEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
     });
 
     backendProcess.stdout?.on('data', (data) => {
@@ -259,20 +260,27 @@ function stopBackend() {
   if (backendProcess) {
     console.log('[Electron] Terminating backend process...');
     const pid = backendProcess.pid;
+    const proc = backendProcess;
+    backendProcess = null;
     try {
       if (process.platform === 'win32') {
         spawn('taskkill', ['/pid', String(pid), '/T', '/F']);
       } else {
-        backendProcess.kill('SIGTERM');
+        proc.kill('SIGTERM');
+        try {
+          process.kill(-pid, 'SIGTERM');
+        } catch {}
         // Schedule SIGKILL fallback if not dead after 2s
         setTimeout(() => {
           try {
-            if (backendProcess) backendProcess.kill('SIGKILL');
+            proc.kill('SIGKILL');
+          } catch {}
+          try {
+            process.kill(-pid, 'SIGKILL');
           } catch {}
         }, 2000);
       }
     } catch {}
-    backendProcess = null;
   }
 }
 

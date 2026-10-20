@@ -529,7 +529,12 @@ const _server = Bun.serve<WsData>({
       try {
         const project = await projectManager.getProject(projectName).catch(() => null);
         if (project) {
-          devServerManager.stopDevServer(project.path);
+          await devServerManager.stopDevServer(project.path);
+        }
+        const existingBridge = activeBridges.get(projectName);
+        if (existingBridge) {
+          activeBridges.delete(projectName);
+          existingBridge.dispose().catch(() => {});
         }
         await projectManager.deleteProject(projectName);
         return Response.json({ status: "deleted" }, { headers: CORS_HEADERS });
@@ -1082,11 +1087,12 @@ const _server = Bun.serve<WsData>({
 
       // Forward dev server events to frontend only for this connection's project
       const unsubscribe = devServerManager.onEvent(event => {
-        if (event.project_path && ws.data.activeProjectName) {
-          const eventProject = path.basename(event.project_path);
-          if (eventProject !== ws.data.activeProjectName) {
-            return;
-          }
+        const eventProject = event.project_path ? path.basename(event.project_path) : null;
+        if (eventProject && ws.data.activeProjectName && eventProject !== ws.data.activeProjectName) {
+          return;
+        }
+        if (!ws.data.activeProjectName && (event.type === "preview_ready" || event.type === "preview_stopped")) {
+          return;
         }
         if (event.type === "preview_ready" && ws.data.activeProjectName) {
           projectManager.getProject(ws.data.activeProjectName).then(proj => {
@@ -1226,7 +1232,7 @@ const _server = Bun.serve<WsData>({
                   activeBridges.delete(previousProject);
                 }
                 const prevProj = await projectManager.getProject(previousProject);
-                devServerManager.stopDevServer(prevProj.path);
+                await devServerManager.stopDevServer(prevProj.path);
               } catch {}
             }
 
@@ -1286,6 +1292,12 @@ const _server = Bun.serve<WsData>({
           return;
         }
         if (action === "close_project") {
+          if (ws.data.activeProjectName) {
+            try {
+              const project = await projectManager.getProject(ws.data.activeProjectName);
+              await devServerManager.stopDevServer(project.path);
+            } catch {}
+          }
           await bridge.stop();
           return;
         }
@@ -1407,8 +1419,12 @@ const _server = Bun.serve<WsData>({
       if (ws.data.send) {
         activeSockets.delete(ws.data.send);
       }
-      if (ws.data.activeProjectName && activeBridges.get(ws.data.activeProjectName) === ws.data.bridge) {
-        activeBridges.delete(ws.data.activeProjectName);
+      const closingProject = ws.data.activeProjectName;
+      if (closingProject && activeBridges.get(closingProject) === ws.data.bridge) {
+        activeBridges.delete(closingProject);
+        projectManager.getProject(closingProject).then(proj => {
+          devServerManager.stopDevServer(proj.path);
+        }).catch(() => {});
       }
       ws.data.bridge?.dispose().catch(() => {});
     },
@@ -1420,3 +1436,18 @@ console.log(`⚡ 80degrees OMP Bridge Server running on http://${HOST}:${actualP
 console.log(`🔌 WebSocket available at ws://${HOST}:${actualPort}/ws`);
 console.log(`80DEGREES_BACKEND_READY:port=${actualPort}:host=${HOST}:pid=${process.pid}`);
 console.log(`======================================================\n`);
+
+let isShuttingDown = false;
+const shutdown = async (signal: string) => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  console.log(`\n[Backend] Received ${signal}. Shutting down all active dev servers...`);
+  try {
+    await devServerManager.stopAll();
+  } catch {}
+  process.exit(0);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("beforeExit", () => shutdown("beforeExit"));

@@ -20,7 +20,7 @@ export type PreviewEventCallback = (event: {
   project_path?: string;
 }) => void;
 
-function killSubprocessTree(proc?: Subprocess | null): void {
+async function killSubprocessTree(proc?: Subprocess | null, timeoutMs: number = 1500): Promise<void> {
   if (!proc) return;
   const pid = proc.pid;
   try {
@@ -39,16 +39,37 @@ function killSubprocessTree(proc?: Subprocess | null): void {
       try {
         process.kill(-pid, "SIGTERM");
       } catch {}
-      setTimeout(() => {
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch {}
-        try {
-          process.kill(-pid, "SIGKILL");
-        } catch {}
-      }, 500);
+
+      await Promise.race([
+        proc.exited,
+        Bun.sleep(timeoutMs),
+      ]);
+
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {}
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch {}
     }
   }
+}
+
+function drainStream(stream?: ReadableStream<Uint8Array> | null, onData?: (text: string) => void): void {
+  if (!stream) return;
+  (async () => {
+    try {
+      const reader = stream.getReader();
+      const decoder = onData ? new TextDecoder() : null;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (onData && value && decoder) {
+          onData(decoder.decode(value, { stream: true }));
+        }
+      }
+    } catch {}
+  })();
 }
 const BRAND_BADGE_SNIPPET = `    <!-- 80degrees Platform Attribution Chip -->
     <style id="made-on-80degrees-style">
@@ -163,6 +184,8 @@ export class DevServerManager {
     info: DevServerInfo;
   }>();
 
+  private reservedPorts = new Set<number>();
+
   private eventCallbacks = new Set<PreviewEventCallback>();
 
   onEvent(cb: PreviewEventCallback): () => void {
@@ -186,7 +209,7 @@ export class DevServerManager {
   }
 
   private getOccupiedPorts(): Set<number> {
-    const ports = new Set<number>();
+    const ports = new Set<number>(this.reservedPorts);
     for (const server of this.activeServers.values()) {
       ports.add(server.info.port);
       if (server.info.backend_port) {
@@ -198,18 +221,30 @@ export class DevServerManager {
 
   async isPortAvailable(port: number): Promise<boolean> {
     try {
-      const server = Bun.listen({
+      const server1 = Bun.listen({
         port,
         hostname: "127.0.0.1",
         socket: {
           data() {},
         },
       });
-      server.stop(true);
-      return true;
+      server1.stop(true);
     } catch {
       return false;
     }
+    try {
+      const server2 = Bun.listen({
+        port,
+        hostname: "0.0.0.0",
+        socket: {
+          data() {},
+        },
+      });
+      server2.stop(true);
+    } catch {
+      return false;
+    }
+    return true;
   }
 
   async isPortListening(port: number): Promise<boolean> {
@@ -235,9 +270,11 @@ export class DevServerManager {
     const occupied = this.getOccupiedPorts();
     for (let p = startPort; p <= maxPort; p++) {
       if (!occupied.has(p) && (await this.isPortAvailable(p))) {
+        this.reservedPorts.add(p);
         return p;
       }
     }
+    this.reservedPorts.add(startPort);
     return startPort;
   }
 
@@ -300,6 +337,7 @@ export class DevServerManager {
     const occupied = this.getOccupiedPorts();
     let targetPort: number;
     if (preferredPort && !occupied.has(preferredPort) && (await this.isPortAvailable(preferredPort))) {
+      this.reservedPorts.add(preferredPort);
       targetPort = preferredPort;
     } else {
       targetPort = await this.findAvailablePort(3000, 3050);
@@ -353,6 +391,7 @@ export class DevServerManager {
       env: frontendEnv,
       stdout: "pipe",
       stderr: "pipe",
+      detached: process.platform !== "win32",
     });
 
     // Launch backend server if detected
@@ -370,6 +409,13 @@ export class DevServerManager {
           },
           stdout: "pipe",
           stderr: "pipe",
+          detached: process.platform !== "win32",
+        });
+        drainStream(backendProc.stdout);
+        drainStream(backendProc.stderr, (text) => {
+          if (text.includes("error") || text.includes("Error") || text.includes("EADDRINUSE")) {
+            console.warn(`[DevServerManager] [${path.basename(resolvedPath)} backend stderr]:`, text.trim());
+          }
         });
       } catch (err) {
         console.error(`[DevServerManager] Failed to start backend server:`, err);
@@ -386,7 +432,31 @@ export class DevServerManager {
     };
 
     this.activeServers.set(resolvedPath, { frontendProc, backendProc, info });
+    this.reservedPorts.delete(targetPort);
+    if (backendPort) {
+      this.reservedPorts.delete(backendPort);
+    }
 
+    frontendProc.exited.then((code) => {
+      const entry = this.activeServers.get(resolvedPath);
+      if (entry?.frontendProc === frontendProc) {
+        console.warn(`[DevServerManager] Frontend for ${resolvedPath} exited with code ${code}`);
+        this.stopDevServer(resolvedPath);
+      }
+    });
+
+    if (backendProc) {
+      backendProc.exited.then((code) => {
+        const entry = this.activeServers.get(resolvedPath);
+        if (entry?.backendProc === backendProc) {
+          console.warn(`[DevServerManager] Backend for ${resolvedPath} exited with code ${code}`);
+          entry.backendProc = null;
+          entry.info.backend_port = null;
+          entry.info.backend_url = null;
+          entry.info.backend_pid = null;
+        }
+      });
+    }
     let emittedReady = false;
     const emitReady = (port: number) => {
       if (emittedReady) return;
@@ -413,15 +483,16 @@ export class DevServerManager {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          buffer += chunk;
+          if (!emittedReady) {
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
 
-          // Check for Vite ready signal: e.g. "Local:   http://localhost:3000/" or "http://127.0.0.1:3000/"
-          const match = /(?:http:\/\/(?:localhost|127\.0\.0\.1):)(\d+)/.exec(buffer);
-          if (match) {
-            const detectedPort = parseInt(match[1], 10);
-            emitReady(detectedPort);
-            break;
+            // Check for Vite ready signal: e.g. "Local:   http://localhost:3000/" or "http://127.0.0.1:3000/"
+            const match = /(?:http:\/\/(?:localhost|127\.0\.0\.1):)(\d+)/.exec(buffer);
+            if (match) {
+              const detectedPort = parseInt(match[1], 10);
+              emitReady(detectedPort);
+            }
           }
         }
       } catch {
@@ -494,9 +565,7 @@ export class DevServerManager {
 
     // Terminate existing dead or unresponsive backend process
     if (entry.backendProc) {
-      try {
-        entry.backendProc.kill();
-      } catch {}
+      await killSubprocessTree(entry.backendProc);
     }
 
     try {
@@ -510,7 +579,10 @@ export class DevServerManager {
         },
         stdout: "pipe",
         stderr: "pipe",
+        detached: process.platform !== "win32",
       });
+      drainStream(backendProc.stdout);
+      drainStream(backendProc.stderr);
 
       entry.backendProc = backendProc;
       entry.info.backend_port = backendPort;
@@ -521,11 +593,10 @@ export class DevServerManager {
       if (needsFrontendProxySync) {
         const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
         if (frontendScript) {
-          killSubprocessTree(entry.frontendProc);
+          await killSubprocessTree(entry.frontendProc);
           const bunBinDir = path.dirname(process.execPath);
-          const augmentedPath = process.env.PATH?.includes(bunBinDir)
-            ? process.env.PATH
-            : `${bunBinDir}:${process.env.PATH || ""}`;
+          const projectBinDir = path.join(resolvedPath, "node_modules", ".bin");
+          const augmentedPath = [projectBinDir, bunBinDir, process.env.PATH || ""].filter(Boolean).join(path.delimiter);
           const frontendEnv: Record<string, string> = {
             ...process.env as Record<string, string>,
             PATH: augmentedPath,
@@ -534,17 +605,26 @@ export class DevServerManager {
             BACKEND_PORT: String(backendPort),
             VITE_BACKEND_PORT: String(backendPort),
           };
-          const newFrontendProc = Bun.spawn([process.execPath, "run", frontendScript], {
+          const directViteJs = path.join(resolvedPath, "node_modules", "vite", "bin", "vite.js");
+          let frontendCmd: string[];
+          if (fsSync.existsSync(directViteJs)) {
+            frontendCmd = [process.execPath, directViteJs, "--port", String(entry.info.port), "--strictPort"];
+          } else {
+            frontendCmd = [process.execPath, "run", frontendScript, "--", "--port", String(entry.info.port), "--strictPort"];
+          }
+          const newFrontendProc = Bun.spawn(frontendCmd, {
             cwd: resolvedPath,
             env: frontendEnv,
             stdout: "pipe",
             stderr: "pipe",
+            detached: process.platform !== "win32",
           });
+          drainStream(newFrontendProc.stdout);
+          drainStream(newFrontendProc.stderr);
           entry.frontendProc = newFrontendProc;
           entry.info.pid = newFrontendProc.pid;
         }
       }
-
       this.emit({
         type: "preview_ready",
         port: entry.info.port,
@@ -588,29 +668,39 @@ export class DevServerManager {
     };
   }
 
-  stopDevServer(projectPath: string): void {
+  async stopDevServer(projectPath: string): Promise<void> {
     const resolvedPath = path.resolve(projectPath);
     const entry = this.activeServers.get(resolvedPath);
     if (!entry) return;
 
-    killSubprocessTree(entry.frontendProc);
-
-    if (entry.backendProc) {
-      killSubprocessTree(entry.backendProc);
-    }
-
     this.activeServers.delete(resolvedPath);
-    this.emit({ type: "preview_stopped" });
+    this.emit({ type: "preview_stopped", project_path: resolvedPath });
+
+    const kills: Promise<void>[] = [killSubprocessTree(entry.frontendProc)];
+    if (entry.backendProc) {
+      kills.push(killSubprocessTree(entry.backendProc));
+    }
+    await Promise.all(kills);
   }
 
   async restartDevServer(projectPath: string): Promise<DevServerInfo | null> {
-    this.stopDevServer(projectPath);
-    return await this.startDevServer(projectPath);
+    const resolvedPath = path.resolve(projectPath);
+    const existing = this.activeServers.get(resolvedPath);
+    const preferredPort = existing?.info.port;
+    await this.stopDevServer(projectPath);
+
+    if (preferredPort) {
+      for (let i = 0; i < 15; i++) {
+        if (await this.isPortAvailable(preferredPort)) break;
+        await Bun.sleep(100);
+      }
+    }
+
+    return await this.startDevServer(projectPath, preferredPort);
   }
 
-  stopAll(): void {
-    for (const [projectPath] of this.activeServers) {
-      this.stopDevServer(projectPath);
-    }
+  async stopAll(): Promise<void> {
+    const promises = Array.from(this.activeServers.keys()).map((p) => this.stopDevServer(p));
+    await Promise.all(promises);
   }
 }
