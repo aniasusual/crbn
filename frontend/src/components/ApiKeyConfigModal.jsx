@@ -338,23 +338,12 @@ export default function ApiKeyConfigModal({
                           <div className="apikey-item-header">
                             <div className="apikey-item-title-row">
                               <span className="apikey-item-name">{p.label || p.id}</span>
-                              {p.env_var && (
-                                <code className="apikey-item-env-badge">{p.env_var}</code>
-                              )}
-                              {isConfigured ? (
+                              {isConfigured && (
                                 <span className="apikey-badge apikey-badge-success">
                                   <span className="apikey-status-dot" />
                                   Configured
                                 </span>
-                              ) : (
-                                <span className="apikey-badge apikey-badge-muted">
-                                  Not configured
-                                </span>
                               )}
-                            </div>
-
-                            <div className="apikey-item-models-count">
-                              {p.model_count} models available
                             </div>
                           </div>
 

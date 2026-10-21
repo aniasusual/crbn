@@ -254,7 +254,7 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background-color 0.05s ease;
 }
 
 .degrees-welcome__oauth-direction:hover {
@@ -297,12 +297,45 @@
   border: none;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 0.14s ease;
+  transition: background-color 0.05s ease, color 0.05s ease;
 }
 
 .degrees-welcome__oauth-direction:hover .degrees-welcome__oauth-badge-btn {
   background: #ffffff;
   color: #0b0c10;
+}
+
+/* Connected state for Direction Banner */
+.degrees-welcome__oauth-direction--connected {
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  cursor: default;
+}
+
+.degrees-welcome__oauth-direction--connected:hover {
+  background: rgba(34, 197, 94, 0.12);
+  box-shadow: 0 4px 18px rgba(34, 197, 94, 0.15);
+}
+
+.degrees-welcome__oauth-connected-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.degrees-welcome__oauth-badge-btn--connected {
+  background: rgba(34, 197, 94, 0.18);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.degrees-welcome__oauth-direction--connected:hover .degrees-welcome__oauth-badge-btn--connected {
+  background: #22c55e;
+  color: #052e16;
 }
 
 /* Timeline Composer */

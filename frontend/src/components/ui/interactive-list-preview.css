@@ -36,7 +36,7 @@
 
 .ilp-row {
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.05s ease;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 

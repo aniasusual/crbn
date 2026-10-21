@@ -70,6 +70,21 @@ export default function WelcomeView({
   const [mcpCount, setMcpCount] = useState(0);
   const [welcomeMode, setWelcomeMode] = useState('build');
 
+  const [justConnectedProvider, setJustConnectedProvider] = useState(null);
+
+  const hasAnyConfiguredAuth = useMemo(() => {
+    return (
+      models.some((m) => Boolean(m.has_auth || m.installed)) ||
+      providers.some((p) => Boolean(p.has_auth || p.connected))
+    );
+  }, [models, providers]);
+  const isAnyModalOpen =
+    isModelSelectorOpen ||
+    isConnectModalOpen ||
+    isGitHubConnectModalOpen ||
+    isMcpModalOpen;
+
+
   const fetchGlobalMcp = useCallback(() => {
     fetch(`${API_BASE_URL}/api/projects/_global/mcp`)
       .then((res) => (res.ok ? res.json() : null))
@@ -450,13 +465,14 @@ export default function WelcomeView({
               <AsciiEffect
                 variant="flow"
                 imageSrc="./images/portrait.jpg"
-                fontSize={5}
+                fontSize={7}
                 flowSpeed={0.22}
                 flowStrength={12}
                 mouseRadius={180}
                 mouseStrength={32}
                 mouseWaveSpeed={2.6}
                 mouseEasing={1.0}
+                paused={isAnyModalOpen}
               />
             </div>
           </aside>
@@ -476,7 +492,7 @@ export default function WelcomeView({
                 grain={0.32}
                 grainSize={1}
                 seed={1}
-                speed={1}
+                speed={isAnyModalOpen ? 0 : 0.8}
                 className="h-full w-full"
               />
             </div>
@@ -524,19 +540,39 @@ export default function WelcomeView({
               </p>
             </header>
 
-            {/* Direction banner for users without an API key */}
-            <div
-              className="degrees-welcome__oauth-direction"
-              onClick={() => setIsConnectModalOpen(true)}
-              title="Connect Claude, ChatGPT, Copilot and more"
-            >
-              <div className="degrees-welcome__oauth-direction-left">
-                <span className="degrees-welcome__oauth-text">
-                  No API key? No problem — connect Claude, ChatGPT, Copilot and more
+            {/* Direction banner for users without an API key OR newly connected status */}
+            {justConnectedProvider ? (
+              <div
+                className="degrees-welcome__oauth-direction degrees-welcome__oauth-direction--connected"
+                title={`Connected to ${justConnectedProvider.name || justConnectedProvider.id}`}
+              >
+                <div className="degrees-welcome__oauth-direction-left">
+                  <span className="degrees-welcome__oauth-connected-dot" />
+                  <span className="degrees-welcome__oauth-text">
+                    Connected to <strong style={{ color: '#ffffff', fontWeight: 600 }}>{justConnectedProvider.name || justConnectedProvider.id}</strong>
+                  </span>
+                </div>
+                <span className="degrees-welcome__oauth-badge-btn degrees-welcome__oauth-badge-btn--connected">
+                  <span>Connected</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', marginLeft: 4, verticalAlign: '-1px' }}>
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
                 </span>
               </div>
-              <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>
-            </div>
+            ) : !hasAnyConfiguredAuth ? (
+              <div
+                className="degrees-welcome__oauth-direction"
+                onClick={() => setIsConnectModalOpen(true)}
+                title="Connect Claude, ChatGPT, Copilot and more"
+              >
+                <div className="degrees-welcome__oauth-direction-left">
+                  <span className="degrees-welcome__oauth-text">
+                    No API key? No problem — connect Claude, ChatGPT, Copilot and more
+                  </span>
+                </div>
+                <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>
+              </div>
+            ) : null}
 
             {/* Main Creative Input Box (Timeline Composer) */}
             <form
@@ -1072,6 +1108,10 @@ export default function WelcomeView({
         onClose={() => setIsConnectModalOpen(false)}
         providers={providers}
         onRefreshModels={onRefreshModels}
+        variant="welcome"
+        onConnected={(info) => {
+          setJustConnectedProvider(info);
+        }}
       />
 
       {/* GitHub Connect Modal */}

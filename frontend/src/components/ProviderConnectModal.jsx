@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Fragment } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './ProviderConnectModal.css';
@@ -40,7 +40,10 @@ export default function ProviderConnectModal({
   onClose,
   providers = [],
   onRefreshModels,
+  variant = 'full',
+  onConnected,
 }) {
+  const isWelcome = variant === 'welcome';
   const [oauthProviders, setOauthProviders] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSession, setActiveSession] = useState(null);
@@ -135,7 +138,17 @@ export default function ProviderConnectModal({
               setSuccessMsg(`Connected ${provider} successfully.`);
               setConnectingProvider(null);
               setPasteCodeInput('');
+              const provObj = providerList.find((p) => p.id === provider);
+              const provName = provObj?.name || provider;
+              if (onConnected) {
+                onConnected({ id: provider, name: provName });
+              }
               if (onRefreshModels) await onRefreshModels();
+              if (variant === 'welcome') {
+                setTimeout(() => {
+                  onClose();
+                }, 800);
+              }
             } else if (data.session.status === 'failed') {
               setErrorMsg(data.session.error || 'Authentication failed');
               setConnectingProvider(null);
@@ -260,19 +273,156 @@ export default function ProviderConnectModal({
       [providerId]: !prev[providerId],
     }));
   };
+  const renderInFlightTray = (fp) => {
+    const isConnecting =
+      connectingProvider === fp.id ||
+      (activeSession?.provider === fp.id &&
+        (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
+
+    if (!isConnecting || !activeSession) return null;
+
+    const isRequiredPrompt = Boolean(activeSession?.awaitingPrompt || activeSession?.promptMessage);
+    const isManualFallbackOpen = Boolean(manualInputToggles[fp.id]);
+    const shouldShowInput = isRequiredPrompt || isManualFallbackOpen;
+    const deviceCode = activeSession?.deviceCode || extractCode(activeSession?.instructions);
+
+    return (
+      <div className="shadcn-tray">
+        <div className="shadcn-tray-status">
+          <span className="shadcn-spinner" />
+          <span>
+            {activeSession.promptMessage
+              ? activeSession.promptMessage
+              : 'Waiting for authorization in browser...'}
+          </span>
+        </div>
+
+        {deviceCode && (
+          <div className="shadcn-device-code-box">
+            <span className="shadcn-device-code-label">Enter code in browser:</span>
+            <div className="shadcn-device-code-inner">
+              <span className="shadcn-device-code">{deviceCode}</span>
+              <button
+                type="button"
+                className="shadcn-btn shadcn-btn-secondary shadcn-btn-xs"
+                onClick={() => {
+                  navigator.clipboard.writeText(deviceCode);
+                  setCopiedCode(true);
+                  setTimeout(() => setCopiedCode(false), 2000);
+                }}
+              >
+                {copiedCode ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {shouldShowInput && (
+          <div className="shadcn-prompt-box">
+            <label className="shadcn-prompt-label">
+              {activeSession.promptMessage || 'Paste authorization code or redirect URL:'}
+            </label>
+            <div className="shadcn-prompt-row">
+              <input
+                type="text"
+                className="shadcn-input shadcn-input-sm"
+                placeholder={
+                  activeSession.promptPlaceholder ||
+                  (activeSession.promptAllowEmpty
+                    ? 'Leave blank or enter value...'
+                    : 'Paste code or redirect URL here...')
+                }
+                value={pasteCodeInput}
+                onChange={(e) => setPasteCodeInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSubmitPrompt(fp.id);
+                  }
+                }}
+                autoFocus
+              />
+              <button
+                type="button"
+                className="shadcn-btn shadcn-btn-primary shadcn-btn-sm"
+                onClick={() => handleSubmitPrompt(fp.id)}
+                disabled={isSubmittingPrompt || (!activeSession?.promptAllowEmpty && !pasteCodeInput.trim())}
+              >
+                {isSubmittingPrompt ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="shadcn-tray-footer">
+          {(activeSession.launchUrl || activeSession.authUrl) && (
+            <a
+              href={activeSession.launchUrl || activeSession.authUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="shadcn-link"
+            >
+              Reopen Browser Sign-In ↗
+            </a>
+          )}
+
+          {!isRequiredPrompt && (
+            <button
+              type="button"
+              className="shadcn-link-button"
+              onClick={() => toggleManualInput(fp.id)}
+            >
+              {isManualFallbackOpen ? 'Hide manual input' : 'Paste code or URL manually'}
+            </button>
+          )}
+        </div>
+
+        {/* GCP Project ID Box */}
+        {fp.id === 'google-gemini-cli' && (errorMsg?.includes('GOOGLE_CLOUD_PROJECT') || activeSession?.error?.includes('GOOGLE_CLOUD_PROJECT')) && (
+          <div className="shadcn-gcp-box">
+            <div className="shadcn-gcp-title">Google Cloud Project Required</div>
+            <p className="shadcn-gcp-desc">
+              Your account requires a GCP Project ID. Enter it below to authorize.
+            </p>
+            <div className="shadcn-prompt-row">
+              <input
+                type="text"
+                className="shadcn-input shadcn-input-sm"
+                placeholder="GCP Project ID (e.g. my-app-12345)"
+                value={gcpProjectId}
+                onChange={(e) => setGcpProjectId(e.target.value)}
+              />
+              <button
+                type="button"
+                className="shadcn-btn shadcn-btn-primary shadcn-btn-sm"
+                onClick={() => handleStartOAuth('google-gemini-cli', gcpProjectId)}
+                disabled={!gcpProjectId.trim()}
+              >
+                Authorize
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <Dialog open={Boolean(isOpen)} onClose={onClose} className="shadcn-dialog-root">
       <DialogBackdrop transition className="shadcn-dialog-backdrop" />
 
       <div className="shadcn-dialog-wrapper">
-        <DialogPanel transition className="shadcn-dialog-panel">
+        <DialogPanel transition className={`shadcn-dialog-panel ${isWelcome ? 'shadcn-dialog-panel--welcome' : ''}`}>
           {/* Dialog Header */}
           <div className="shadcn-dialog-header">
             <div className="shadcn-dialog-header-text">
-              <DialogTitle className="shadcn-dialog-title">Connect Providers</DialogTitle>
+              <DialogTitle className="shadcn-dialog-title">
+                {isWelcome ? 'Connect Provider' : 'Connect Providers'}
+              </DialogTitle>
               <Description className="shadcn-dialog-description">
-                Configure official OAuth and subscriptions for your model catalog.
+                {isWelcome
+                  ? 'Connect your account to enable models without entering an API key.'
+                  : 'Configure official OAuth and subscriptions for your model catalog.'}
               </Description>
             </div>
             <button
@@ -338,221 +488,152 @@ export default function ProviderConnectModal({
 
           {/* Scrollable Provider List */}
           <div className="shadcn-dialog-scroll-area">
-            <div className="shadcn-dialog-list">
-              {filteredProviders.map((fp) => {
-                const providerData = providers.find((p) => p.id === fp.id) || null;
-                const isConnected = Boolean(fp.connected || providerData?.has_auth);
-                const isConnecting =
-                  connectingProvider === fp.id ||
-                  (activeSession?.provider === fp.id &&
-                    (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
+            {isWelcome ? (
+              <div className="provider-modal-table-wrap">
+                <table className="provider-modal-table">
+                  <colgroup>
+                    <col style={{ width: '75%' }} />
+                    <col style={{ width: '25%' }} />
+                  </colgroup>
+                  <thead className="provider-table-thead">
+                    <tr>
+                      <th className="provider-table-th">Provider</th>
+                      <th className="provider-table-th provider-table-th--action">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProviders.map((fp) => {
+                      const isConnecting =
+                        connectingProvider === fp.id ||
+                        (activeSession?.provider === fp.id &&
+                          (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
 
-                const isRequiredPrompt =
-                  isConnecting &&
-                  Boolean(activeSession?.awaitingPrompt || activeSession?.promptMessage);
+                      return (
+                        <Fragment key={fp.id}>
+                          <tr
+                            className={`provider-table-row ${isConnecting ? 'provider-table-row--active' : ''}`}
+                          >
+                            <td className="provider-table-cell provider-table-cell--name">
+                              <span className="provider-table-name">{fp.name}</span>
+                            </td>
+                            <td className="provider-table-cell provider-table-cell--action">
+                              {isConnecting ? (
+                                <button
+                                  type="button"
+                                  className="shadcn-btn shadcn-btn-outline shadcn-btn-sm"
+                                  onClick={() => handleCancelOAuth(fp.id)}
+                                >
+                                  Cancel
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="shadcn-btn shadcn-btn-primary shadcn-btn-sm"
+                                  onClick={() => handleStartOAuth(fp.id)}
+                                >
+                                  Connect
+                                </button>
+                              )}
+                            </td>
+                          </tr>
 
-                const isManualFallbackOpen = Boolean(manualInputToggles[fp.id]);
-                const shouldShowInput = isConnecting && (isRequiredPrompt || isManualFallbackOpen);
-
-                const deviceCode = activeSession?.deviceCode || extractCode(activeSession?.instructions);
-                const accountEmail = fp.account?.email || providerData?.account_email;
-
-                return (
-                  <div
-                    key={fp.id}
-                    className={`shadcn-item-card ${isConnected ? 'shadcn-item-card--connected' : ''} ${
-                      isConnecting ? 'shadcn-item-card--active' : ''
-                    }`}
-                  >
-                    <div className="shadcn-item-card-header">
-                      {/* Left: Info */}
-                      <div className="shadcn-item-info">
-                        <div className="shadcn-item-title-row">
-                          <span className="shadcn-item-name">{fp.name}</span>
-                          <span className="shadcn-badge shadcn-badge-secondary">{fp.plan}</span>
-                          {isConnected && (
-                            <span className="shadcn-badge shadcn-badge-success">
-                              <span className="shadcn-status-dot" />
-                              Connected
-                            </span>
+                          {isConnecting && activeSession && (
+                            <tr className="provider-table-tray-tr">
+                              <td colSpan={2} className="provider-table-tray-td">
+                                {renderInFlightTray(fp)}
+                              </td>
+                            </tr>
                           )}
-                        </div>
+                        </Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="shadcn-dialog-list">
+                {filteredProviders.map((fp) => {
+                  const providerData = providers.find((p) => p.id === fp.id) || null;
+                  const isConnected = Boolean(fp.connected || providerData?.has_auth);
+                  const isConnecting =
+                    connectingProvider === fp.id ||
+                    (activeSession?.provider === fp.id &&
+                      (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
+                  const accountEmail = fp.account?.email || providerData?.account_email;
 
-                        <div className="shadcn-item-description">
-                          {fp.modelsText}
-                        </div>
-
-                        {isConnected && accountEmail && (
-                          <div className="shadcn-item-account">
-                            <span className="shadcn-item-account-label">Account:</span>
-                            <code className="shadcn-item-account-code">{accountEmail}</code>
-                            {fp.account?.orgName && (
-                              <span className="shadcn-item-account-org">({fp.account.orgName})</span>
+                  return (
+                    <div
+                      key={fp.id}
+                      className={`shadcn-item-card ${isConnected ? 'shadcn-item-card--connected' : ''} ${
+                        isConnecting ? 'shadcn-item-card--active' : ''
+                      }`}
+                    >
+                      <div className="shadcn-item-card-header">
+                        {/* Left: Info */}
+                        <div className="shadcn-item-info">
+                          <div className="shadcn-item-title-row">
+                            <span className="shadcn-item-name">{fp.name}</span>
+                            {isConnected && (
+                              <span className="shadcn-badge shadcn-badge-success">
+                                <span className="shadcn-status-dot" />
+                                Connected
+                              </span>
                             )}
                           </div>
-                        )}
-                      </div>
-
-                      {/* Right: Actions */}
-                      <div className="shadcn-item-actions">
-                        {isConnected ? (
-                          <button
-                            type="button"
-                            className="shadcn-btn shadcn-btn-destructive-outline"
-                            onClick={() => handleDisconnect(fp.id)}
-                          >
-                            Disconnect
-                          </button>
-                        ) : isConnecting ? (
-                          <button
-                            type="button"
-                            className="shadcn-btn shadcn-btn-outline"
-                            onClick={() => handleCancelOAuth(fp.id)}
-                          >
-                            Cancel
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="shadcn-btn shadcn-btn-primary"
-                            onClick={() => handleStartOAuth(fp.id)}
-                          >
-                            Connect
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* In-Flight Tray / Prompt */}
-                    {isConnecting && activeSession && (
-                      <div className="shadcn-tray">
-                        <div className="shadcn-tray-status">
-                          <span className="shadcn-spinner" />
-                          <span>
-                            {activeSession.promptMessage
-                              ? activeSession.promptMessage
-                              : 'Waiting for authorization in browser...'}
-                          </span>
+                          {isConnected && accountEmail && (
+                            <div className="shadcn-item-account">
+                              <span className="shadcn-item-account-label">Account:</span>
+                              <code className="shadcn-item-account-code">{accountEmail}</code>
+                              {fp.account?.orgName && (
+                                <span className="shadcn-item-account-org">({fp.account.orgName})</span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
-                        {deviceCode && (
-                          <div className="shadcn-device-code-box">
-                            <span className="shadcn-device-code-label">Enter code in browser:</span>
-                            <div className="shadcn-device-code-inner">
-                              <span className="shadcn-device-code">{deviceCode}</span>
-                              <button
-                                type="button"
-                                className="shadcn-btn shadcn-btn-secondary shadcn-btn-xs"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(deviceCode);
-                                  setCopiedCode(true);
-                                  setTimeout(() => setCopiedCode(false), 2000);
-                                }}
-                              >
-                                {copiedCode ? 'Copied' : 'Copy'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {shouldShowInput && (
-                          <div className="shadcn-prompt-box">
-                            <label className="shadcn-prompt-label">
-                              {activeSession.promptMessage || 'Paste authorization code or redirect URL:'}
-                            </label>
-                            <div className="shadcn-prompt-row">
-                              <input
-                                type="text"
-                                className="shadcn-input shadcn-input-sm"
-                                placeholder={
-                                  activeSession.promptPlaceholder ||
-                                  (activeSession.promptAllowEmpty
-                                    ? 'Leave blank or enter value...'
-                                    : 'Paste code or redirect URL here...')
-                                }
-                                value={pasteCodeInput}
-                                onChange={(e) => setPasteCodeInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleSubmitPrompt(fp.id);
-                                  }
-                                }}
-                                autoFocus
-                              />
-                              <button
-                                type="button"
-                                className="shadcn-btn shadcn-btn-primary shadcn-btn-sm"
-                                onClick={() => handleSubmitPrompt(fp.id)}
-                                disabled={isSubmittingPrompt || (!activeSession?.promptAllowEmpty && !pasteCodeInput.trim())}
-                              >
-                                {isSubmittingPrompt ? 'Submitting...' : 'Submit'}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="shadcn-tray-footer">
-                          {(activeSession.launchUrl || activeSession.authUrl) && (
-                            <a
-                              href={activeSession.launchUrl || activeSession.authUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="shadcn-link"
-                            >
-                              Reopen Browser Sign-In ↗
-                            </a>
-                          )}
-
-                          {!isRequiredPrompt && (
+                        {/* Right: Actions */}
+                        <div className="shadcn-item-actions">
+                          {isConnected ? (
                             <button
                               type="button"
-                              className="shadcn-link-button"
-                              onClick={() => toggleManualInput(fp.id)}
+                              className="shadcn-btn shadcn-btn-destructive-outline"
+                              onClick={() => handleDisconnect(fp.id)}
                             >
-                              {isManualFallbackOpen ? 'Hide manual input' : 'Paste code or URL manually'}
+                              Disconnect
+                            </button>
+                          ) : isConnecting ? (
+                            <button
+                              type="button"
+                              className="shadcn-btn shadcn-btn-outline"
+                              onClick={() => handleCancelOAuth(fp.id)}
+                            >
+                              Cancel
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="shadcn-btn shadcn-btn-primary"
+                              onClick={() => handleStartOAuth(fp.id)}
+                            >
+                              Connect
                             </button>
                           )}
                         </div>
                       </div>
-                    )}
 
-                    {/* GCP Project ID Box */}
-                    {fp.id === 'google-gemini-cli' && (errorMsg?.includes('GOOGLE_CLOUD_PROJECT') || activeSession?.error?.includes('GOOGLE_CLOUD_PROJECT')) && (
-                      <div className="shadcn-gcp-box">
-                        <div className="shadcn-gcp-title">Google Cloud Project Required</div>
-                        <p className="shadcn-gcp-desc">
-                          Your account requires a GCP Project ID. Enter it below to authorize.
-                        </p>
-                        <div className="shadcn-prompt-row">
-                          <input
-                            type="text"
-                            className="shadcn-input shadcn-input-sm"
-                            placeholder="GCP Project ID (e.g. my-app-12345)"
-                            value={gcpProjectId}
-                            onChange={(e) => setGcpProjectId(e.target.value)}
-                          />
-                          <button
-                            type="button"
-                            className="shadcn-btn shadcn-btn-primary shadcn-btn-sm"
-                            onClick={() => handleStartOAuth('google-gemini-cli', gcpProjectId)}
-                            disabled={!gcpProjectId.trim()}
-                          >
-                            Authorize
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {/* In-Flight Tray / Prompt */}
+                      {renderInFlightTray(fp)}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-              {filteredProviders.length === 0 && (
-                <div className="shadcn-empty-state">
-                  No providers found matching &ldquo;{searchQuery}&rdquo;
-                </div>
-              )}
-            </div>
+            {filteredProviders.length === 0 && (
+              <div className="shadcn-empty-state">
+                No providers found matching &ldquo;{searchQuery}&rdquo;
+              </div>
+            )}
           </div>
         </DialogPanel>
       </div>
