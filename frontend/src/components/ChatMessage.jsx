@@ -607,7 +607,17 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
 /**
  * ChatMessage — Renders a single chat message bubble with Notion minimalism and LLM payload debugging.
  */
-export default function ChatMessage({ message, isActive, onOpenSubagent, onSelectOption, onToolResponse, onRewindToStep, onBranchFromStep }) {
+export default function ChatMessage({
+  message,
+  isActive,
+  isSearchActive = false,
+  isSearchMatch = false,
+  onOpenSubagent,
+  onSelectOption,
+  onToolResponse,
+  onRewindToStep,
+  onBranchFromStep,
+}) {
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(!message.collapsed);
   useEffect(() => {
@@ -615,6 +625,12 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
       setIsExpanded(false);
     }
   }, [message.collapsed]);
+
+  useEffect(() => {
+    if (isSearchActive) {
+      setIsExpanded(true);
+    }
+  }, [isSearchActive]);
 
   const toggleExpand = () => setIsExpanded(prev => !prev);
   const openDebug = () => setIsDebugOpen(true);

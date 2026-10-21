@@ -1257,7 +1257,10 @@ const _server = Bun.serve<WsData>({
         }
         return;
       }
-      if (action === "queue_message" || (!action && (data.prompt || data.images || data.files) && bridge.isRunning)) {
+      if (
+        action === "queue_message" ||
+        ((action === "prompt" || !action) && (data.prompt || data.images || data.files) && bridge.isRunning)
+      ) {
         const promptText = (data.prompt as string)?.trim() || "";
         const rawImages = Array.isArray(data.images) ? (data.images as unknown[]) : [];
         const rawFiles = Array.isArray(data.files) ? (data.files as unknown[]) : [];

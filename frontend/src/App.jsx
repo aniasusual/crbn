@@ -935,7 +935,7 @@ export default function App() {
       }
 
       const payload = JSON.stringify({
-        action: 'prompt',
+        action: isAlreadyGenerating ? 'queue_message' : 'prompt',
         prompt,
         images: images.length > 0 ? images : undefined,
         files: files.length > 0 ? files : undefined,
@@ -957,16 +957,23 @@ export default function App() {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ action: 'remove_queued_message', text, queue }));
       }
-      updateTab(activeTabId, (t) => ({
-        queuedMessages: {
-          steering: (t.queuedMessages?.steering || []).filter(
-            (item) => (typeof item === 'string' ? item : item.text) !== text
-          ),
-          followUp: (t.queuedMessages?.followUp || []).filter(
-            (item) => (typeof item === 'string' ? item : item.text) !== text
-          ),
-        },
-      }));
+      updateTab(activeTabId, (t) => {
+        if (!t.queuedMessages) return {};
+        const qKey = queue === 'steering' ? 'steering' : 'followUp';
+        const currentList = Array.isArray(t.queuedMessages[qKey]) ? [...t.queuedMessages[qKey]] : [];
+        const index = currentList.findIndex(
+          (item) => (typeof item === 'string' ? item : item.text) === text
+        );
+        if (index >= 0) {
+          currentList.splice(index, 1);
+        }
+        return {
+          queuedMessages: {
+            ...t.queuedMessages,
+            [qKey]: currentList,
+          },
+        };
+      });
     },
     [activeTabId, updateTab]
   );
