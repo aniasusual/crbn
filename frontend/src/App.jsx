@@ -202,6 +202,17 @@ export default function App() {
             }));
           }
 
+          if (data.type === 'queue_update') {
+            updateTab(tabId, {
+              queuedMessages: {
+                steering: Array.isArray(data.steering) ? data.steering : [],
+                followUp: Array.isArray(data.followUp) ? data.followUp : [],
+                liveSteered: data.liveSteered || 0,
+              },
+            });
+            return;
+          }
+
           if (data.type === 'context_telemetry' && data.telemetry) {
             updateTab(tabId, { contextTelemetry: data.telemetry });
             return;
@@ -695,7 +706,7 @@ export default function App() {
           activeBranch: 'main',
           branches: [],
           isConnected: false,
-          mcpState: { servers: [] },
+          queuedMessages: { steering: [], followUp: [] },
         }));
         setTabs(initialized);
 
@@ -774,7 +785,7 @@ export default function App() {
         activeBranch: 'main',
         branches: [],
         isConnected: false,
-        mcpState: { servers: [] },
+        queuedMessages: { steering: [], followUp: [] },
       };
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(tabId);
@@ -898,19 +909,30 @@ export default function App() {
       const images = attachments?.images ?? [];
       const files = attachments?.files ?? [];
 
-      updateTab(activeTabId, (t) => ({
-        agentStatus: 'generating',
-        messages: [
-          ...t.messages,
-          {
-            role: 'user',
-            content: prompt,
-            images: images.length > 0 ? images : undefined,
-            files: files.length > 0 ? files : undefined,
-            timestamp: new Date().toISOString(),
+      const isAlreadyGenerating = tab.agentStatus === 'generating';
+
+      if (!isAlreadyGenerating) {
+        updateTab(activeTabId, (t) => ({
+          agentStatus: 'generating',
+          messages: [
+            ...t.messages,
+            {
+              role: 'user',
+              content: prompt,
+              images: images.length > 0 ? images : undefined,
+              files: files.length > 0 ? files : undefined,
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }));
+      } else {
+        updateTab(activeTabId, (t) => ({
+          queuedMessages: {
+            ...t.queuedMessages,
+            followUp: [...(t.queuedMessages?.followUp || []), prompt],
           },
-        ],
-      }));
+        }));
+      }
 
       const payload = JSON.stringify({
         action: 'prompt',
@@ -928,6 +950,27 @@ export default function App() {
     },
     [activeTabId, tabs, updateTab]
   );
+  const handleRemoveQueuedMessage = useCallback(
+    (text, queue = 'followUp') => {
+      if (!activeTabId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'remove_queued_message', text, queue }));
+      }
+      updateTab(activeTabId, (t) => ({
+        queuedMessages: {
+          steering: (t.queuedMessages?.steering || []).filter(
+            (item) => (typeof item === 'string' ? item : item.text) !== text
+          ),
+          followUp: (t.queuedMessages?.followUp || []).filter(
+            (item) => (typeof item === 'string' ? item : item.text) !== text
+          ),
+        },
+      }));
+    },
+    [activeTabId, updateTab]
+  );
+
   handleSendMessageRef.current = handleSendMessage;
 
   const handleToolResponse = useCallback(
@@ -1261,6 +1304,8 @@ export default function App() {
           mcpState={activeTab.mcpState}
           onReloadMcp={handleReloadMcp}
           onRefreshTab={() => handleRefreshTab(activeTab.id)}
+          queuedMessages={activeTab.queuedMessages}
+          onRemoveQueuedMessage={handleRemoveQueuedMessage}
         />
       )}
     </div>

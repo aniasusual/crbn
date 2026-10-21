@@ -47,6 +47,8 @@ export default function WorkspaceView({
   onApprovePlan = null,
   onRefinePlan = null,
   onRefreshTab = null,
+  queuedMessages = null,
+  onRemoveQueuedMessage = null,
 }) {
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
@@ -145,6 +147,8 @@ export default function WorkspaceView({
             onApprovePlan={onApprovePlan}
             onRefinePlan={onRefinePlan}
             onRefreshTab={onRefreshTab}
+            queuedMessages={queuedMessages}
+            onRemoveQueuedMessage={onRemoveQueuedMessage}
           />
         </div>
 
