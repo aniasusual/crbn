@@ -350,6 +350,12 @@
   transform: translateY(-1px);
 }
 
+.models-gateway-card--omniroute {
+  margin-top: 0.625rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .models-gateway-card-top {
   display: flex;
   align-items: center;

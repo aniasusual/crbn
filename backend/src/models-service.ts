@@ -287,13 +287,25 @@ export class ModelsService {
     const modelList: ModelCatalogEntry[] = [];
     const providerAuthMap = new Map<string, boolean>();
 
-    // 1. Unify all providers across static catalog, dynamic registry, and OAuth manager
+    // Check if models.yml contains gateway providers (like omniroute)
+    const agentDir = path.join(os.homedir(), ".omp", "agent");
+    const modelsYmlPath = path.join(agentDir, "models.yml");
+    let ymlProviders: Record<string, Record<string, unknown>> = {};
+    try {
+      const ymlContent = await fs.readFile(modelsYmlPath, "utf-8");
+      const parsed = yaml.parse(ymlContent);
+      if (parsed && typeof parsed === "object" && parsed.providers) {
+        ymlProviders = parsed.providers;
+      }
+    } catch {}
+
+    // 1. Unify all providers across static catalog, dynamic registry, OAuth manager, and models.yml
     const jsonProviders = Object.keys(MODELS) as string[];
     const registryModels = registry.getAll();
     const registryProviders = Array.from(new Set(registryModels.map((m) => m.provider)));
     const oauthProviders = this.oauthManager.getOAuthProviders();
     const allProviderIds = Array.from(
-      new Set([...jsonProviders, ...registryProviders, ...oauthProviders.map((p) => p.id)])
+      new Set([...jsonProviders, ...registryProviders, ...oauthProviders.map((p) => p.id), ...Object.keys(ymlProviders)])
     ).filter(Boolean);
 
     const authStorage = await this.getAuthStorage();
@@ -352,9 +364,14 @@ export class ModelsService {
         apiKeyPreview = k.length > 8 ? `${k.slice(0, 6)}••••${k.slice(-4)}` : "••••••••";
       }
 
+      const ymlEntry = ymlProviders[pid];
+      const isGatewayConfigured = Boolean(ymlEntry?.baseUrl) || (pid === "omniroute" && Boolean(pEntry?.baseUrl));
+
       let authType: "oauth" | "api_key" | "local" | "none" = "none";
       if ((pid as string) === "ollama") {
         authType = ollamaRunning ? "local" : "none";
+      } else if (isGatewayConfigured) {
+        authType = "api_key";
       } else if (keySource?.kind === "runtime" || keySource?.kind === "config") {
         authType = "api_key";
       } else if (hasOAuth) {
@@ -363,7 +380,7 @@ export class ModelsService {
         authType = "api_key";
       }
 
-      const hasAuth = hasOAuth || hasApiKey || ((pid as string) === "ollama" && ollamaRunning);
+      const hasAuth = hasOAuth || hasApiKey || isGatewayConfigured || ((pid as string) === "ollama" && ollamaRunning);
       providerAuthMap.set(pid, hasAuth);
 
       // Collect models for this provider from both JSON and registry
@@ -490,6 +507,37 @@ export class ModelsService {
             isVision ? "vision" : "text",
             hasAuth ? "ready" : "needs-key",
           ],
+        });
+      }
+    }
+
+    // 2b. Seed Gateway models (OmniRoute) directly from models.yml if configured
+    for (const [gId, gEntry] of Object.entries(ymlProviders)) {
+      if (!gEntry?.baseUrl) continue;
+      const gLabel = gId === "omniroute" ? "OmniRoute" : gId.charAt(0).toUpperCase() + gId.slice(1);
+      const rawGModels = Array.isArray(gEntry.models) ? gEntry.models : [];
+      for (const gm of rawGModels as Array<{ id?: string; name?: string }>) {
+        if (!gm?.id) continue;
+        const canonicalId = `${gId}/${gm.id}`;
+        if (seenModelCanonicalIds.has(canonicalId)) continue;
+        seenModelCanonicalIds.add(canonicalId);
+        modelList.unshift({
+          id: gm.id,
+          canonical_id: canonicalId,
+          name: gm.name || gm.id,
+          provider: gId,
+          provider_label: gLabel,
+          context_length: "128k",
+          context_tokens: 128_000,
+          supports_thinking: gm.id.includes("reason") || gm.id.includes("r1") || gm.id.includes("think"),
+          supports_vision: gm.id.includes("vision") || gm.id.includes("vl"),
+          has_auth: true,
+          auth_type: "api_key",
+          has_oauth: false,
+          has_api_key: true,
+          requires_api_key: false,
+          env_var: "OMNIROUTE_API_KEY",
+          tags: [gId, "gateway", "ready"],
         });
       }
     }
