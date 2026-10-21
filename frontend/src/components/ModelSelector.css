@@ -42,9 +42,9 @@
   min-height: 540px;
   display: flex;
   flex-direction: column;
-  background: rgba(10, 10, 14, 0.94);
-  backdrop-filter: blur(48px) saturate(200%);
-  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  background: rgba(10, 10, 14, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: none;
   border-radius: 20px;
   box-shadow:
@@ -262,7 +262,187 @@
   opacity: 1;
 }
 
-/* Two-Panel Layout */
+/* ============================================================================
+   Gateway Banner (Option 1: Setup Callout when 0 models configured)
+   ============================================================================ */
+
+.models-gateway-banner {
+  margin: 0 1.75rem 1rem 1.75rem;
+  padding: 1.125rem 1.25rem;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  flex-shrink: 0;
+}
+
+.models-gateway-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.models-gateway-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.models-gateway-sparkle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #facc15;
+}
+
+.models-gateway-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.models-gateway-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(234, 179, 8, 0.15);
+  color: #fde047;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.models-gateway-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
+}
+
+.models-gateway-cards {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.models-gateway-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.models-gateway-card:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+.models-gateway-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+}
+
+.models-gateway-card-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.models-gateway-card-tag {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.models-gateway-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.models-gateway-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.models-gateway-card-name {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.models-gateway-card-hint {
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 0.2rem;
+}
+
+.models-gateway-card-action {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #ffffff;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  align-self: flex-start;
+  transition: all 0.12s ease;
+}
+
+.models-gateway-card:hover .models-gateway-card-action {
+  background: #ffffff;
+  color: #0b0c10;
+}
+
+.models-gateway-divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.models-gateway-divider-line {
+  flex: 1;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.models-gateway-divider-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.45);
+  padding: 4px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
 .models-dialog-panels {
   display: flex;
   flex: 1;
@@ -317,24 +497,31 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4375rem 0.75rem;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 0.5625rem 0.8125rem;
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: none;
   border-radius: 10px;
-  color: rgba(255, 255, 255, 0.85);
-  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.78125rem;
   font-family: inherit;
-  font-weight: 500;
+  font-weight: 550;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .models-quick-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.16);
   color: #ffffff;
+}
+
+.models-quick-nav-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .models-quick-nav-arrow {
@@ -366,7 +553,7 @@
   font-family: inherit;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.05s ease, color 0.05s ease;
 }
 
 .models-filter-tab:hover {
@@ -614,7 +801,8 @@
   justify-content: space-between;
   gap: 1rem;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.05s ease;
+  will-change: background-color;
 }
 
 .models-card:hover {
@@ -714,6 +902,43 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+.models-empty-state--ready {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  gap: 0.75rem;
+}
+
+.models-empty-icon-wrap {
+  font-size: 2.25rem;
+  margin-bottom: 0.25rem;
+  opacity: 0.8;
+}
+
+.models-empty-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.models-empty-desc {
+  max-width: 26rem;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.45;
+  margin: 0 0 0.5rem 0;
+}
+
+.models-empty-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 /* Badges: Glassmorphic Pills */
 .models-badge {
   display: inline-flex;
@@ -725,8 +950,6 @@
   border: none;
   box-shadow: none;
   line-height: 1.2;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
 .models-badge-secondary {
@@ -851,9 +1074,9 @@
 .models-unlock-card {
   width: 100%;
   max-width: 440px;
-  background: rgba(12, 12, 16, 0.96);
-  backdrop-filter: blur(48px) saturate(200%);
-  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  background: rgba(12, 12, 16, 0.97);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: none;
   border-radius: 20px;
   box-shadow:

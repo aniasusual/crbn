@@ -167,10 +167,10 @@ export default function GitHubConnectModal({
               </div>
               <div>
                 <DialogTitle className="gh-connect-title">GitHub Integration</DialogTitle>
-              <p className="gh-connect-subtitle">
-                Connect your account to build on existing repos and push code directly.
-              </p>
-            </div>
+                <p className="gh-connect-subtitle">
+                  Connect your account to build on existing repos and push code directly.
+                </p>
+              </div>
           </div>
           <button
             type="button"
@@ -208,10 +208,9 @@ export default function GitHubConnectModal({
                 <div className="gh-connect-user-name-row">
                   <span className="gh-connect-user-name">{status.user.name || status.user.login}</span>
                   <span className="gh-connect-badge-active">
-                    <CheckIcon /> Connected
+                    <span className="gh-connect-status-dot" /> Connected
                   </span>
                 </div>
-                <span className="gh-connect-user-login">@{status.user.login}</span>
                 {status.user.html_url && (
                   <a
                     href={status.user.html_url}

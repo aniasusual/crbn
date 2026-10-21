@@ -33,7 +33,7 @@ export interface AsciiEffectProps extends Omit<HTMLAttributes<HTMLDivElement>, "
   invert?: boolean
   glitchIntensity?: number
   glitchFrequency?: number
-  revealDuration?: number
+  paused?: boolean
 }
 
 export type AsciiPresetProps = Omit<AsciiEffectProps, "variant">
@@ -103,6 +103,7 @@ export function AsciiEffect({
   className,
   onPointerMove,
   onPointerLeave,
+  paused = false,
   ...props
 }: AsciiEffectProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -129,8 +130,9 @@ export function AsciiEffect({
     let glitchUntil = 0
     let glitchBands = new Map<number, number>()
     let loaded = false
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-
+    let lastFrameTime = 0
+    const targetInterval = 1000 / 30
+    const reduceMotion = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
     const resize = () => {
       const rect = container.getBoundingClientRect()
       const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -310,8 +312,12 @@ export function AsciiEffect({
     }
 
     const animate = (now: number) => {
-      draw(now)
-      if (!reduceMotion && variant !== "image") frame = requestAnimationFrame(animate)
+      if (paused) return
+      if (now - lastFrameTime >= targetInterval) {
+        lastFrameTime = now
+        draw(now)
+      }
+      if (!reduceMotion && variant !== "image" && !paused) frame = requestAnimationFrame(animate)
     }
 
     const start = () => {
@@ -319,7 +325,7 @@ export function AsciiEffect({
       loaded = true
       startedAt = performance.now()
       resize()
-      if (!reduceMotion && variant !== "image") frame = requestAnimationFrame(animate)
+      if (!reduceMotion && variant !== "image" && !paused) frame = requestAnimationFrame(animate)
     }
     image.onload = start
     image.src = imageSrc
@@ -333,7 +339,7 @@ export function AsciiEffect({
       observer.disconnect()
       image.onload = null
     }
-  }, [backgroundColor, brightnessBoost, characterSpacing, chars, colorMode, colors, contrast, dither, ditherStrength, fit, flowDirection, flowFrequency, flowSpeed, flowStrength, fontFamily, fontSize, fontWeight, glitchFrequency, glitchIntensity, imageSrc, invert, lineHeight, mouseEasing, mouseRadius, mouseStrength, mouseWaveSpeed, posterize, revealDuration, scale, threshold, variant])
+  }, [backgroundColor, brightnessBoost, characterSpacing, chars, colorMode, colors, contrast, dither, ditherStrength, fit, flowDirection, flowFrequency, flowSpeed, flowStrength, fontFamily, fontSize, fontWeight, glitchFrequency, glitchIntensity, imageSrc, invert, lineHeight, mouseEasing, mouseRadius, mouseStrength, mouseWaveSpeed, paused, posterize, revealDuration, scale, threshold, variant])
 
   const trackPointer = (event: PointerEvent<HTMLDivElement>) => {
     onPointerMove?.(event)

@@ -33,7 +33,7 @@ export interface InteractiveListPreviewProps {
   onDeleteProject?: (projectName: string) => void;
 }
 
-const DEFAULT_SMOOTHNESS = 0.25;
+const DEFAULT_SMOOTHNESS = 0.06;
 const DEFAULT_ITEMS: InteractiveListItem[] = [
   { client: "AURORA UI", platform: "NEXT.JS", services: "Motion Design, GSAP, Page Transitions, UI Systems" },
   { client: "NEON FLOW", platform: "REACT", services: "Interactive UI, Scroll Animations, Effects Library" },
@@ -66,7 +66,7 @@ export default function InteractiveListPreview({
   const activeIndexRef = useRef<number | null>(null);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
 
-  const safeSmoothness = clampNumber(smoothness, 0.05, 1.5, DEFAULT_SMOOTHNESS);
+  const safeSmoothness = clampNumber(smoothness, 0.02, 1.5, DEFAULT_SMOOTHNESS);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -99,8 +99,8 @@ export default function InteractiveListPreview({
       height: rowBounds.height,
       opacity: 1,
       duration: safeSmoothness,
-      ease: "power2.out",
-      overwrite: "auto",
+      ease: "power1.out",
+      overwrite: true,
     });
   };
 
@@ -116,8 +116,8 @@ export default function InteractiveListPreview({
     gsap.to(highlightRef.current, {
       opacity: 0,
       duration: safeSmoothness,
-      ease: "power2.out",
-      overwrite: "auto",
+      ease: "power1.out",
+      overwrite: true,
     });
   };
 
