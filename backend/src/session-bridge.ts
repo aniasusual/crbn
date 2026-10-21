@@ -1402,7 +1402,12 @@ export class SessionBridge {
       this.mcpStatusUnsubscribe();
       this.mcpStatusUnsubscribe = null;
     }
-    this.mcpManager = null;
+    if (this.mcpManager) {
+      try {
+        await this.mcpManager.disconnectAll();
+      } catch {}
+      this.mcpManager = null;
+    }
     this.devServerUnsubscribe?.();
     this.devServerUnsubscribe = null;
   }

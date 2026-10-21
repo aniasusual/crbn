@@ -313,7 +313,7 @@ export class DevServerManager {
   }
 
 
-  async startDevServer(projectPath: string, preferredPort?: number): Promise<DevServerInfo | null> {
+  async startDevServer(projectPath: string, preferredPort?: number, preferredBackendPort?: number): Promise<DevServerInfo | null> {
     const resolvedPath = path.resolve(projectPath);
     ensureBrandBadge(resolvedPath);
     const existing = this.activeServers.get(resolvedPath);
@@ -358,7 +358,12 @@ export class DevServerManager {
     const backendCmd = this.detectBackendCommand(resolvedPath, scripts);
     let backendPort: number | null = null;
     if (backendCmd) {
-      backendPort = await this.findAvailablePort(5001, 5099);
+      if (preferredBackendPort && !occupied.has(preferredBackendPort) && (await this.isPortAvailable(preferredBackendPort))) {
+        this.reservedPorts.add(preferredBackendPort);
+        backendPort = preferredBackendPort;
+      } else {
+        backendPort = await this.findAvailablePort(5001, 5099);
+      }
     }
 
     console.log(`[DevServerManager] Starting frontend for ${resolvedPath} on port ${targetPort}...`);
@@ -687,16 +692,19 @@ export class DevServerManager {
     const resolvedPath = path.resolve(projectPath);
     const existing = this.activeServers.get(resolvedPath);
     const preferredPort = existing?.info.port;
+    const preferredBackendPort = existing?.info.backend_port ?? undefined;
     await this.stopDevServer(projectPath);
 
-    if (preferredPort) {
+    if (preferredPort || preferredBackendPort) {
       for (let i = 0; i < 15; i++) {
-        if (await this.isPortAvailable(preferredPort)) break;
+        const p1 = preferredPort ? await this.isPortAvailable(preferredPort) : true;
+        const p2 = preferredBackendPort ? await this.isPortAvailable(preferredBackendPort) : true;
+        if (p1 && p2) break;
         await Bun.sleep(100);
       }
     }
 
-    return await this.startDevServer(projectPath, preferredPort);
+    return await this.startDevServer(projectPath, preferredPort, preferredBackendPort);
   }
 
   async stopAll(): Promise<void> {
