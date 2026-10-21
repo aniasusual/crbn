@@ -1131,8 +1131,19 @@
 .chat-panel__msg-wrapper {
   position: relative;
   width: 100%;
+  display: flex;
+  flex-direction: column;
   border-radius: 12px;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.chat-panel__msg-wrapper--user,
+.chat-panel__msg-wrapper:has(.chat-msg--user) {
+  align-self: flex-end !important;
+  align-items: flex-end !important;
+  width: fit-content !important;
+  max-width: 92% !important;
+  margin-left: auto !important;
 }
 
 .chat-panel__msg-wrapper--active-match {

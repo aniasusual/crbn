@@ -3,6 +3,7 @@ import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@
 import { API_BASE_URL } from '../config';
 import ProviderConnectModal from './ProviderConnectModal';
 import ApiKeyConfigModal from './ApiKeyConfigModal';
+import OmniRouteModal from './OmniRouteModal';
 import './ModelSelector.css';
 
 const INITIAL_RENDER_COUNT = 60;
@@ -61,6 +62,25 @@ const LockIcon = ({ size = 16, className = '', style = {} }) => (
   </svg>
 );
 
+const RouteIcon = ({ size = 14, className = '', style = {} }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    style={style}
+  >
+    <circle cx="6" cy="19" r="3" />
+    <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
+    <circle cx="18" cy="5" r="3" />
+  </svg>
+);
+
 function getFriendlyOAuthTitle(providerId, loginName) {
   if (providerId === 'anthropic') return 'Claude';
   if (providerId === 'openai-codex') return 'ChatGPT';
@@ -104,6 +124,7 @@ export default function ModelSelector({
   const [copiedCode, setCopiedCode] = useState(false);
   const [isFullOAuthModalOpen, setIsFullOAuthModalOpen] = useState(false);
   const [isFullApiKeyModalOpen, setIsFullApiKeyModalOpen] = useState(false);
+  const [isOmniRouteModalOpen, setIsOmniRouteModalOpen] = useState(false);
 
   // Keep provider catalog synchronized with backend discovery
   useEffect(() => {
@@ -614,6 +635,29 @@ export default function ModelSelector({
                     </div>
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  className="models-gateway-card models-gateway-card--omniroute"
+                  onClick={() => setIsOmniRouteModalOpen(true)}
+                >
+                  <div className="models-gateway-card-body">
+                    <div className="models-gateway-card-top">
+                      <span className="models-gateway-card-badge">Gateway</span>
+                      <span className="models-gateway-card-tag">Combos &amp; Failover</span>
+                    </div>
+                    <div className="models-gateway-card-heading">
+                      <span className="models-gateway-card-icon">
+                        <RouteIcon size={14} />
+                      </span>
+                      <span className="models-gateway-card-name">OmniRoute Gateway</span>
+                    </div>
+                    <span className="models-gateway-card-hint">
+                      Unified proxy for custom multi-model combos, fallbacks, and local runners (http://localhost:20128/v1)
+                    </span>
+                  </div>
+                  <span className="models-gateway-card-action">Connect Gateway →</span>
+                </button>
               </div>
             )}
 
@@ -647,6 +691,17 @@ export default function ModelSelector({
                     <span className="models-quick-nav-btn-left">
                       <ZapIcon size={13} />
                       <span>Connect via OAuth</span>
+                    </span>
+                    <span className="models-quick-nav-arrow">↗</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="models-quick-nav-btn"
+                    onClick={() => setIsOmniRouteModalOpen(true)}
+                  >
+                    <span className="models-quick-nav-btn-left">
+                      <RouteIcon size={13} />
+                      <span>OmniRoute Gateway</span>
                     </span>
                     <span className="models-quick-nav-arrow">↗</span>
                   </button>
@@ -899,6 +954,14 @@ export default function ModelSelector({
                         >
                           <KeyIcon size={13} style={{ marginRight: 6 }} />
                           Configure API Keys
+                        </button>
+                        <button
+                          type="button"
+                          className="models-btn models-btn-secondary"
+                          onClick={() => setIsOmniRouteModalOpen(true)}
+                        >
+                          <RouteIcon size={13} style={{ marginRight: 6 }} />
+                          OmniRoute Gateway
                         </button>
                       </div>
                     </div>
@@ -1165,6 +1228,11 @@ export default function ModelSelector({
         isOpen={isFullApiKeyModalOpen}
         onClose={() => setIsFullApiKeyModalOpen(false)}
         providers={providers}
+        onRefreshModels={onRefreshModels}
+      />
+      <OmniRouteModal
+        isOpen={isOmniRouteModalOpen}
+        onClose={() => setIsOmniRouteModalOpen(false)}
         onRefreshModels={onRefreshModels}
       />
     </>

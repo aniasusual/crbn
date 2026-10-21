@@ -83,6 +83,30 @@ const extractSearchableText = (msg) => {
   return parts.join(' ').toLowerCase();
 };
 
+const isUserMessage = (msg) => {
+  if (!msg) return false;
+  if (msg.role === 'user' || msg.type === 'user') return true;
+  if (
+    msg.role === 'assistant' ||
+    msg.type === 'assistant' ||
+    msg.type === 'token' ||
+    msg.type === 'thinking' ||
+    msg.type === 'status' ||
+    msg.type === 'compaction_divider' ||
+    msg.type === 'compaction' ||
+    msg.type === 'tool_call' ||
+    msg.type === 'tool_result' ||
+    msg.name === 'ask_human' ||
+    msg.type === 'ask_human' ||
+    (msg.question && msg.role !== 'user') ||
+    msg.name === 'todo' ||
+    msg.type === 'todo'
+  ) {
+    return false;
+  }
+  return Boolean(msg.content);
+};
+
 const parseTodoText = (text) => {
   if (!text || typeof text !== 'string') return [];
   const phases = [];
@@ -567,12 +591,14 @@ export default function ChatPanel({
         ref={scrollContainerRef}
         onScroll={handleScroll}
       >
-        {messages?.map((msg, i) => (
-          <div
-            key={i}
-            id={`chat-msg-${i}`}
-            className={`chat-panel__msg-wrapper ${currentMatch?.messageIndex === i ? 'chat-panel__msg-wrapper--active-match' : ''}`}
-          >
+        {messages?.map((msg, i) => {
+          const isUser = isUserMessage(msg);
+          return (
+            <div
+              key={i}
+              id={`chat-msg-${i}`}
+              className={`chat-panel__msg-wrapper ${isUser ? 'chat-panel__msg-wrapper--user' : ''} ${currentMatch?.messageIndex === i ? 'chat-panel__msg-wrapper--active-match' : ''}`}
+            >
             <ChatMessage
               message={msg}
               isActive={isAgentRunning && i === messages.length - 1}
@@ -590,8 +616,9 @@ export default function ChatPanel({
               onRewindToStep={onRewindToStep}
               onBranchFromStep={(stepId, name) => onBranchFromStep?.(stepId, name, activeBranch)}
             />
-          </div>
-        ))}
+            </div>
+          );
+        })}
         {/* Loader in chat area when agent is working and response has not started streaming yet */}
         {showLoader && (
           <div className="chat-msg chat-msg--assistant chat-msg--loading-stream">
