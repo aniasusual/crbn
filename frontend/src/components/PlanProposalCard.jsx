@@ -38,10 +38,7 @@ export default function PlanProposalCard({ proposal, onApprove, onRefine }) {
   const [feedback, setFeedback] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  if (!proposal) return null;
-
-  const { title, plan_path: planPath, plan_content: planContent, request_id: requestId } = proposal;
+  const planContent = proposal?.plan_content;
 
   const handleCopy = useCallback(async () => {
     if (!planContent) return;
@@ -52,6 +49,9 @@ export default function PlanProposalCard({ proposal, onApprove, onRefine }) {
     } catch {}
   }, [planContent]);
 
+  if (!proposal) return null;
+
+  const { title, plan_path: planPath, request_id: requestId } = proposal;
   const handleSendFeedback = (e) => {
     e.preventDefault();
     if (!feedback.trim()) return;
@@ -65,19 +65,24 @@ export default function PlanProposalCard({ proposal, onApprove, onRefine }) {
       {/* Top Header Row with Metadata and Window Controls */}
       <div className="plan-proposal-card__header">
         <div className="plan-proposal-card__header-left">
-          <div className="plan-proposal-card__badge-row">
-            <span className="plan-proposal-card__badge">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-              </svg>
-              <span>Architecture Plan</span>
-            </span>
-            <span className="plan-proposal-card__file">{planPath}</span>
+          <div className="plan-proposal-card__icon-badge">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
           </div>
-          <h3 className="plan-proposal-card__heading">{title || 'Proposed Plan'}</h3>
+          <div className="plan-proposal-card__title-group">
+            <div className="plan-proposal-card__title-row">
+              <h3 className="plan-proposal-card__heading">{title || 'Proposed Plan'}</h3>
+              <span className="plan-proposal-card__badge">Plan Proposal</span>
+              {planPath && <span className="plan-proposal-card__file">{planPath}</span>}
+            </div>
+            <span className="plan-proposal-card__subtext">
+              Review architecture and execution steps before building
+            </span>
+          </div>
         </div>
 
         <div className="plan-proposal-card__header-actions">
@@ -96,7 +101,7 @@ export default function PlanProposalCard({ proposal, onApprove, onRefine }) {
             type="button"
             className="plan-proposal-card__icon-btn"
             onClick={() => setIsExpanded((prev) => !prev)}
-            title={isExpanded ? 'Compact reading view' : 'Expand reading view'}
+            title={isExpanded ? 'Collapse' : 'Expand'}
             aria-label={isExpanded ? 'Collapse plan' : 'Expand plan'}
           >
             {isExpanded ? <CollapseIcon /> : <ExpandIcon />}

@@ -1182,6 +1182,14 @@ const _server = Bun.serve<WsData>({
         }
         return;
       }
+      if (action === "remove_queued_message") {
+        const text = (data.text || data.prompt) as string;
+        const queue = (data.queue as "steering" | "followUp") || "followUp";
+        if (text && bridge) {
+          bridge.removeQueuedMessage(text, queue);
+        }
+        return;
+      }
       if (action === "close_project") {
         const projectName = ws.data.activeProjectName;
         if (projectName) {
@@ -1249,6 +1257,29 @@ const _server = Bun.serve<WsData>({
         }
         return;
       }
+      if (action === "queue_message" || (!action && (data.prompt || data.images || data.files) && bridge.isRunning)) {
+        const promptText = (data.prompt as string)?.trim() || "";
+        const rawImages = Array.isArray(data.images) ? (data.images as unknown[]) : [];
+        const rawFiles = Array.isArray(data.files) ? (data.files as unknown[]) : [];
+        const images = rawImages.filter(
+          (item): item is { data: string; mimeType: string } => {
+            return item !== null && typeof item === "object" && "data" in item && "mimeType" in item;
+          }
+        );
+        const files = rawFiles.filter(
+          (item): item is { name: string; content: string; mimeType?: string; size?: number } => {
+            return item !== null && typeof item === "object" && "name" in item && "content" in item;
+          }
+        );
+        bridge.prompt(promptText, {
+          images: images.length > 0 ? images : undefined,
+          files: files.length > 0 ? files : undefined,
+        }).catch(err => {
+          console.error("[WebSocket] Error queueing prompt:", err);
+        });
+        return;
+      }
+
 
       const processMessage = async () => {
         try {

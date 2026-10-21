@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import BranchSelector from './BranchSelector';
 import BranchTreeModal from './BranchTreeModal';
 import GitHubSyncModal from './GitHubSyncModal';
@@ -120,10 +120,30 @@ export default function ChatPanel({
   onApprovePlan = null,
   onRefinePlan = null,
   onRefreshTab = null,
+  queuedMessages = null,
+  onRemoveQueuedMessage = null,
 }) {
   const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
   const setInput = onInputChange || setLocalInput;
+  const [isQueueExpanded, setIsQueueExpanded] = useState(false);
+
+  const queuedItems = useMemo(() => {
+    if (!queuedMessages) return [];
+    const items = [];
+    if (Array.isArray(queuedMessages.steering)) {
+      for (const t of queuedMessages.steering) {
+        items.push({ text: typeof t === 'string' ? t : t.text || JSON.stringify(t), type: 'steering' });
+      }
+    }
+    if (Array.isArray(queuedMessages.followUp)) {
+      for (const t of queuedMessages.followUp) {
+        items.push({ text: typeof t === 'string' ? t : t.text || JSON.stringify(t), type: 'followUp' });
+      }
+    }
+    return items;
+  }, [queuedMessages]);
+
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const connectedMcpCount = (mcpState?.servers || []).filter(
@@ -225,9 +245,9 @@ export default function ChatPanel({
   }, [messages]);
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     const hasContent = input.trim() || attachments.length > 0;
-    if (!hasContent || !isConnected || isAgentRunning) return;
+    if (!hasContent || !isConnected) return;
 
     // Guard: ensure selected model belongs to an authenticated provider
     const isModelAuth = models.some(
@@ -487,6 +507,94 @@ export default function ChatPanel({
             if (e.target.files) addFiles(Array.from(e.target.files));
           }}
         />
+        {/* Plan Mode Active Banner: located ABOVE the agent status strip */}
+        {mode === 'plan' && (
+          <div className="chat-panel__plan-mode-banner">
+            <svg className="chat-panel__plan-mode-banner-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span className="chat-panel__plan-mode-banner-text">Plan mode active</span>
+          </div>
+        )}
+
+        {/* Collapsible Queued Messages List docked above the input box */}
+        {queuedItems.length > 0 && (
+          <div className={`chat-panel__queue-sheet ${isQueueExpanded ? 'chat-panel__queue-sheet--expanded' : ''}`}>
+            <div
+              className="chat-panel__queue-ribbon"
+              onClick={() => setIsQueueExpanded((prev) => !prev)}
+              title="Toggle queued messages"
+            >
+              <div className="chat-panel__queue-ribbon-left">
+                <svg className="chat-panel__queue-ribbon-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                <span className="chat-panel__queue-title">
+                  Queued · {queuedItems.length}
+                </span>
+                <span className="chat-panel__queue-preview" title={queuedItems[0].text}>
+                  &ldquo;{queuedItems[0].text.length > 36 ? `${queuedItems[0].text.slice(0, 36)}…` : queuedItems[0].text}&rdquo;
+                </span>
+              </div>
+              <div className="chat-panel__queue-ribbon-right">
+                <span className="chat-panel__queue-toggle-label">{isQueueExpanded ? 'Hide' : 'Show'}</span>
+                <svg
+                  className={`chat-panel__queue-chevron ${isQueueExpanded ? 'chat-panel__queue-chevron--up' : ''}`}
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </div>
+            </div>
+
+            {isQueueExpanded && (
+              <div className="chat-panel__queue-body">
+                {queuedItems.map((item, idx) => (
+                  <div key={idx} className="chat-panel__queue-item">
+                    <div className="chat-panel__queue-item-left">
+                      <span className="chat-panel__queue-item-index">#{idx + 1}</span>
+                      <span className="chat-panel__queue-item-text" title={item.text}>{item.text}</span>
+                    </div>
+                    <div className="chat-panel__queue-item-actions">
+                      <span className="chat-panel__queue-item-badge">
+                        {item.type === 'steering' ? 'Steer' : 'Next Turn'}
+                      </span>
+                      {onRemoveQueuedMessage && (
+                        <button
+                          type="button"
+                          className="chat-panel__queue-item-remove"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveQueuedMessage(item.text, item.type);
+                          }}
+                          title="Remove from queue"
+                          aria-label="Remove from queue"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Status Strip above input box (Online, Offline, Generating, Awaiting, Done) */}
         <div
@@ -534,18 +642,6 @@ export default function ChatPanel({
             <AttachmentRibbon attachments={attachments} onRemove={removeAttachment} />
           </div>
         )}
-
-        {mode === 'plan' && (
-          <div className="chat-panel__plan-mode-banner">
-            <svg className="chat-panel__plan-mode-banner-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-            <span className="chat-panel__plan-mode-banner-text">Plan mode active</span>
-          </div>
-        )}
         <div
           className={`chat-panel__input-wrapper ${
             isDragging ? 'chat-panel__input-wrapper--dragging' : ''
@@ -564,15 +660,15 @@ export default function ChatPanel({
             placeholder={
               !isConnected
                 ? 'Connecting...'
-                : agentStatus === 'generating'
-                ? 'Agent is generating...'
+                : isAgentRunning
+                ? 'Type a message to queue for next turn...'
                 : agentStatus === 'awaiting_human'
                 ? 'Answer the agent...'
                 : mode === 'plan'
                 ? 'Describe what you want to plan (working tree is read-only)...'
                 : 'Describe a change...'
             }
-            disabled={!isConnected || isAgentRunning}
+            disabled={!isConnected}
           />
 
           {/* Bottom footer containing Model Selector & Context Gauge chips on left, and send button on right */}
@@ -660,19 +756,39 @@ export default function ChatPanel({
 
             <div className="chat-panel__input-footer-right">
               <span className="chat-panel__hint">
-                <kbd className="degrees-keycap">{isAgentRunning ? 'Esc' : '↵'}</kbd>
+                <kbd className="degrees-keycap">{isAgentRunning && (!input.trim() && attachments.length === 0) ? 'Esc' : '↵'}</kbd>
               </span>
               {isAgentRunning ? (
-                <button
-                  type="button"
-                  className="chat-panel__send chat-panel__send--stop"
-                  onClick={onStopAgent}
-                  title="Stop agent (Esc)"
-                  aria-label="Stop agent"
-                >
-                  <StopIcon />
-                  <span>Stop</span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {(input.trim() || attachments.length > 0) && (
+                    <button
+                      type="submit"
+                      className="chat-panel__send chat-panel__send--queue"
+                      title="Queue message for next turn (↵)"
+                      aria-label="Queue message"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                      </svg>
+                      <span>Queue</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="chat-panel__send chat-panel__send--stop"
+                    onClick={onStopAgent}
+                    title="Stop agent (Esc)"
+                    aria-label="Stop agent"
+                  >
+                    <StopIcon />
+                    <span>Stop</span>
+                  </button>
+                </div>
               ) : (
                 <button
                   type="submit"

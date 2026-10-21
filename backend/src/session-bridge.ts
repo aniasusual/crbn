@@ -69,6 +69,10 @@ export class SessionBridge {
     private readonly modelsService?: ModelsService,
     private readonly devServerManager?: DevServerManager,
   ) {}
+  get isRunning(): boolean {
+    return this.isGenerating;
+  }
+
   getActiveModel(): string {
     return this.activeModel;
   }
@@ -194,9 +198,11 @@ export class SessionBridge {
 
     setTimeout(() => {
       if (this.session) {
-        this.prompt(approvedPrompt).catch((err) => {
-          console.error("[SessionBridge] Failed to dispatch build prompt:", err);
-        });
+        this.session
+          .followUp(approvedPrompt, undefined, { synthetic: true })
+          .catch((err) => {
+            console.error("[SessionBridge] Failed to dispatch build prompt:", err);
+          });
       }
     }, 150);
 
@@ -659,6 +665,7 @@ export class SessionBridge {
           type: "mcp_status",
           ...this.getMcpStatus(),
         });
+        this.broadcastQueueUpdate();
       } catch (err) {
         console.error(`[SessionBridge] Failed to create AgentSession:`, err);
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -705,9 +712,28 @@ export class SessionBridge {
       return;
     }
 
+    // Prepare prompt text with non-image file attachments if any
+    let fullPromptText = promptText;
+    if (attachments?.files && attachments.files.length > 0) {
+      const fileSections = attachments.files
+        .map((f) => `--- Attached File: ${f.name} ---\n${f.content}\n--- End Attached File ---`)
+        .join("\n\n");
+      fullPromptText = fullPromptText ? `${fullPromptText}\n\n${fileSections}` : fileSections;
+    }
+
+    // Format ImageContent blocks for pi-harness vision models
+    const images = (attachments?.images ?? []).map((img) => ({
+      type: "image" as const,
+      data: img.data,
+      mimeType: img.mimeType,
+    }));
+
     if (this.isGenerating) {
-      this.wasStoppedByUser = true;
-      await session.abort({ reason: USER_INTERRUPT_LABEL }).catch(() => {});
+      // Agent is actively running: queue as follow-up in pi-harness
+      const effectiveText = fullPromptText || "Analyze the attached media and proceed.";
+      await session.followUp(effectiveText, images.length > 0 ? images : undefined);
+      this.broadcastQueueUpdate();
+      return;
     }
 
     this.wasStoppedByUser = false;
@@ -738,22 +764,6 @@ export class SessionBridge {
       content: "Running",
       timestamp: now,
     });
-
-    // Prepare prompt text with non-image file attachments if any
-    let fullPromptText = promptText;
-    if (attachments?.files && attachments.files.length > 0) {
-      const fileSections = attachments.files
-        .map((f) => `--- Attached File: ${f.name} ---\n${f.content}\n--- End Attached File ---`)
-        .join("\n\n");
-      fullPromptText = fullPromptText ? `${fullPromptText}\n\n${fileSections}` : fileSections;
-    }
-
-    // Format ImageContent blocks for pi-harness vision models
-    const images = (attachments?.images ?? []).map((img) => ({
-      type: "image" as const,
-      data: img.data,
-      mimeType: img.mimeType,
-    }));
 
     try {
       await session.prompt(fullPromptText || "Analyze the attached media and proceed.", {
@@ -1055,8 +1065,60 @@ export class SessionBridge {
 
   private handleSessionEvent(event: AgentSessionEvent): void {
     const timestamp = new Date().toISOString();
-
     switch (event.type) {
+      case "queue_update": {
+        this.send({
+          type: "queue_update",
+          steering: event.steering || [],
+          followUp: event.followUp || [],
+          liveSteered: event.liveSteered || 0,
+        });
+        break;
+      }
+
+      case "message_start": {
+        const msg = event.message;
+        if (msg && msg.role === "user") {
+          let text = "";
+          if (typeof msg.content === "string") {
+            text = msg.content;
+          } else if (Array.isArray(msg.content)) {
+            for (const b of msg.content) {
+              if (b && typeof b === "object" && "type" in b && b.type === "text" && "text" in b && typeof b.text === "string") {
+                text += b.text;
+              }
+            }
+          }
+          const trimmed = text.trim();
+          const alreadyRecorded = this.activeTurns.some(
+            (t) => t.role === "user" && t.content === trimmed
+          );
+          if (!alreadyRecorded && trimmed) {
+            this.isGenerating = true;
+            this.lastPromptText = trimmed;
+            const userMsg: Record<string, unknown> = {
+              role: "user",
+              content: trimmed,
+              timestamp,
+            };
+            this.activeTurns.push(userMsg);
+            if (this.activeProjectPath) {
+              ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName).catch(() => {});
+            }
+            this.send({
+              type: "message",
+              ...userMsg,
+            });
+            this.send({
+              type: "status",
+              content: "Running",
+              timestamp,
+            });
+          }
+        }
+        break;
+      }
+
       case "message_update": {
         const assistantEvt = event.assistantMessageEvent;
         if (assistantEvt.type === "text_delta") {
@@ -1321,6 +1383,14 @@ export class SessionBridge {
       case "agent_end": {
         const wasStopped = this.wasStoppedByUser;
         const hadError = this.turnHadError;
+        const isTerminal = (event as { isTerminal?: boolean }).isTerminal !== false;
+
+        if (!isTerminal && !wasStopped) {
+          console.log("[SessionBridge] Agent turn ended with queued continuation, continuing...");
+          this.emitContextTelemetry();
+          return;
+        }
+
         this.wasStoppedByUser = false;
         this.turnHadError = false;
         this.isGenerating = false;
@@ -1410,6 +1480,26 @@ export class SessionBridge {
     }
     this.devServerUnsubscribe?.();
     this.devServerUnsubscribe = null;
+  }
+
+  removeQueuedMessage(text: string, queue: "steering" | "followUp" = "followUp"): boolean {
+    if (!this.session) return false;
+    const removed = this.session.removeQueuedMessage(text, queue);
+    this.broadcastQueueUpdate();
+    return removed;
+  }
+
+  broadcastQueueUpdate(): void {
+    if (!this.session) return;
+    try {
+      const q = this.session.getQueuedMessages();
+      this.send({
+        type: "queue_update",
+        steering: [...q.steering],
+        followUp: [...q.followUp],
+        liveSteered: q.liveSteered,
+      });
+    } catch {}
   }
 
   private buildPreviewSystemPrompt(previewUrl: string, backendPort?: number | null): string {
