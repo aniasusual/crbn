@@ -604,6 +604,11 @@ const MessageFooter = ({ timestamp, contentToCopy, debug, onOpenDebug, stepId, o
   );
 };
 
+const cleanUserMessageContent = (content) => {
+  if (typeof content !== 'string') return content;
+  return content.replace(/--- Attached File: [\s\S]*?--- End Attached File ---/g, '').trim();
+};
+
 /**
  * ChatMessage — Renders a single chat message bubble with Notion minimalism and LLM payload debugging.
  */
@@ -681,7 +686,9 @@ export default function ChatMessage({
                 </div>
               )}
 
-              {message.content && <div className="chat-msg__content">{message.content}</div>}
+              {cleanUserMessageContent(message.content) && (
+                <div className="chat-msg__content">{cleanUserMessageContent(message.content)}</div>
+              )}
             </div>
             <div className="chat-msg__user-icon" title="You">
               <UserIcon />
@@ -689,7 +696,7 @@ export default function ChatMessage({
           </div>
           <MessageFooter
             timestamp={message.timestamp}
-            contentToCopy={message.content}
+            contentToCopy={cleanUserMessageContent(message.content)}
             debug={message.debug}
             onOpenDebug={openDebug}
             stepId={message.step_id}
@@ -1320,7 +1327,9 @@ export default function ChatMessage({
         <div className="chat-msg chat-msg--user">
           <div className="chat-msg__user-row">
             <div className="chat-msg__box chat-msg__box--user">
-              <div className="chat-msg__content">{message.content}</div>
+              {cleanUserMessageContent(message.content) && (
+                <div className="chat-msg__content">{cleanUserMessageContent(message.content)}</div>
+              )}
             </div>
             <div className="chat-msg__user-icon" title="You">
               <UserIcon />
@@ -1328,7 +1337,7 @@ export default function ChatMessage({
           </div>
           <MessageFooter
             timestamp={message.timestamp}
-            contentToCopy={message.content}
+            contentToCopy={cleanUserMessageContent(message.content)}
             debug={message.debug}
             onOpenDebug={openDebug}
             stepId={message.step_id}

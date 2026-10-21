@@ -33,7 +33,7 @@
   align-self: flex-end !important;
   margin-left: auto !important;
   width: fit-content !important;
-  max-width: 92% !important;
+  max-width: 90% !important;
 }
 
 .chat-msg__user-row {
@@ -88,8 +88,9 @@
 }
 
 .chat-msg--user .chat-msg__content {
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: pre-wrap !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
 }
 .chat-msg__user-images {
   display: flex;

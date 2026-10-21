@@ -52,6 +52,23 @@ const CloseIcon = ({ size = 12 }) => (
   </svg>
 );
 
+const ArrowDownIcon = ({ size = 14, className = '' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.4"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <line x1="12" y1="4" x2="12" y2="20" />
+    <polyline points="19 13 12 20 5 13" />
+  </svg>
+);
+
 const extractSearchableText = (msg) => {
   if (!msg) return '';
   const parts = [];
@@ -312,6 +329,7 @@ export default function ChatPanel({
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
   const [isTreeModalOpen, setIsTreeModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const isUserScrolledRef = useRef(false);
@@ -376,8 +394,16 @@ export default function ChatPanel({
   const handleScroll = () => {
     const container = scrollContainerRef.current;
     if (!container) return;
-    const isAtBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const isAtBottom = distanceToBottom < 60;
     isUserScrolledRef.current = !isAtBottom;
+    setShowScrollBottom(distanceToBottom > 120);
+  };
+
+  const handleScrollToBottomClick = () => {
+    isUserScrolledRef.current = false;
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    setShowScrollBottom(false);
   };
 
   const scrollToBottom = () => {
@@ -647,6 +673,20 @@ export default function ChatPanel({
 
         <div ref={messagesEndRef} />
       </div>
+
+      {showScrollBottom && (
+        <div className="chat-panel__scroll-bottom-anchor">
+          <button
+            type="button"
+            className="chat-panel__scroll-bottom-btn"
+            onClick={handleScrollToBottomClick}
+            title="Scroll to bottom"
+            aria-label="Scroll to bottom"
+          >
+            <ArrowDownIcon size={14} />
+          </button>
+        </div>
+      )}
 
 
       <CommandApproval
