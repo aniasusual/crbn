@@ -1,0 +1,395 @@
+/* =========================================================
+   80degrees — Architecture Plan Proposal Card
+   Studio Glass, Specular Highlights, Markdown Architecture Viewer
+   ========================================================= */
+
+.plan-proposal-card {
+  position: relative;
+  z-index: 10;
+  margin: 0 14px 8px 14px;
+  background: rgba(18, 18, 22, 0.94);
+  backdrop-filter: blur(36px) saturate(190%);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 
+    0 16px 48px -12px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+  animation: planCardSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
+}
+
+.plan-proposal-card--expanded {
+  box-shadow: 
+    0 24px 64px -12px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+@keyframes planCardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Header Container */
+.plan-proposal-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 12px 14px 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.plan-proposal-card__header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.plan-proposal-card__badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plan-proposal-card__badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.plan-proposal-card__badge svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.plan-proposal-card__file {
+  font-family: var(--font-mono, monospace);
+  font-size: 10.5px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-proposal-card__heading {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Header Controls (Copy, Expand) */
+.plan-proposal-card__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.plan-proposal-card__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  user-select: none;
+}
+
+.plan-proposal-card__icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.plan-proposal-card__icon-btn svg {
+  flex-shrink: 0;
+}
+
+/* Scrollable Markdown Plan Body */
+.plan-proposal-card__body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  max-height: 260px;
+  background: rgba(12, 12, 15, 0.65);
+  transition: max-height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.plan-proposal-card__body--expanded {
+  max-height: 480px;
+}
+
+.plan-proposal-card__body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.plan-proposal-card__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.plan-proposal-card__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.plan-proposal-card__body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+/* Custom Markdown inside Plan Card */
+.plan-proposal-card__content .markdown-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.88);
+}
+.plan-proposal-card__content .markdown-body > h1:first-child {
+  display: none;
+}
+
+.plan-proposal-card__content .markdown-body > h2:first-of-type {
+  margin-top: 0;
+}
+
+.plan-proposal-card__content .markdown-body h1 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 5px;
+  margin: 10px 0 8px 0;
+}
+
+.plan-proposal-card__content .markdown-body h2 {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 4px;
+  margin: 14px 0 6px 0;
+}
+
+.plan-proposal-card__content .markdown-body h3 {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  margin: 10px 0 4px 0;
+}
+
+.plan-proposal-card__content .markdown-body ul,
+.plan-proposal-card__content .markdown-body ol {
+  margin: 4px 0 8px 0;
+  padding-left: 18px;
+}
+
+.plan-proposal-card__content .markdown-body li {
+  margin-bottom: 3px;
+}
+
+.plan-proposal-card__content .markdown-body pre {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  margin: 6px 0;
+}
+
+.plan-proposal-card__content .markdown-body code {
+  font-size: 11.5px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.plan-proposal-card__empty {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* Footer Action Buttons */
+.plan-proposal-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px 11px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+}
+
+.plan-proposal-card__btn-refine,
+.plan-proposal-card__btn-approve,
+.plan-proposal-card__btn-cancel,
+.plan-proposal-card__btn-send-refine {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.plan-proposal-card__btn-refine {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.plan-proposal-card__btn-refine:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+/* Primary High-Contrast CTA Matching .degrees-cta-btn Signature */
+.plan-proposal-card__btn-approve {
+  background: #ffffff;
+  border: none;
+  color: #0c0c0e;
+  font-weight: 600;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.plan-proposal-card__btn-approve:hover {
+  background: #f4f4f7;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(255, 255, 255, 0.22);
+}
+
+.plan-proposal-card__btn-approve:active {
+  transform: translateY(0);
+}
+
+.plan-proposal-card__btn-approve svg {
+  fill: currentColor;
+}
+
+/* Refinement Form */
+.plan-proposal-card__refine-form {
+  padding: 12px 14px 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(14, 14, 18, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: planCardSlideUp 0.15s ease both;
+}
+
+.plan-proposal-card__refine-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(10, 10, 14, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  min-height: 60px;
+  transition: border-color 0.15s ease;
+}
+
+.plan-proposal-card__refine-input:focus {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.plan-proposal-card__refine-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.plan-proposal-card__refine-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.plan-proposal-card__btn-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.plan-proposal-card__btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.plan-proposal-card__btn-send-refine {
+  background: #ffffff;
+  border: none;
+  color: #0c0c0e;
+  font-weight: 600;
+}
+
+.plan-proposal-card__btn-send-refine:hover:not(:disabled) {
+  background: #f0f0f4;
+  transform: translateY(-1px);
+}
+
+.plan-proposal-card__btn-send-refine:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none;
+}

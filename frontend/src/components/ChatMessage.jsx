@@ -713,7 +713,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
                   result={message.result}
                   running={Boolean(isActive && !message.collapsed && !message.result)}
                   intent={message.intent || message.arguments?.i}
-                  defaultOpen={message.is_error || !message.collapsed}
+                  defaultOpen={Boolean(message.is_error || message.defaultOpen || message.expanded)}
                 />
               </div>
             </div>
@@ -952,7 +952,7 @@ export default function ChatMessage({ message, isActive, onOpenSubagent, onSelec
                   result={message.result}
                   running={false}
                   intent={message.intent || message.arguments?.i}
-                  defaultOpen={message.is_error || !message.collapsed}
+                  defaultOpen={Boolean(message.is_error || message.defaultOpen || message.expanded)}
                 />
               </div>
             </div>

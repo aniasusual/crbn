@@ -57,6 +57,8 @@ export default function App() {
         id: t.id,
         projectName: t.projectName,
         model: t.model,
+        mode: t.mode || 'build',
+        pendingPlanProposal: t.pendingPlanProposal || null,
       }));
       localStorage.setItem('80degrees_open_tabs', JSON.stringify(serialized));
     } catch (e) {
@@ -142,7 +144,7 @@ export default function App() {
 
   // Connects a dedicated WebSocket for a specific tab
   const connectTabSocket = useCallback(
-    (tabId, projectName, modelName, initialPrompt, initialAttachments) => {
+    (tabId, projectName, modelName, initialPrompt, initialAttachments, initialMode = 'build') => {
       // Close existing socket for this tab if any
       const oldWs = socketsRef.current.get(tabId);
       if (oldWs) {
@@ -159,12 +161,13 @@ export default function App() {
       socketsRef.current.set(tabId, ws);
 
       ws.onopen = () => {
-        updateTab(tabId, { isConnected: true });
+        updateTab(tabId, { isConnected: true, mode: initialMode });
         ws.send(
           JSON.stringify({
             action: 'open_project',
             name: projectName,
             model: modelName,
+            mode: initialMode,
           })
         );
       };
@@ -262,6 +265,20 @@ export default function App() {
               }
               return {};
             });
+            return;
+          }
+
+          if (data.type === 'project_opened' && data.mode) {
+            updateTab(tabId, { mode: data.mode });
+          }
+
+          if (data.type === 'mode_changed') {
+            updateTab(tabId, { mode: data.mode || 'build' });
+            return;
+          }
+
+          if (data.type === 'plan_proposal_request') {
+            updateTab(tabId, { pendingPlanProposal: data });
             return;
           }
 
@@ -472,6 +489,10 @@ export default function App() {
             return;
           }
 
+          if (data.type === 'plan_proposal_request') {
+            updateTab(tabId, { pendingPlanProposal: data });
+            return;
+          }
           // Subagent event correlation
           if (
             data.type === 'subagent_event' ||
@@ -666,6 +687,8 @@ export default function App() {
           todoState: null,
           checkpointTimeline: [],
           pendingApproval: null,
+          pendingPlanProposal: t.pendingPlanProposal || null,
+          mode: t.mode || 'build',
           lastChangeTimestamp: 0,
           activeBranch: 'main',
           branches: [],
@@ -676,7 +699,7 @@ export default function App() {
 
         // Connect sockets for all saved tabs
         for (const t of initialized) {
-          connectTabSocketRef.current?.(t.id, t.projectName, t.model);
+          connectTabSocketRef.current?.(t.id, t.projectName, t.model, undefined, undefined, t.mode || 'build');
         }
 
         const savedActiveId = localStorage.getItem('80degrees_active_tab_id');
@@ -701,7 +724,7 @@ export default function App() {
 
   // Handle Opening a Project (from Welcome screen or Finder)
   const handleOpenProject = useCallback(
-    (projectInfo, initialPrompt, initialAttachments) => {
+    (projectInfo, initialPrompt, initialAttachments, initialMode = 'build') => {
       const projectName = projectInfo.name;
       const tabId = `tab_${projectName}`;
       const chosenModel = projectInfo.model || globalDefaultModel;
@@ -743,6 +766,8 @@ export default function App() {
         todoState: null,
         checkpointTimeline: [],
         pendingApproval: null,
+        pendingPlanProposal: null,
+        mode: initialMode || 'build',
         lastChangeTimestamp: 0,
         activeBranch: 'main',
         branches: [],
@@ -754,14 +779,14 @@ export default function App() {
       setCurrentView('workspace');
 
       // Establish dedicated WebSocket connection for this tab
-      connectTabSocket(tabId, projectName, chosenModel, initialPrompt, initialAttachments);
+      connectTabSocket(tabId, projectName, chosenModel, initialPrompt, initialAttachments, initialMode || 'build');
     },
     [tabs, globalDefaultModel, connectTabSocket]
   );
 
   // Handle Creating a New Project from Welcome Screen
   const handleCreateProject = useCallback(
-    async (prompt, projectName, attachments) => {
+    async (prompt, projectName, attachments, initialMode = 'build') => {
       try {
         setIsTransitioning(true);
         const response = await fetch(`${API_BASE_URL}/api/projects`, {
@@ -775,7 +800,7 @@ export default function App() {
         });
         const data = await response.json();
         setWelcomePrompt('');
-        handleOpenProject(data, prompt, attachments);
+        handleOpenProject(data, prompt, attachments, initialMode);
         setIsTransitioning(false);
       } catch (err) {
         console.error('Failed to create project:', err);
@@ -787,7 +812,7 @@ export default function App() {
   );
   // Handle Cloning and Building on a GitHub Repository
   const handleConnectAndBuild = useCallback(
-    async (repo, prompt, attachments, targetBranch) => {
+    async (repo, prompt, attachments, targetBranch, initialMode = 'build') => {
       try {
         setIsTransitioning(true);
         const branchToUse = targetBranch || repo.default_branch;
@@ -805,7 +830,7 @@ export default function App() {
           throw new Error(data.detail || 'Failed to clone repository');
         }
         setWelcomePrompt('');
-        handleOpenProject(data, prompt, attachments);
+        handleOpenProject(data, prompt, attachments, initialMode);
         setIsTransitioning(false);
       } catch (err) {
         console.error('Failed to clone and build on repository:', err);
@@ -940,7 +965,7 @@ export default function App() {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'stop_agent' }));
     }
-    updateTab(activeTabId, { agentStatus: null, pendingApproval: null });
+    updateTab(activeTabId, { agentStatus: null, pendingApproval: null, pendingPlanProposal: null });
   }, [activeTabId, updateTab]);
 
   const handleRewindToStep = useCallback(
@@ -989,6 +1014,78 @@ export default function App() {
       updateTab(activeTabId, { pendingApproval: null });
     },
     [activeTabId, updateTab]
+  );
+
+  const handleToggleMode = useCallback(
+    (targetMode) => {
+      if (!activeTabId) return;
+      const tab = tabs.find((t) => t.id === activeTabId);
+      const nextMode = targetMode || (tab?.mode === 'plan' ? 'build' : 'plan');
+      updateTab(activeTabId, { mode: nextMode });
+
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'set_mode', mode: nextMode }));
+      }
+    },
+    [activeTabId, tabs, updateTab]
+  );
+
+  const handleApprovePlan = useCallback(
+    (requestId) => {
+      if (!activeTabId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'plan_approval', request_id: requestId, approved: true }));
+      }
+      updateTab(activeTabId, { pendingPlanProposal: null, mode: 'build' });
+    },
+    [activeTabId, updateTab]
+  );
+
+  const handleRefinePlan = useCallback(
+    (requestId, feedback) => {
+      if (!activeTabId) return;
+      const ws = socketsRef.current.get(activeTabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ action: 'plan_approval', request_id: requestId, approved: false, feedback }));
+      }
+      updateTab(activeTabId, { pendingPlanProposal: null });
+    },
+    [activeTabId, updateTab]
+  );
+
+  const handleRefreshTab = useCallback(
+    (tabId) => {
+      const targetId = tabId || activeTabId;
+      if (!targetId) return;
+      const tab = tabs.find((t) => t.id === targetId);
+      if (!tab) return;
+
+      updateTab(targetId, { isRefreshing: true, isConnected: false });
+
+      const oldWs = socketsRef.current.get(targetId);
+      if (oldWs) {
+        try {
+          oldWs.close();
+        } catch {}
+        socketsRef.current.delete(targetId);
+      }
+
+      connectTabSocket(
+        targetId,
+        tab.projectName,
+        tab.model,
+        undefined,
+        undefined,
+        tab.mode || 'build'
+      );
+
+      setTimeout(() => {
+        updateTab(targetId, { isRefreshing: false });
+      }, 1000);
+    },
+    [activeTabId, tabs, connectTabSocket, updateTab]
   );
 
   const handleStopPreview = useCallback(() => {
@@ -1079,6 +1176,7 @@ export default function App() {
           setCurrentView('workspace');
         }}
         onCloseTab={handleCloseTab}
+        onRefreshTab={handleRefreshTab}
         onNewTab={() => setCurrentView('welcome')}
       />
 
@@ -1121,6 +1219,11 @@ export default function App() {
           pendingApproval={activeTab.pendingApproval}
           onApproveCommand={handleApproveCommand}
           onDenyCommand={handleDenyCommand}
+          mode={activeTab.mode || 'build'}
+          onToggleMode={handleToggleMode}
+          pendingPlanProposal={activeTab.pendingPlanProposal}
+          onApprovePlan={handleApprovePlan}
+          onRefinePlan={handleRefinePlan}
           hardwareInfo={hardwareInfo}
           models={models}
           providers={providers}
@@ -1142,6 +1245,7 @@ export default function App() {
           onBranchFromStep={handleBranchFromStep}
           mcpState={activeTab.mcpState}
           onReloadMcp={handleReloadMcp}
+          onRefreshTab={() => handleRefreshTab(activeTab.id)}
         />
       )}
     </div>

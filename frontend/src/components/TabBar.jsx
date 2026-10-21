@@ -9,6 +9,7 @@ export default function TabBar({
   onSelectHome,
   onSelectTab,
   onCloseTab,
+  onRefreshTab,
   onNewTab,
 }) {
   return (
@@ -75,12 +76,30 @@ export default function TabBar({
 
                 {/* Status Indicator Dot */}
                 <div className="tab-bar__tab-status">
-                  {isGenerating ? (
+                  {tab.isConnected === false ? (
+                    <span className="tab-bar__status-dot tab-bar__status-dot--offline" title="Agent is disconnected" />
+                  ) : isGenerating ? (
                     <span className="tab-bar__status-dot tab-bar__status-dot--generating" title="Agent is working..." />
                   ) : isAwaiting ? (
                     <span className="tab-bar__status-dot tab-bar__status-dot--awaiting" title="Waiting for user input" />
                   ) : null}
                 </div>
+
+                {/* Refresh Tab Button */}
+                <button
+                  type="button"
+                  className={`tab-bar__tab-refresh ${tab.isRefreshing ? 'tab-bar__tab-refresh--spinning' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRefreshTab?.(tab.id);
+                  }}
+                  title="Refresh tab & reconnect session"
+                  aria-label={`Refresh ${tab.projectName}`}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                  </svg>
+                </button>
 
                 <button
                   type="button"

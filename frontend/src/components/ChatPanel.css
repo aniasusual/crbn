@@ -9,13 +9,53 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: transparent;
+  background: #000000;
   border: none;
   border-radius: 0;
   overflow: hidden;
   position: relative;
   box-sizing: border-box;
   box-shadow: none;
+  transition: background-color 0.4s ease;
+}
+
+.chat-panel__header,
+.chat-panel__messages,
+.chat-panel__input-area {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fluid mode transition backdrop layer */
+.chat-panel__mode-backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  background: radial-gradient(130% 120% at 20% 95%, rgba(178, 69, 31, 0.12) 0%, rgba(20, 14, 11, 0.82) 42%, rgba(8, 7, 6, 0.96) 75%, #050403 100%);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), clip-path 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  clip-path: circle(0% at 20% 95%);
+}
+
+.chat-panel--plan-mode .chat-panel__mode-backdrop {
+  opacity: 1;
+  clip-path: circle(160% at 20% 95%);
+  animation: planWaveRipple 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes planWaveRipple {
+  0% {
+    opacity: 0;
+    clip-path: circle(0% at 20% 95%);
+  }
+  50% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 1;
+    clip-path: circle(160% at 20% 95%);
+  }
 }
 
 /* Header with Project Title & Branch Selector */
@@ -190,6 +230,33 @@
 .chat-panel__status-strip-text {
   font-family: inherit;
   font-weight: 500;
+}
+
+.chat-panel__reconnect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 550;
+  font-family: inherit;
+  color: #ffffff;
+  cursor: pointer;
+  margin-left: 10px;
+  transition: all 0.14s ease;
+  line-height: 1.4;
+}
+
+.chat-panel__reconnect-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.chat-panel__reconnect-btn svg {
+  flex-shrink: 0;
 }
 
 /* Signature Degrees-Composer Glass Capsule (Borderless & Shadowless) */
@@ -633,4 +700,99 @@
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.5);
   font-family: var(--font-mono, monospace);
+}
+
+/* =========================================================
+   Plan & Build Mode Segmented Control (Chat Input Toolbar)
+   ========================================================= */
+.chat-panel__mode-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 7px;
+  padding: 2px;
+  gap: 1px;
+  height: 24px;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.chat-panel__mode-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px;
+  height: 100%;
+  padding: 0 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 550;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1;
+}
+
+.chat-panel__mode-seg-btn svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.chat-panel__mode-seg-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.chat-panel__mode-seg-btn:hover svg {
+  opacity: 1;
+}
+
+.chat-panel__mode-seg-btn--active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.chat-panel__mode-seg-btn--active svg {
+  opacity: 1;
+}
+
+.chat-panel__mode-seg-btn--active-plan {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.chat-panel__mode-seg-btn--active-plan svg {
+  opacity: 1;
+  stroke: #ff9d66;
+}
+
+.chat-panel__plan-mode-banner {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin: 0 4px 6px 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 11px;
+  font-weight: 550;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: -0.01em;
+}
+
+.chat-panel__plan-mode-banner-icon {
+  flex-shrink: 0;
+  stroke: rgba(255, 255, 255, 0.85);
 }

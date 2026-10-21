@@ -68,6 +68,7 @@ export default function WelcomeView({
   const [isGitHubConnectModalOpen, setIsGitHubConnectModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [mcpCount, setMcpCount] = useState(0);
+  const [welcomeMode, setWelcomeMode] = useState('build');
 
   const fetchGlobalMcp = useCallback(() => {
     fetch(`${API_BASE_URL}/api/projects/_global/mcp`)
@@ -390,9 +391,9 @@ export default function WelcomeView({
         .map((a) => ({ name: a.name, content: a.content, size: a.size }));
 
       if (onConnectAndBuild) {
-        onConnectAndBuild(selectedRepo, prompt.trim(), { images, files }, selectedBranch);
+        onConnectAndBuild(selectedRepo, prompt.trim(), { images, files }, selectedBranch, welcomeMode);
       } else {
-        onSubmit(prompt.trim(), selectedRepo.name, { images, files });
+        onSubmit(prompt.trim(), selectedRepo.name, { images, files }, welcomeMode);
       }
       clearAttachments();
       return;
@@ -432,7 +433,7 @@ export default function WelcomeView({
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, content: a.content, size: a.size }));
 
-    onSubmit(prompt, projectName.trim(), { images, files });
+    onSubmit(prompt, projectName.trim(), { images, files }, welcomeMode);
     clearAttachments();
   };
 
@@ -630,6 +631,8 @@ export default function WelcomeView({
                   placeholder={
                     selectedRepo
                       ? `What would you like to build or change in ${selectedRepo.name}? Describe changes, features, or fixes...`
+                      : welcomeMode === 'plan'
+                      ? "Describe what you'd like to plan (working tree will be read-only)..."
                       : "Describe an application, interface, or creative tool you'd like to build..."
                   }
                   value={prompt}
@@ -660,6 +663,38 @@ export default function WelcomeView({
                       </svg>
                       <span>Attach</span>
                     </button>
+                    <div className="degrees-mode-segmented" role="radiogroup" aria-label="Mode">
+                      <button
+                        type="button"
+                        className={`degrees-mode-seg-btn ${welcomeMode === 'build' ? 'degrees-mode-seg-btn--active' : ''}`}
+                        onClick={() => setWelcomeMode('build')}
+                        title="Build Mode: Agent directly edits and creates files"
+                        aria-checked={welcomeMode === 'build'}
+                        role="radio"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        <span>Build</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`degrees-mode-seg-btn ${welcomeMode === 'plan' ? 'degrees-mode-seg-btn--active-plan' : ''}`}
+                        onClick={() => setWelcomeMode('plan')}
+                        title="Plan Mode: Working tree is read-only. Agent explores and designs an execution plan"
+                        aria-checked={welcomeMode === 'plan'}
+                        role="radio"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        <span>Plan</span>
+                      </button>
+                    </div>
+
 
                     <button
                       type="button"
@@ -697,15 +732,12 @@ export default function WelcomeView({
                   </div>
 
                   <div className="degrees-composer__toolbar-right">
-                    <span className="degrees-composer__hint">
-                      <kbd className="degrees-keycap">↵ return</kbd> to build
-                    </span>
                     <button
                       type="submit"
                       className="degrees-cta-btn"
                       disabled={!prompt.trim() && attachments.length === 0 && !selectedRepo}
                     >
-                      <span>{selectedRepo ? 'Build on repo' : 'Start building'}</span>
+                      <span>{selectedRepo ? 'Build on repo' : (welcomeMode === 'plan' ? 'Start planning' : 'Start building')}</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                         <polyline points="12 5 19 12 12 19"></polyline>

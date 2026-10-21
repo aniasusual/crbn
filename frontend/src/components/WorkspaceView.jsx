@@ -41,6 +41,12 @@ export default function WorkspaceView({
   onBranchFromStep,
   mcpState = null,
   onReloadMcp = null,
+  mode = 'build',
+  onToggleMode = null,
+  pendingPlanProposal = null,
+  onApprovePlan = null,
+  onRefinePlan = null,
+  onRefreshTab = null,
 }) {
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
@@ -133,6 +139,12 @@ export default function WorkspaceView({
             onBranchFromStep={onBranchFromStep}
             mcpState={mcpState}
             onReloadMcp={onReloadMcp}
+            mode={mode}
+            onToggleMode={onToggleMode}
+            pendingPlanProposal={pendingPlanProposal}
+            onApprovePlan={onApprovePlan}
+            onRefinePlan={onRefinePlan}
+            onRefreshTab={onRefreshTab}
           />
         </div>
 
