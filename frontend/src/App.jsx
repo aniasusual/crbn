@@ -144,7 +144,7 @@ export default function App() {
 
   // Connects a dedicated WebSocket for a specific tab
   const connectTabSocket = useCallback(
-    (tabId, projectName, modelName, initialPrompt, initialAttachments, initialMode = 'build') => {
+    (tabId, projectName, modelName, initialPrompt, initialAttachments, initialMode = 'build', isRefresh = false) => {
       // Close existing socket for this tab if any
       const oldWs = socketsRef.current.get(tabId);
       if (oldWs) {
@@ -168,6 +168,7 @@ export default function App() {
             name: projectName,
             model: modelName,
             mode: initialMode,
+            refresh: isRefresh,
           })
         );
       };
@@ -294,6 +295,7 @@ export default function App() {
                     ? `http://127.0.0.1:${data.backend_port}`
                     : t.previewData?.backend_url ?? null),
               },
+              lastChangeTimestamp: Date.now(),
             }));
             return;
           }
@@ -1062,7 +1064,14 @@ export default function App() {
       const tab = tabs.find((t) => t.id === targetId);
       if (!tab) return;
 
-      updateTab(targetId, { isRefreshing: true, isConnected: false });
+      // Authoritative reset of transient UI locks
+      updateTab(targetId, {
+        isRefreshing: true,
+        isConnected: false,
+        agentStatus: null,
+        pendingApproval: null,
+        pendingPlanProposal: null,
+      });
 
       const oldWs = socketsRef.current.get(targetId);
       if (oldWs) {
@@ -1078,12 +1087,18 @@ export default function App() {
         tab.model,
         undefined,
         undefined,
-        tab.mode || 'build'
+        tab.mode || 'build',
+        true
       );
 
       setTimeout(() => {
+        const newWs = socketsRef.current.get(targetId);
+        if (newWs && newWs.readyState === WebSocket.OPEN) {
+          newWs.send(JSON.stringify({ action: 'get_mcp_status' }));
+          newWs.send(JSON.stringify({ action: 'list_checkpoints' }));
+        }
         updateTab(targetId, { isRefreshing: false });
-      }, 1000);
+      }, 900);
     },
     [activeTabId, tabs, connectTabSocket, updateTab]
   );

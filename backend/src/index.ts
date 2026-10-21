@@ -1262,18 +1262,27 @@ const _server = Bun.serve<WsData>({
               project.model = modelName;
               projectManager.saveMeta(project).catch(() => {});
             }
-            // 1. Boot dev server for live preview FIRST so port is allocated & known
-            const devServer = await devServerManager.startDevServer(project.path).catch(err => {
-              console.error("[WebSocket] Failed to start dev server:", err);
-              return null;
-            });
+            // 1. Verify and boot dev server for live preview
+            let devServer = devServerManager.getServerInfo(project.path);
+            if (data.refresh) {
+              const status = await devServerManager.getServerStatus(project.path);
+              if (!status?.frontend?.running || (status?.backend?.port && !status.backend.running)) {
+                console.log(`[WebSocket] Dev server for ${project.name} unhealthy or refresh requested, reviving...`);
+                devServer = await devServerManager.restartDevServer(project.path);
+              }
+            }
+            if (!devServer) {
+              devServer = await devServerManager.startDevServer(project.path).catch(err => {
+                console.error("[WebSocket] Failed to start dev server:", err);
+                return null;
+              });
+            }
             if (devServer) {
               project.port = devServer.port;
               project.backend_port = devServer.backend_port ?? null;
               project.status = "running";
               projectManager.saveMeta(project).catch(() => {});
             }
-
             // 2. Open project session (now devServerManager.getServerInfo has the real port & url)
             await bridge.openProject(project.path, modelName);
             if (data.mode === "plan") {
@@ -1294,6 +1303,27 @@ const _server = Bun.serve<WsData>({
                 messages: history.ui_events,
               }),
             );
+
+            // Re-sync checkpoints on connect/refresh
+            CheckpointManager.getCheckpoints(project.path).then(steps => {
+              try {
+                ws.send(JSON.stringify({ type: "checkpoint_timeline", steps }));
+              } catch {}
+            }).catch(() => {});
+
+            // Re-sync dev server preview info immediately to this socket
+            if (devServer) {
+              try {
+                ws.send(JSON.stringify({
+                  type: "preview_ready",
+                  port: devServer.port,
+                  url: devServer.url,
+                  backend_port: devServer.backend_port ?? null,
+                  backend_url: devServer.backend_url ?? null,
+                  project_path: project.path,
+                }));
+              } catch {}
+            }
             return;
           }
 
@@ -1442,9 +1472,6 @@ const _server = Bun.serve<WsData>({
       const closingProject = ws.data.activeProjectName;
       if (closingProject && activeBridges.get(closingProject) === ws.data.bridge) {
         activeBridges.delete(closingProject);
-        projectManager.getProject(closingProject).then(proj => {
-          devServerManager.stopDevServer(proj.path);
-        }).catch(() => {});
       }
       ws.data.bridge?.dispose().catch(() => {});
     },
