@@ -18,6 +18,7 @@ import type {
   ExtensionUISelectItem,
   ExtensionUIDialogOptions,
 } from "../../pi-harness/packages/coding-agent/src/extensibility/extensions/types";
+import { readPlanFile } from "../../pi-harness/packages/coding-agent/src/plan-mode/plan-files";
 import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tui/src/theme/theme";
 import { clearCache as clearFsCache } from "../../pi-harness/packages/coding-agent/src/capability/fs";
 import { ChatHistoryManager } from "./chat-history";
@@ -60,6 +61,8 @@ export class SessionBridge {
   private mcpManager: MCPManager | null = null;
   private mcpStatusUnsubscribe: (() => void) | null = null;
   private turnHadError: boolean = false;
+  private currentMode: "build" | "plan" = "build";
+  private pendingPlanRequests = new Map<string, (result: { approved: boolean; feedback?: string }) => void>();
 
   constructor(
     private readonly send: WebSocketSender,
@@ -71,6 +74,141 @@ export class SessionBridge {
   }
   getActiveProjectPath(): string | null {
     return this.activeProjectPath;
+  }
+  getCurrentMode(): "build" | "plan" {
+    return this.currentMode;
+  }
+
+  async setMode(mode: "build" | "plan"): Promise<void> {
+    if (this.currentMode === mode) return;
+    this.currentMode = mode;
+    if (this.session) {
+      if (mode === "plan") {
+        this.session.setPlanModeState({
+          enabled: true,
+          planFilePath: "local://PLAN.md",
+          workflow: "parallel",
+        });
+        this.session.setPlanProposalHandler(async (title: string) => {
+          return await this.handlePlanProposal(title);
+        });
+      } else {
+        this.session.setPlanModeState(undefined);
+        this.session.setPlanProposalHandler(null);
+        for (const [, resolve] of this.pendingPlanRequests.entries()) {
+          resolve({ approved: false, feedback: "Plan mode exited by user." });
+        }
+        this.pendingPlanRequests.clear();
+      }
+    }
+    this.send({
+      type: "mode_changed",
+      mode,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  resolvePlanProposal(requestId: string, approved: boolean, feedback?: string): boolean {
+    const resolve = this.pendingPlanRequests.get(requestId);
+    if (!resolve) return false;
+    this.pendingPlanRequests.delete(requestId);
+    resolve({ approved, feedback });
+    return true;
+  }
+
+  private async handlePlanProposal(title: string): Promise<{
+    content: Array<{ type: "text"; text: string }>;
+    details: { planFilePath: string; title: string; planExists: boolean };
+  }> {
+    if (!this.session) {
+      throw new Error("No active session");
+    }
+    const sm = this.session.sessionManager;
+    const localOptions = {
+      getArtifactsDir: () => sm.getArtifactsDir(),
+      getSessionId: () => sm.getSessionId(),
+    };
+    const details = await this.session.preparePlanForReview(title);
+    const planFilePath = details.details?.planFilePath || "local://PLAN.md";
+    const resolvedTitle = details.details?.title || title || "Plan";
+    let planContent = "";
+    try {
+      planContent = (await readPlanFile(planFilePath, {
+        localProtocolOptions: localOptions,
+        cwd: this.activeProjectPath || sm.getCwd(),
+      })) || "";
+    } catch (err) {
+      console.warn("[SessionBridge] Failed to read plan file content:", err);
+    }
+
+    const requestId = `plan_req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    this.send({
+      type: "plan_proposal_request",
+      id: requestId,
+      request_id: requestId,
+      title: resolvedTitle,
+      plan_path: planFilePath,
+      plan_content: planContent,
+      timestamp: new Date().toISOString(),
+    });
+
+    const { promise, resolve } = Promise.withResolvers<{ approved: boolean; feedback?: string }>();
+    this.pendingPlanRequests.set(requestId, resolve);
+    const response = await promise;
+
+    if (!response.approved) {
+      const feedback = response.feedback?.trim() || "Please refine the plan.";
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Plan refinement requested: ${feedback}\nUpdate the plan file, then write the plan slug to xd://propose again when ready.`,
+          },
+        ],
+        details: { planFilePath, title: resolvedTitle, planExists: true },
+      };
+    }
+
+    // Approved: exit plan mode and unlock full write/build access
+    this.session.setPlanReferencePath(planFilePath);
+    this.session.setPlanProposalHandler(null);
+    this.session.setPlanModeState(undefined);
+    this.currentMode = "build";
+    this.send({
+      type: "mode_changed",
+      mode: "build",
+      timestamp: new Date().toISOString(),
+    });
+
+    const approvedPrompt = [
+      "Plan approved.",
+      `Full plan inlined below; durable copy at ${planFilePath}.`,
+      "Execute plan step-by-step with full tool access; MUST verify each step before next.",
+      "Before execution: initialize todo tracking with todo.",
+      "After each completed step: immediately update todo.",
+      "",
+      `<plan path="${planFilePath}">`,
+      planContent,
+      "</plan>",
+    ].join("\n");
+
+    setTimeout(() => {
+      if (this.session) {
+        this.prompt(approvedPrompt).catch((err) => {
+          console.error("[SessionBridge] Failed to dispatch build prompt:", err);
+        });
+      }
+    }, 150);
+
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Plan approved at ${planFilePath}. Plan mode exited; proceeding with implementation.`,
+        },
+      ],
+      details: { planFilePath, title: resolvedTitle, planExists: true },
+    };
   }
   getMcpStatus(): {
     servers: Array<{
@@ -334,6 +472,16 @@ export class SessionBridge {
         this.session = session;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));
         this.mcpManager = mcpManager ?? null;
+        if (this.currentMode === "plan") {
+          session.setPlanModeState({
+            enabled: true,
+            planFilePath: "local://PLAN.md",
+            workflow: "parallel",
+          });
+          session.setPlanProposalHandler(async (title: string) => {
+            return await this.handlePlanProposal(title);
+          });
+        }
         if (this.mcpManager) {
           this.mcpStatusUnsubscribe = this.mcpManager.addConnectionStatusListener((evt) => {
             this.send({
@@ -1239,6 +1387,10 @@ export class SessionBridge {
       req.reject(new Error("Session disposed"));
     }
     this.pendingUiRequests.clear();
+    for (const [, resolve] of this.pendingPlanRequests.entries()) {
+      resolve({ approved: false, feedback: "Session disposed" });
+    }
+    this.pendingPlanRequests.clear();
 
     if (this.session) {
       this.unsubscribe?.();

@@ -12,6 +12,7 @@ import { getSubagentSessionData, isSubagentTool, normalizeSubagentName } from '.
 import AttachmentRibbon from './AttachmentRibbon';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import './ChatPanel.css';
+import PlanProposalCard from './PlanProposalCard';
 
 const SendIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -113,6 +114,12 @@ export default function ChatPanel({
   onBranchFromStep,
   mcpState = null,
   onReloadMcp = null,
+  mode = 'build',
+  onToggleMode = null,
+  pendingPlanProposal = null,
+  onApprovePlan = null,
+  onRefinePlan = null,
+  onRefreshTab = null,
 }) {
   const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
@@ -287,7 +294,8 @@ export default function ChatPanel({
   const showLoader = isAgentRunning && !hasStreamingStarted;
 
   return (
-    <div className="chat-panel">
+    <div className={`chat-panel ${mode === 'plan' ? 'chat-panel--plan-mode' : 'chat-panel--build-mode'}`}>
+      <div className="chat-panel__mode-backdrop" aria-hidden="true" />
       <div className="chat-panel__header">
         <div className="chat-panel__header-left">
           <span className="chat-panel__project-title">{projectName || _projectName || 'Workspace'}</span>
@@ -373,6 +381,12 @@ export default function ChatPanel({
         request={pendingApproval}
         onApprove={onApproveCommand}
         onDeny={onDenyCommand}
+      />
+
+      <PlanProposalCard
+        proposal={pendingPlanProposal}
+        onApprove={onApprovePlan}
+        onRefine={onRefinePlan}
       />
       {/* Collapsible Todo Progress Sheet docked right above the input box */}
       {/* {activeTodos && activeTodos.phases && activeTodos.phases.length > 0 && todoStats && (
@@ -499,6 +513,19 @@ export default function ChatPanel({
               ? 'Done'
               : 'Agent is online'}
           </span>
+          {!isConnected && onRefreshTab && (
+            <button
+              type="button"
+              className="chat-panel__reconnect-btn"
+              onClick={onRefreshTab}
+              title="Reconnect agent & reload project session"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              <span>Reconnect</span>
+            </button>
+          )}
         </div>
 
         {/* Attachment preview directly ABOVE the input box */}
@@ -508,6 +535,17 @@ export default function ChatPanel({
           </div>
         )}
 
+        {mode === 'plan' && (
+          <div className="chat-panel__plan-mode-banner">
+            <svg className="chat-panel__plan-mode-banner-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+            <span className="chat-panel__plan-mode-banner-text">Plan mode active</span>
+          </div>
+        )}
         <div
           className={`chat-panel__input-wrapper ${
             isDragging ? 'chat-panel__input-wrapper--dragging' : ''
@@ -530,6 +568,8 @@ export default function ChatPanel({
                 ? 'Agent is generating...'
                 : agentStatus === 'awaiting_human'
                 ? 'Answer the agent...'
+                : mode === 'plan'
+                ? 'Describe what you want to plan (working tree is read-only)...'
                 : 'Describe a change...'
             }
             disabled={!isConnected || isAgentRunning}
@@ -549,6 +589,37 @@ export default function ChatPanel({
                   <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
                 </svg>
               </button>
+              <div className="chat-panel__mode-segmented" role="radiogroup" aria-label="Mode">
+                <button
+                  type="button"
+                  className={`chat-panel__mode-seg-btn ${mode === 'build' ? 'chat-panel__mode-seg-btn--active' : ''}`}
+                  onClick={() => onToggleMode?.('build')}
+                  title="Build Mode: Agent directly edits and creates files"
+                  aria-checked={mode === 'build'}
+                  role="radio"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                  </svg>
+                  <span>Build</span>
+                </button>
+                <button
+                  type="button"
+                  className={`chat-panel__mode-seg-btn ${mode === 'plan' ? 'chat-panel__mode-seg-btn--active-plan' : ''}`}
+                  onClick={() => onToggleMode?.('plan')}
+                  title="Plan Mode: Working tree is read-only. Agent explores and designs an execution plan"
+                  aria-checked={mode === 'plan'}
+                  role="radio"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                  </svg>
+                  <span>Plan</span>
+                </button>
+              </div>
               <button
                 type="button"
                 className="chat-panel__model-pill"

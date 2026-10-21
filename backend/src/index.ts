@@ -1173,6 +1173,23 @@ const _server = Bun.serve<WsData>({
         }
         return;
       }
+      if (action === "plan_approval" || action === "plan_response") {
+        const requestId = (data.request_id || data.id) as string;
+        const approved = Boolean(data.approved);
+        const feedback = (data.feedback || data.reason || data.comment) as string | undefined;
+        if (requestId) {
+          bridge.resolvePlanProposal(requestId, approved, feedback);
+        }
+        return;
+      }
+
+      if (action === "set_mode" || action === "toggle_plan_mode") {
+        const targetMode = data.mode === "plan" || data.enabled === true ? "plan" : "build";
+        bridge.setMode(targetMode).catch(err => {
+          console.error("[WebSocket] Error setting mode:", err);
+        });
+        return;
+      }
 
       if (action === "stop_preview") {
         if (ws.data.activeProjectName) {
@@ -1259,6 +1276,9 @@ const _server = Bun.serve<WsData>({
 
             // 2. Open project session (now devServerManager.getServerInfo has the real port & url)
             await bridge.openProject(project.path, modelName);
+            if (data.mode === "plan") {
+              await bridge.setMode("plan");
+            }
             const activeCanonicalModel = bridge.getActiveModel();
             if (activeCanonicalModel && project.model !== activeCanonicalModel) {
               project.model = activeCanonicalModel;
@@ -1266,7 +1286,7 @@ const _server = Bun.serve<WsData>({
             }
 
             activeBridges.set(projectName, bridge);
-            ws.send(JSON.stringify({ type: "project_opened", project }));
+            ws.send(JSON.stringify({ type: "project_opened", project, mode: bridge.getCurrentMode() }));
             ws.send(
               JSON.stringify({
                 type: "chat_history_loaded",

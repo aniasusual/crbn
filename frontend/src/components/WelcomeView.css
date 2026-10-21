@@ -406,6 +406,74 @@
   color: #ffffff;
 }
 
+.degrees-mode-segmented {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 1px;
+  height: 30px;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.degrees-mode-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  padding: 0 9px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 550;
+  font-family: inherit;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1;
+}
+
+.degrees-mode-seg-btn svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+}
+
+.degrees-mode-seg-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.degrees-mode-seg-btn:hover svg {
+  opacity: 1;
+}
+
+.degrees-mode-seg-btn--active {
+  background: rgba(255, 255, 255, 0.11);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.degrees-mode-seg-btn--active svg {
+  opacity: 1;
+}
+
+.degrees-mode-seg-btn--active-plan {
+  background: rgba(255, 255, 255, 0.11);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.degrees-mode-seg-btn--active-plan svg {
+  opacity: 1;
+  stroke: #ff9d66;
+}
+
 .degrees-model-pill {
   display: inline-flex;
   align-items: center;
