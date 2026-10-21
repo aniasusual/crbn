@@ -63,6 +63,8 @@ export class SessionBridge {
   private turnHadError: boolean = false;
   private currentMode: "build" | "plan" = "build";
   private pendingPlanRequests = new Map<string, (result: { approved: boolean; feedback?: string }) => void>();
+  private dispatchedPrompts = new Set<string>();
+  private pendingFollowUps: Array<{ fullPromptText: string; promptText: string; attachments?: PromptAttachments }> = [];
 
   constructor(
     private readonly send: WebSocketSender,
@@ -731,6 +733,7 @@ export class SessionBridge {
     if (this.isGenerating) {
       // Agent is actively running: queue as follow-up in pi-harness
       const effectiveText = fullPromptText || "Analyze the attached media and proceed.";
+      this.pendingFollowUps.push({ fullPromptText: effectiveText.trim(), promptText, attachments });
       await session.followUp(effectiveText, images.length > 0 ? images : undefined);
       this.broadcastQueueUpdate();
       return;
@@ -765,8 +768,10 @@ export class SessionBridge {
       timestamp: now,
     });
 
+    const promptToSend = fullPromptText || "Analyze the attached media and proceed.";
+    this.dispatchedPrompts.add(promptToSend.trim());
     try {
-      await session.prompt(fullPromptText || "Analyze the attached media and proceed.", {
+      await session.prompt(promptToSend, {
         images: images.length > 0 ? images : undefined,
       });
     } catch (err) {
@@ -1090,17 +1095,42 @@ export class SessionBridge {
             }
           }
           const trimmed = text.trim();
+
+          // Check if this user prompt was already recorded & dispatched by bridge.prompt()
+          if (this.dispatchedPrompts.has(trimmed)) {
+            this.dispatchedPrompts.delete(trimmed);
+            break;
+          }
+
+          // Check if this was a queued follow-up with attachments
+          const followUpIdx = this.pendingFollowUps.findIndex((f) => f.fullPromptText === trimmed);
+          let promptDisplay = trimmed;
+          let turnFiles: unknown = undefined;
+          let turnImages: unknown = undefined;
+
+          if (followUpIdx >= 0) {
+            const meta = this.pendingFollowUps.splice(followUpIdx, 1)[0];
+            promptDisplay = meta.promptText;
+            turnFiles = meta.attachments?.files;
+            turnImages = meta.attachments?.images;
+          } else if (trimmed.includes("--- Attached File:")) {
+            promptDisplay = trimmed.replace(/--- Attached File: [\s\S]*?--- End Attached File ---/g, "").trim();
+          }
+
           const alreadyRecorded = this.activeTurns.some(
-            (t) => t.role === "user" && t.content === trimmed
+            (t) => t.role === "user" && (t.content === promptDisplay || t.content === trimmed)
           );
-          if (!alreadyRecorded && trimmed) {
+          if (!alreadyRecorded && (promptDisplay || turnFiles || turnImages)) {
             this.isGenerating = true;
-            this.lastPromptText = trimmed;
+            this.lastPromptText = promptDisplay;
             const userMsg: Record<string, unknown> = {
               role: "user",
-              content: trimmed,
+              content: promptDisplay,
               timestamp,
             };
+            if (turnFiles) userMsg.files = turnFiles;
+            if (turnImages) userMsg.images = turnImages;
+
             this.activeTurns.push(userMsg);
             if (this.activeProjectPath) {
               ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName).catch(() => {});

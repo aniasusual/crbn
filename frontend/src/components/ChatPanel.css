@@ -1142,7 +1142,7 @@
   align-self: flex-end !important;
   align-items: flex-end !important;
   width: fit-content !important;
-  max-width: 92% !important;
+  max-width: 90% !important;
   margin-left: auto !important;
 }
 
@@ -1150,4 +1150,61 @@
   background: rgba(255, 255, 255, 0.04);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 0 20px rgba(255, 255, 255, 0.06);
   border-radius: 14px;
+}
+
+/* ============================================================================
+   Scroll to Bottom Floating Button
+   ============================================================================ */
+
+.chat-panel__scroll-bottom-anchor {
+  position: relative;
+  width: 100%;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  z-index: 25;
+}
+
+.chat-panel__scroll-bottom-btn {
+  position: absolute;
+  bottom: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: rgba(22, 22, 28, 0.9);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: scrollBottomFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes scrollBottomFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.chat-panel__scroll-bottom-btn:hover {
+  background: rgba(30, 30, 38, 0.98);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.chat-panel__scroll-bottom-btn:active {
+  transform: translateY(0) scale(0.98);
 }
