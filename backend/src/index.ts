@@ -53,7 +53,7 @@ interface WsData {
 
 const activeSockets = new Set<(msg: Record<string, unknown>) => void>();
 const activeBridges = new Map<string, SessionBridge>();
-
+const projectCleanupTimers = new Map<string, Timer>();
 
 // Broadcast OAuth session state changes in real-time to all connected frontend clients
 modelsService.oauthManager.onSessionUpdate((session) => {
@@ -1182,6 +1182,21 @@ const _server = Bun.serve<WsData>({
         }
         return;
       }
+      if (action === "close_project") {
+        const projectName = ws.data.activeProjectName;
+        if (projectName) {
+          const pending = projectCleanupTimers.get(projectName);
+          if (pending) {
+            clearTimeout(pending);
+            projectCleanupTimers.delete(projectName);
+          }
+          projectManager.getProject(projectName).then(proj => {
+            devServerManager.stopDevServer(proj.path);
+          }).catch(() => {});
+        }
+        bridge.stop().catch(() => {});
+        return;
+      }
 
       if (action === "set_mode" || action === "toggle_plan_mode") {
         const targetMode = data.mode === "plan" || data.enabled === true ? "plan" : "build";
@@ -1241,6 +1256,7 @@ const _server = Bun.serve<WsData>({
             const projectName = (data.name as string) || "default";
             const previousProject = ws.data.activeProjectName;
             ws.data.activeProjectName = projectName;
+            activeBridges.set(projectName, bridge);
 
             // Stop previous project's dev server if switching projects
             if (previousProject && previousProject !== projectName) {
@@ -1258,6 +1274,11 @@ const _server = Bun.serve<WsData>({
 
             // Prefer explicit model > project persisted model > bridge active model
             const modelName = (data.model as string | undefined) || project.model || bridge.getActiveModel();
+            const pendingTimer = projectCleanupTimers.get(projectName);
+            if (pendingTimer) {
+              clearTimeout(pendingTimer);
+              projectCleanupTimers.delete(projectName);
+            }
             if (modelName && project.model !== modelName) {
               project.model = modelName;
               projectManager.saveMeta(project).catch(() => {});
@@ -1294,7 +1315,6 @@ const _server = Bun.serve<WsData>({
               projectManager.saveMeta(project).catch(() => {});
             }
 
-            activeBridges.set(projectName, bridge);
             ws.send(JSON.stringify({ type: "project_opened", project, mode: bridge.getCurrentMode() }));
             ws.send(
               JSON.stringify({
@@ -1339,16 +1359,6 @@ const _server = Bun.serve<WsData>({
               projectManager.saveMeta(project).catch(() => {});
             }
           }
-          return;
-        }
-        if (action === "close_project") {
-          if (ws.data.activeProjectName) {
-            try {
-              const project = await projectManager.getProject(ws.data.activeProjectName);
-              await devServerManager.stopDevServer(project.path);
-            } catch {}
-          }
-          await bridge.stop();
           return;
         }
 
@@ -1470,8 +1480,20 @@ const _server = Bun.serve<WsData>({
         activeSockets.delete(ws.data.send);
       }
       const closingProject = ws.data.activeProjectName;
-      if (closingProject && activeBridges.get(closingProject) === ws.data.bridge) {
-        activeBridges.delete(closingProject);
+      if (closingProject) {
+        if (activeBridges.get(closingProject) === ws.data.bridge) {
+          activeBridges.delete(closingProject);
+        }
+        // Start orphan cleanup timer: if no connection re-attaches to this project within 4s, stop dev server
+        const timer = setTimeout(() => {
+          projectCleanupTimers.delete(closingProject);
+          if (!activeBridges.has(closingProject)) {
+            projectManager.getProject(closingProject).then(proj => {
+              devServerManager.stopDevServer(proj.path);
+            }).catch(() => {});
+          }
+        }, 4000);
+        projectCleanupTimers.set(closingProject, timer);
       }
       ws.data.bridge?.dispose().catch(() => {});
     },
