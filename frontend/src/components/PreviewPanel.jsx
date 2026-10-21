@@ -184,16 +184,16 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     };
   }, [previewData?.backend_port, previewData?.backend_url]);
 
-  // Debounced Live Auto-Reload when AI agent writes/edits code
+  // Live Auto-Reload when AI agent writes/edits code or tab is refreshed
   useEffect(() => {
-    if (!lastChangeTimestamp || !isServerReady) return;
+    if (!lastChangeTimestamp) return;
 
-    const timer = setTimeout(() => {
-      setFrameKey((k) => k + 1);
-    }, 450);
+    setIsReloading(true);
+    setFrameKey((k) => k + 1);
+    const timer = setTimeout(() => setIsReloading(false), 500);
 
     return () => clearTimeout(timer);
-  }, [lastChangeTimestamp, isServerReady]);
+  }, [lastChangeTimestamp]);
 
   const handleOpenExternal = useCallback(() => {
     if (!previewData?.url) return;
