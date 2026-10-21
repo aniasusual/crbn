@@ -26,6 +26,63 @@ const StopIcon = () => (
     <rect x="5" y="5" width="14" height="14" rx="2" ry="2"></rect>
   </svg>
 );
+const SearchIcon = ({ size = 13, className = '' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="11" cy="11" r="8"></circle>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+  </svg>
+);
+
+const ChevronUpIcon = ({ size = 11 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="18 15 12 9 6 15" />
+  </svg>
+);
+
+const ChevronDownIcon = ({ size = 11 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
+const CloseIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18"></line>
+    <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
+const extractSearchableText = (msg) => {
+  if (!msg) return '';
+  const parts = [];
+  if (typeof msg.content === 'string') parts.push(msg.content);
+  if (msg.name) parts.push(msg.name);
+  if (msg.arguments) {
+    parts.push(typeof msg.arguments === 'string' ? msg.arguments : JSON.stringify(msg.arguments));
+  }
+  if (msg.result) {
+    parts.push(typeof msg.result === 'string' ? msg.result : JSON.stringify(msg.result));
+  }
+  if (msg.summary) parts.push(msg.summary);
+  if (msg.question) parts.push(msg.question);
+  if (Array.isArray(msg.questions)) {
+    for (const q of msg.questions) {
+      if (q.question) parts.push(q.question);
+      if (Array.isArray(q.options)) {
+        for (const opt of q.options) {
+          parts.push(typeof opt === 'string' ? opt : opt.label || '');
+        }
+      }
+    }
+  }
+  if (Array.isArray(msg.files)) {
+    for (const f of msg.files) {
+      if (f.name) parts.push(f.name);
+    }
+  }
+  return parts.join(' ').toLowerCase();
+};
+
 const parseTodoText = (text) => {
   if (!text || typeof text !== 'string') return [];
   const phases = [];
@@ -143,6 +200,71 @@ export default function ChatPanel({
     }
     return items;
   }, [queuedMessages]);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeMatchIndex, setActiveMatchIndex] = useState(0);
+  const searchInputRef = useRef(null);
+
+  const matches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q || !Array.isArray(messages)) return [];
+    const results = [];
+    messages.forEach((msg, idx) => {
+      const text = extractSearchableText(msg);
+      if (text.includes(q)) {
+        results.push({ messageIndex: idx, id: `chat-msg-${idx}` });
+      }
+    });
+    return results;
+  }, [messages, searchQuery]);
+
+  const matchingIndices = useMemo(() => {
+    return new Set(matches.map((m) => m.messageIndex));
+  }, [matches]);
+
+  const currentMatch = matches[activeMatchIndex] || null;
+
+  useEffect(() => {
+    if (!currentMatch) return;
+    const el = document.getElementById(currentMatch.id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [activeMatchIndex, currentMatch]);
+
+  useEffect(() => {
+    setActiveMatchIndex(0);
+  }, [searchQuery]);
+
+  const handleNextMatch = () => {
+    if (matches.length === 0) return;
+    setActiveMatchIndex((prev) => (prev + 1) % matches.length);
+  };
+
+  const handlePrevMatch = () => {
+    if (matches.length === 0) return;
+    setActiveMatchIndex((prev) => (prev - 1 + matches.length) % matches.length);
+  };
+
+  const handleCloseSearch = () => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  };
+
+  const handleSearchInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        handlePrevMatch();
+      } else {
+        handleNextMatch();
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCloseSearch();
+    }
+  };
+
 
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
@@ -276,7 +398,22 @@ export default function ChatPanel({
 
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        setIsSearchOpen(true);
+        setTimeout(() => {
+          searchInputRef.current?.focus();
+          searchInputRef.current?.select();
+        }, 50);
+        return;
+      }
+
       if (e.key === 'Escape') {
+        if (isSearchOpen) {
+          e.preventDefault();
+          handleCloseSearch();
+          return;
+        }
         if (isModelSelectorOpen) return;
         if (selectedSubagentMsg) return;
 
@@ -288,7 +425,7 @@ export default function ChatPanel({
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isAgentRunning, onStopAgent, isModelSelectorOpen, selectedSubagentMsg]);
+  }, [isAgentRunning, onStopAgent, isModelSelectorOpen, selectedSubagentMsg, isSearchOpen]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Escape' && isAgentRunning && onStopAgent) {
@@ -323,6 +460,28 @@ export default function ChatPanel({
         <div className="chat-panel__header-right">
           <button
             type="button"
+            className={`chat-panel__search-toggle-btn ${isSearchOpen ? 'chat-panel__search-toggle-btn--active' : ''}`}
+            onClick={() => {
+              setIsSearchOpen((prev) => {
+                const next = !prev;
+                if (next) {
+                  setTimeout(() => {
+                    searchInputRef.current?.focus();
+                    searchInputRef.current?.select();
+                  }, 50);
+                } else {
+                  setSearchQuery('');
+                }
+                return next;
+              });
+            }}
+            title="Find in chat (Cmd+F)"
+            aria-label="Find in chat"
+          >
+            <SearchIcon size={12} />
+          </button>
+          <button
+            type="button"
             className="chat-panel__gh-btn"
             onClick={() => setIsSyncModalOpen(true)}
             title="Push changes to GitHub or publish repository"
@@ -342,6 +501,65 @@ export default function ChatPanel({
           />
         </div>
       </div>
+      {/* Floating Apple-style Glassmorphic Chat Search Bar */}
+      {isSearchOpen && (
+        <div className="chat-panel__search-bar">
+          <div className="chat-panel__search-input-wrap">
+            <SearchIcon size={12} className="chat-panel__search-icon" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="chat-panel__search-input"
+              placeholder="Find in chat..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleSearchInputKeyDown}
+              autoFocus
+              spellCheck="false"
+            />
+          </div>
+
+          <div className="chat-panel__search-controls">
+            {searchQuery.trim() && (
+              <span className="chat-panel__search-counter">
+                {matches.length > 0 ? `${activeMatchIndex + 1} of ${matches.length}` : 'No matches'}
+              </span>
+            )}
+            <div className="chat-panel__search-nav">
+              <button
+                type="button"
+                className="chat-panel__search-nav-btn"
+                onClick={handlePrevMatch}
+                disabled={matches.length === 0}
+                title="Previous match (Shift+Enter)"
+                aria-label="Previous match"
+              >
+                <ChevronUpIcon size={11} />
+              </button>
+              <button
+                type="button"
+                className="chat-panel__search-nav-btn"
+                onClick={handleNextMatch}
+                disabled={matches.length === 0}
+                title="Next match (Enter)"
+                aria-label="Next match"
+              >
+                <ChevronDownIcon size={11} />
+              </button>
+            </div>
+            <button
+              type="button"
+              className="chat-panel__search-close-btn"
+              onClick={handleCloseSearch}
+              title="Close search (Esc)"
+              aria-label="Close search"
+            >
+              <CloseIcon size={11} />
+            </button>
+          </div>
+        </div>
+      )}
+
 
 
       <div
@@ -350,22 +568,29 @@ export default function ChatPanel({
         onScroll={handleScroll}
       >
         {messages?.map((msg, i) => (
-          <ChatMessage
+          <div
             key={i}
-            message={msg}
-            isActive={isAgentRunning && i === messages.length - 1}
-            onOpenSubagent={handleOpenSubagent}
-            onToolResponse={onToolResponse}
-            onSelectOption={(answer, qId) => {
-              if (onToolResponse) {
-                onToolResponse(qId || msg.id, answer);
-              } else if (onSendMessage) {
-                onSendMessage(answer);
-              }
-            }}
-            onRewindToStep={onRewindToStep}
-            onBranchFromStep={(stepId, name) => onBranchFromStep?.(stepId, name, activeBranch)}
-          />
+            id={`chat-msg-${i}`}
+            className={`chat-panel__msg-wrapper ${currentMatch?.messageIndex === i ? 'chat-panel__msg-wrapper--active-match' : ''}`}
+          >
+            <ChatMessage
+              message={msg}
+              isActive={isAgentRunning && i === messages.length - 1}
+              isSearchActive={currentMatch?.messageIndex === i}
+              isSearchMatch={matchingIndices.has(i)}
+              onOpenSubagent={handleOpenSubagent}
+              onToolResponse={onToolResponse}
+              onSelectOption={(answer, qId) => {
+                if (onToolResponse) {
+                  onToolResponse(qId || msg.id, answer);
+                } else if (onSendMessage) {
+                  onSendMessage(answer);
+                }
+              }}
+              onRewindToStep={onRewindToStep}
+              onBranchFromStep={(stepId, name) => onBranchFromStep?.(stepId, name, activeBranch)}
+            />
+          </div>
         ))}
         {/* Loader in chat area when agent is working and response has not started streaming yet */}
         {showLoader && (
