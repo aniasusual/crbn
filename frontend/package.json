@@ -10,6 +10,8 @@
     "url": "https://github.com/aniasusual/crbn.git"
   },
   "scripts": {
+    "postinstall": "node scripts/ensure-natives.js",
+    "ensure:natives": "node scripts/ensure-natives.js",
     "dev:react": "vite",
     "dev:electron": "wait-on tcp:5173 && cross-env NODE_ENV=development electron .",
     "dev": "concurrently \"npm run dev:react\" \"npm run dev:electron\"",

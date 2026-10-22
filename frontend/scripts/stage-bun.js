@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { ensureNativeModules } from './ensure-natives.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -108,92 +109,6 @@ function ensureIcons() {
   }
 }
 
-const NATIVE_MODULE_CONFIGS = [
-  {
-    platform: 'darwin',
-    file: 'pi_natives.darwin-arm64.node',
-    pkg: 'darwin-arm64',
-    version: '18.4.10',
-  },
-  {
-    platform: 'darwin',
-    file: 'pi_natives.darwin-x64-baseline.node',
-    pkg: 'darwin-x64',
-    version: '18.4.10',
-  },
-  {
-    platform: 'linux',
-    file: 'pi_natives.linux-x64-baseline.node',
-    pkg: 'linux-x64',
-    version: '18.4.10',
-  },
-  {
-    platform: 'win32',
-    file: 'pi_natives.win32-x64-baseline.node',
-    pkg: 'win32-x64',
-    version: '18.4.10',
-  },
-];
-
-function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
-  const url = `https://registry.npmjs.org/@oh-my-pi/pi-natives-${moduleConfig.pkg}/-/pi-natives-${moduleConfig.pkg}-${moduleConfig.version}.tgz`;
-  const tmpTgz = path.join(os.tmpdir(), `pi-native-${moduleConfig.pkg}-${Date.now()}.tgz`);
-  console.log(`[Stage] Downloading native module ${moduleConfig.file} from ${url}...`);
-  try {
-    execSync(`curl -fsSL "${url}" -o "${tmpTgz}"`, { stdio: 'inherit' });
-    const extractDir = path.dirname(targetFile);
-    fs.mkdirSync(extractDir, { recursive: true });
-    execSync(`tar -xzf "${tmpTgz}" -C "${extractDir}" --strip-components=1 "package/${moduleConfig.file}"`, {
-      stdio: 'inherit',
-    });
-    try { fs.unlinkSync(tmpTgz); } catch {}
-    if (sourceFile && fs.existsSync(targetFile)) {
-      try {
-        fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
-        fs.copyFileSync(targetFile, sourceFile);
-      } catch {}
-    }
-    console.log(`[Stage] Successfully staged native module at ${targetFile}`);
-  } catch (err) {
-    try { fs.unlinkSync(tmpTgz); } catch {}
-    console.warn(`[Stage] Warning: Failed to download native module ${moduleConfig.file}: ${err.message}`);
-  }
-}
-
-function ensureNativeModules() {
-  const nativeDir = path.join(__dirname, '../../backend/native');
-  const sourceDir = path.join(__dirname, '../../pi-harness/packages/natives/native');
-  fs.mkdirSync(nativeDir, { recursive: true });
-  fs.mkdirSync(sourceDir, { recursive: true });
-
-  const currentPlatform = process.platform;
-
-  for (const moduleConfig of NATIVE_MODULE_CONFIGS) {
-    // Primary: Stage modules matching current build platform
-    const targetFile = path.join(nativeDir, moduleConfig.file);
-    const sourceFile = path.join(sourceDir, moduleConfig.file);
-
-    if (moduleConfig.platform !== currentPlatform) {
-      if (!fs.existsSync(targetFile) && fs.existsSync(sourceFile) && fs.statSync(sourceFile).size > 1000) {
-        fs.copyFileSync(sourceFile, targetFile);
-      }
-      continue;
-    }
-
-    if (fs.existsSync(targetFile) && fs.statSync(targetFile).size > 1000) {
-      continue;
-    }
-
-    if (fs.existsSync(sourceFile) && fs.statSync(sourceFile).size > 1000) {
-      fs.copyFileSync(sourceFile, targetFile);
-      console.log(`[Stage] Copied ${moduleConfig.file} to backend/native/`);
-      continue;
-    }
-
-    // Missing from disk in fresh CI checkout: fetch from registry
-    downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile);
-  }
-}
 
 function downloadAndExtractBun(targetKey, targetDir) {
   const config = TARGET_CONFIGS[targetKey];

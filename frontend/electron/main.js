@@ -151,6 +151,15 @@ async function startBackend() {
     }
   }
 
+  if (isDev) {
+    try {
+      const { ensureNativeModules } = await import('../scripts/ensure-natives.js');
+      ensureNativeModules();
+    } catch (err) {
+      console.warn('[Electron] Failed to auto-ensure native modules:', err.message);
+    }
+  }
+
   const scriptToRun = fs.existsSync(path.join(backendDir, 'dist/index.js'))
     ? path.join(backendDir, 'dist/index.js')
     : path.join(backendDir, 'src/index.ts');
