@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "setup:natives": "bun ../frontend/scripts/ensure-natives.js",
+    "predev": "bun ../frontend/scripts/ensure-natives.js",
+    "prestart": "bun ../frontend/scripts/ensure-natives.js",
+    "prebuild": "bun ../frontend/scripts/ensure-natives.js",
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "build": "bun install --cwd templates/node_react && bun build src/index.ts --target=bun --outdir dist --external omp-legacy-pi-modules"
