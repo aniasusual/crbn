@@ -59,15 +59,20 @@ function downscaleImage(file) {
   });
 }
 
-function readTextFile(file) {
+function readFileAsBase64(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const content = e.target?.result;
-      resolve(typeof content === 'string' ? content : '');
+      const result = e.target?.result;
+      if (typeof result === 'string') {
+        const commaIdx = result.indexOf(',');
+        resolve(commaIdx >= 0 ? result.slice(commaIdx + 1) : result);
+      } else {
+        resolve('');
+      }
     };
     reader.onerror = () => resolve('');
-    reader.readAsText(file);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -96,11 +101,12 @@ export function useMediaAttachments() {
               mimeType: processed.mimeType,
               dataUrl: processed.dataUrl,
               base64: processed.base64,
+              data: processed.base64,
             },
           ]);
         }
       } else {
-        const content = await readTextFile(file);
+        const base64Data = await readFileAsBase64(file);
         setAttachments((prev) => [
           ...prev,
           {
@@ -108,8 +114,8 @@ export function useMediaAttachments() {
             name: file.name,
             size: file.size,
             type: 'file',
-            mimeType: file.type || 'text/plain',
-            content,
+            mimeType: file.type || 'application/octet-stream',
+            data: base64Data,
           },
         ]);
       }

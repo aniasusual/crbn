@@ -461,6 +461,51 @@
   line-height: 1;
 }
 
+
+/* Plugins Connect Button */
+.chat-panel__plugin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+.chat-panel__plugin-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.chat-panel__plugin-btn--active {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.chat-panel__plugin-btn--active svg {
+  color: #a78bfa;
+}
+
+.chat-panel__plugin-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(167, 139, 250, 0.2);
+  color: #c4b5fd;
+  line-height: 1;
+}
 /* Send & Stop Button matching .degrees-cta-btn (Shadowless) */
 .chat-panel__send {
   display: inline-flex;

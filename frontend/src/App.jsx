@@ -238,6 +238,16 @@ export default function App() {
             });
             return;
           }
+          if (data.type === 'plugins_status') {
+            updateTab(tabId, {
+              pluginsState: {
+                plugins: Array.isArray(data.plugins) ? data.plugins : [],
+                timestamp: Date.now(),
+              },
+            });
+            return;
+          }
+
 
           if (data.type === 'mcp_status_update') {
             updateTab(tabId, (t) => {
@@ -1146,6 +1156,7 @@ export default function App() {
         if (newWs && newWs.readyState === WebSocket.OPEN) {
           newWs.send(JSON.stringify({ action: 'get_mcp_status' }));
           newWs.send(JSON.stringify({ action: 'list_checkpoints' }));
+          newWs.send(JSON.stringify({ action: 'get_plugins_status' }));
         }
         updateTab(targetId, { isRefreshing: false });
       }, 900);
@@ -1225,6 +1236,14 @@ export default function App() {
     const ws = socketsRef.current.get(activeTabId);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'reload_mcp' }));
+    }
+  }, [activeTabId]);
+
+  const handleReloadPlugins = useCallback(() => {
+    if (!activeTabId) return;
+    const ws = socketsRef.current.get(activeTabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'reload_plugins' }));
     }
   }, [activeTabId]);
 
@@ -1310,6 +1329,8 @@ export default function App() {
           onBranchFromStep={handleBranchFromStep}
           mcpState={activeTab.mcpState}
           onReloadMcp={handleReloadMcp}
+          pluginsState={activeTab.pluginsState}
+          onReloadPlugins={handleReloadPlugins}
           onRefreshTab={() => handleRefreshTab(activeTab.id)}
           queuedMessages={activeTab.queuedMessages}
           onRemoveQueuedMessage={handleRemoveQueuedMessage}

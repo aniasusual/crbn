@@ -41,6 +41,8 @@ export default function WorkspaceView({
   onBranchFromStep,
   mcpState = null,
   onReloadMcp = null,
+  pluginsState = null,
+  onReloadPlugins = null,
   mode = 'build',
   onToggleMode = null,
   pendingPlanProposal = null,
@@ -141,6 +143,8 @@ export default function WorkspaceView({
             onBranchFromStep={onBranchFromStep}
             mcpState={mcpState}
             onReloadMcp={onReloadMcp}
+            pluginsState={pluginsState}
+            onReloadPlugins={onReloadPlugins}
             mode={mode}
             onToggleMode={onToggleMode}
             pendingPlanProposal={pendingPlanProposal}
