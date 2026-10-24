@@ -15,6 +15,8 @@ import {
   validateServerName,
 } from "../../pi-harness/packages/coding-agent/src/mcp/config-writer";
 import type { MCPServerConfig } from "../../pi-harness/packages/coding-agent/src/mcp/types";
+import { PluginsService } from "./plugins-service";
+import type { PluginSourceType, PluginScope } from "./plugins-types";
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
@@ -37,6 +39,7 @@ const devServerManager = new DevServerManager();
 const projectManager = new ProjectManager({ devServerManager });
 const modelsService = new ModelsService();
 const githubService = new GithubService(projectManager);
+const pluginsService = new PluginsService();
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -781,6 +784,235 @@ const _server = Bun.serve<WsData>({
       }
     }
 
+    // Projects: List Installed Plugins
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/plugins$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const projectPath = isGlobal ? undefined : (await projectManager.getProject(projectName)).path;
+        const plugins = await pluginsService.listInstalledPlugins(projectPath);
+        return Response.json({ project: projectName, plugins }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Install Plugin
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/plugins\/install$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json()) as { spec?: string; type?: PluginSourceType; scope?: PluginScope };
+        if (!body.spec) {
+          return Response.json({ detail: "Plugin 'spec' is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const projectPath = isGlobal ? undefined : (await projectManager.getProject(projectName)).path;
+        const result = await pluginsService.installPlugin({
+          spec: body.spec,
+          type: body.type,
+          scope: isGlobal ? "user" : (body.scope || "project"),
+          projectPath,
+        });
+
+        const activeBridge = isGlobal ? undefined : activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadPlugins().catch(() => {});
+        }
+
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Toggle Plugin
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/plugins\/[^/]+\/toggle$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const pluginId = decodeURIComponent(parts[5]);
+      try {
+        const body = (await req.json()) as { enabled?: boolean; scope?: PluginScope };
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const projectPath = isGlobal ? undefined : (await projectManager.getProject(projectName)).path;
+        const result = await pluginsService.togglePlugin({
+          id: pluginId,
+          enabled: Boolean(body.enabled),
+          scope: isGlobal ? "user" : body.scope,
+          projectPath,
+        });
+
+        const activeBridge = isGlobal ? undefined : activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadPlugins().catch(() => {});
+        }
+
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Upgrade Plugin
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/plugins\/[^/]+\/upgrade$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const pluginId = decodeURIComponent(parts[5]);
+      try {
+        const body = (await req.json().catch(() => ({}))) as { scope?: PluginScope };
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const projectPath = isGlobal ? undefined : (await projectManager.getProject(projectName)).path;
+        const result = await pluginsService.upgradePlugin({
+          id: pluginId,
+          scope: isGlobal ? "user" : body.scope,
+          projectPath,
+        });
+
+        const activeBridge = isGlobal ? undefined : activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadPlugins().catch(() => {});
+        }
+
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Delete / Uninstall Plugin
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/plugins\/[^/]+$/) && req.method === "DELETE") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const pluginId = decodeURIComponent(parts[5]);
+      try {
+        const scope = (url.searchParams.get("scope") as PluginScope) || undefined;
+        const isGlobal = !projectName || projectName === "_global" || projectName === "global";
+        const projectPath = isGlobal ? undefined : (await projectManager.getProject(projectName)).path;
+        const result = await pluginsService.uninstallPlugin({
+          id: pluginId,
+          scope: isGlobal ? "user" : scope,
+          projectPath,
+        });
+
+        const activeBridge = isGlobal ? undefined : activeBridges.get(projectName);
+        if (activeBridge) {
+          await activeBridge.reloadPlugins().catch(() => {});
+        }
+
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Projects: Reload Plugins
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/plugins\/reload$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const activeBridge = activeBridges.get(projectName);
+        if (activeBridge) {
+          const status = await activeBridge.reloadPlugins();
+          return Response.json({ success: true, ...status }, { headers: CORS_HEADERS });
+        }
+        return Response.json({ success: true, message: "No active session to reload" }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Marketplaces: List
+    if (url.pathname === "/api/marketplaces" && req.method === "GET") {
+      try {
+        const marketplaces = await pluginsService.listMarketplaces();
+        return Response.json({ marketplaces }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Marketplaces: Add
+    if (url.pathname === "/api/marketplaces" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { source?: string };
+        if (!body.source) {
+          return Response.json({ detail: "Marketplace 'source' is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const result = await pluginsService.addMarketplace(body.source);
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Marketplaces: Remove
+    if (url.pathname.match(/^\/api\/marketplaces\/[^/]+$/) && req.method === "DELETE") {
+      const name = decodeURIComponent(url.pathname.split("/")[3]);
+      try {
+        const result = await pluginsService.removeMarketplace(name);
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Marketplaces: Update Catalogs
+    if (url.pathname === "/api/marketplaces/update" && req.method === "POST") {
+      try {
+        const name = url.searchParams.get("name") || undefined;
+        const result = await pluginsService.updateMarketplaces(name);
+        return Response.json({ success: true, ...result }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Marketplaces: Discover / Browse Available Plugins
+    if (url.pathname === "/api/marketplaces/discover" && req.method === "GET") {
+      try {
+        const marketplace = url.searchParams.get("marketplace") || undefined;
+        const query = url.searchParams.get("q") || undefined;
+        const plugins = await pluginsService.discoverMarketplacePlugins({ marketplace, query });
+        return Response.json({ plugins }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
 
     // Projects: List Branches
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/branches$/) && req.method === "GET") {
@@ -1270,8 +1502,15 @@ const _server = Bun.serve<WsData>({
           }
         );
         const files = rawFiles.filter(
-          (item): item is { name: string; content: string; mimeType?: string; size?: number } => {
-            return item !== null && typeof item === "object" && "name" in item && "content" in item;
+          (item): item is { name: string; content?: string; data?: string; mimeType?: string; size?: number } => {
+            return (
+              item !== null &&
+              typeof item === "object" &&
+              "name" in item &&
+              typeof (item as Record<string, unknown>).name === "string" &&
+              (("content" in item && typeof (item as Record<string, unknown>).content === "string") ||
+               ("data" in item && typeof (item as Record<string, unknown>).data === "string"))
+            );
           }
         );
         bridge.prompt(promptText, {
@@ -1443,6 +1682,31 @@ const _server = Bun.serve<WsData>({
           return;
         }
 
+        if (action === "get_plugins_status") {
+          try {
+            const plugins = await bridge.getPluginsStatus();
+            ws.send(JSON.stringify({ type: "plugins_status", plugins, timestamp: Date.now() }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: "plugins_status", plugins: [], timestamp: Date.now() }));
+          }
+          return;
+        }
+
+        if (action === "reload_plugins") {
+          try {
+            const status = await bridge.reloadPlugins();
+            ws.send(JSON.stringify({ type: "plugins_status", plugins: status.plugins, timestamp: Date.now() }));
+          } catch (err) {
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: `Failed to reload plugins: ${err instanceof Error ? err.message : String(err)}`,
+              }),
+            );
+          }
+          return;
+        }
+
 
         if (action === "rewind_to_step") {
           const stepId = (data.step_id || data.stepId) as string;
@@ -1472,14 +1736,14 @@ const _server = Bun.serve<WsData>({
         );
 
         const files = rawFiles.filter(
-          (item): item is { name: string; content: string; mimeType?: string; size?: number } => {
+          (item): item is { name: string; content?: string; data?: string; mimeType?: string; size?: number } => {
             return (
               item !== null &&
               typeof item === "object" &&
               "name" in item &&
               typeof (item as Record<string, unknown>).name === "string" &&
-              "content" in item &&
-              typeof (item as Record<string, unknown>).content === "string"
+              (("content" in item && typeof (item as Record<string, unknown>).content === "string") ||
+               ("data" in item && typeof (item as Record<string, unknown>).data === "string"))
             );
           }
         );

@@ -586,6 +586,49 @@
   line-height: 1;
 }
 
+.degrees-plugin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  transition: all 0.12s ease;
+}
+
+.degrees-plugin-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+}
+
+.degrees-plugin-btn--active {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(167, 139, 250, 0.3);
+  color: #ffffff;
+}
+
+.degrees-plugin-btn--active svg {
+  color: #a78bfa;
+}
+
+.degrees-plugin-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(167, 139, 250, 0.2);
+  color: #c4b5fd;
+  line-height: 1;
+}
+
 .degrees-composer__toolbar-right {
   display: flex;
   align-items: center;

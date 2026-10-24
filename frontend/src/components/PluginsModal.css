@@ -1,0 +1,952 @@
+/* ============================================================================
+   PluginsModal
+   Minimalist Liquid Glass (Pure Black Background, No Borders, No Shadows)
+   Matches McpConnectModal & ProviderConnectModal design system
+   ============================================================================ */
+
+.plugins-dialog-root {
+  position: relative;
+  z-index: 50;
+}
+
+.plugins-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.70);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: opacity 0.18s ease-out;
+}
+
+.plugins-dialog-backdrop[data-closed] {
+  opacity: 0;
+}
+
+.plugins-dialog-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  pointer-events: none;
+}
+
+/* Modal Panel Container: Translucent Liquid Glass */
+.plugins-dialog-panel {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 44rem;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(10, 10, 14, 0.94);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: none;
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 32px 84px rgba(0, 0, 0, 0.85);
+  color: #f4f4f5;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.plugins-dialog-panel[data-closed] {
+  opacity: 0;
+  transform: scale(0.97) translateY(8px);
+}
+
+/* Header */
+.plugins-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.75rem 1.75rem 0.625rem 1.75rem;
+  border: none;
+  background: transparent;
+}
+
+.plugins-dialog-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+.plugins-dialog-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #a78bfa;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.plugins-dialog-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.plugins-dialog-subtitle {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+}
+
+.plugins-dialog-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* Glassmorphic Reload Button */
+.plugins-dialog-reload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+  padding: 0.4375rem 0.8125rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plugins-dialog-reload-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  transform: translateY(-0.5px);
+}
+
+.plugins-dialog-reload-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Glassmorphic Close Button */
+.plugins-dialog-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plugins-dialog-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  transform: scale(1.05);
+}
+
+/* Navigation Tabs: Glassmorphic Pills */
+.plugins-dialog-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1.75rem 0.75rem 1.75rem;
+  background: transparent;
+  border: none;
+  flex-wrap: wrap;
+}
+
+.plugins-dialog-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  padding: 0.4375rem 0.9375rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.plugins-dialog-tab:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: translateY(-0.5px);
+}
+
+.plugins-dialog-tab--active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.plugins-dialog-tab-badge {
+  font-size: 0.6875rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.2;
+}
+
+.plugins-dialog-tab--active .plugins-dialog-tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+/* Alerts / Banners */
+.plugins-dialog-banner {
+  margin: 0 1.75rem 0.75rem 1.75rem;
+  padding: 0.625rem 1rem;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  font-size: 0.8125rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.plugins-dialog-banner--error {
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
+.plugins-dialog-banner--success {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+}
+
+/* Content Area with Fixed Top and Scrollable Body */
+.plugins-dialog-content {
+  flex: 1;
+  min-height: 0;
+  max-height: 520px;
+  overflow: hidden;
+  padding: 0.25rem 1.75rem 1.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.plugins-tab-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fixed Top Controls: Search Bar & Categories (Does not scroll with list) */
+.plugins-tab-controls {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-bottom: 0.375rem;
+}
+
+/* Scrollable Plugin Cards List Area */
+.plugins-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-right: 0.25rem;
+}
+
+.plugins-scroll-area::-webkit-scrollbar {
+  width: 5px;
+}
+
+.plugins-scroll-area::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+
+.plugins-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Search Bar: Borderless Glass Input */
+.plugins-search-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.plugins-search-input {
+  display: flex;
+  height: 2.375rem;
+  width: 100%;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0 2.25rem 0 2.25rem;
+  font-size: 0.8125rem;
+  color: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.plugins-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.plugins-search-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.plugins-search-icon {
+  position: absolute;
+  left: 0.8125rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+  pointer-events: none;
+}
+
+.plugins-search-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plugins-search-clear:hover {
+  color: #ffffff;
+}
+
+/* Category Filter Pills */
+/* Category Filter Pills Bar */
+.plugins-category-pills {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0.125rem 0.5rem 0.125rem;
+  margin-bottom: 0.25rem;
+  flex-shrink: 0;
+  width: 100%;
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.25s ease;
+}
+
+.plugins-category-pills::-webkit-scrollbar {
+  height: 4px;
+}
+
+.plugins-category-pills::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 9999px;
+  margin: 0 0.5rem;
+  transition: background-color 0.25s ease;
+}
+
+.plugins-category-pills::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.25s ease;
+}
+
+/* Show scrollbar on hover or active scroll, hide when stopped */
+.plugins-category-pills:hover,
+.plugins-category-pills.plugins-category-pills--scrolling {
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.04);
+}
+
+.plugins-category-pills:hover::-webkit-scrollbar-track,
+.plugins-category-pills.plugins-category-pills--scrolling::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.plugins-category-pills:hover::-webkit-scrollbar-thumb,
+.plugins-category-pills.plugins-category-pills--scrolling::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.plugins-category-pills:hover::-webkit-scrollbar-thumb:hover,
+.plugins-category-pills.plugins-category-pills--scrolling::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.plugins-category-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4375rem;
+  height: 1.875rem;
+  padding: 0 0.875rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: none;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8125rem;
+  font-weight: 550;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+  font-family: inherit;
+  user-select: none;
+}
+
+.plugins-category-pill:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: translateY(-0.5px);
+}
+
+.plugins-category-pill--active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.plugins-category-pill-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.75;
+}
+
+.plugins-category-pill--active .plugins-category-pill-icon,
+.plugins-category-pill:hover .plugins-category-pill-icon {
+  opacity: 1;
+}
+
+/* Plugin Cards List */
+.plugins-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Plugin Card: Borderless Glass */
+.plugin-card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0.875rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  transition: background-color 0.05s ease;
+  will-change: background-color;
+}
+
+.plugin-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.plugin-card--disabled {
+  opacity: 0.5;
+}
+
+.plugin-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.plugin-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.plugin-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.plugin-card-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.plugin-card-version {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.plugin-card-desc {
+  margin: 0.125rem 0 0 0;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+}
+
+/* Glassmorphic Badges & Tags */
+.plugin-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  padding: 0 0.5625rem;
+  border-radius: 9999px;
+  font-size: 0.71875rem;
+  font-weight: 550;
+  border: none;
+  box-shadow: none;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.plugin-tag--project {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.plugin-tag--global {
+  background: rgba(167, 139, 250, 0.2);
+  color: #c4b5fd;
+}
+
+.plugin-tag--shadowed {
+  background: rgba(245, 158, 11, 0.2);
+  color: #facc15;
+}
+
+.plugin-tag--active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.plugin-tag--disabled {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* Category Badge with Contextual Tint */
+.plugin-category-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  padding: 0 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.71875rem;
+  font-weight: 550;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none;
+  box-shadow: none;
+  background: rgba(167, 139, 250, 0.2);
+  color: #c4b5fd;
+  text-transform: capitalize;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.plugin-category-badge--security {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+}
+
+.plugin-category-badge--development {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.plugin-category-badge--productivity {
+  background: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.plugin-category-badge--design {
+  background: rgba(236, 72, 153, 0.2);
+  color: #f472b6;
+}
+
+.plugin-category-badge--database {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.plugin-category-badge--testing {
+  background: rgba(20, 184, 166, 0.2);
+  color: #5eead4;
+}
+
+.plugin-category-badge--automation {
+  background: rgba(168, 85, 247, 0.2);
+  color: #d8b4fe;
+}
+
+.plugin-category-badge--deployment {
+  background: rgba(99, 102, 241, 0.2);
+  color: #a5b4fc;
+}
+
+.plugin-category-badge--monitoring {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fdba74;
+}
+
+.plugin-caps-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+  margin-top: 0.25rem;
+}
+
+.plugin-cap-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  height: 1.375rem;
+  padding: 0 0.5625rem;
+  border-radius: 9999px;
+  font-size: 0.71875rem;
+  font-weight: 500;
+  border: none;
+  box-shadow: none;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.plugin-cap-chip svg {
+  color: currentColor;
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+/* Card Actions */
+.plugin-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  flex-shrink: 0;
+}
+
+/* Glassmorphic Action Buttons */
+.plugin-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.875rem;
+  padding: 0 0.8125rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: none;
+  box-shadow: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.plugin-action-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  transform: scale(1.02);
+}
+
+.plugin-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.plugin-action-btn--primary {
+  background: rgba(255, 255, 255, 0.9);
+  color: #000000;
+  font-weight: 600;
+}
+
+.plugin-action-btn--primary:hover:not(:disabled) {
+  background: #ffffff;
+  color: #000000;
+}
+
+.plugin-action-btn--danger {
+  color: #f87171;
+}
+
+.plugin-action-btn--danger:hover {
+  background: rgba(239, 68, 68, 0.26);
+  color: #fca5a5;
+}
+
+.plugin-action-btn--update {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.plugin-action-btn--update:hover {
+  background: rgba(34, 197, 94, 0.3);
+  color: #86efac;
+}
+
+/* Empty State: Borderless Liquid Glass */
+.plugins-dialog-empty {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 16px;
+  border: none;
+  box-shadow: none;
+  padding: 2.75rem 1.5rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.plugins-dialog-empty-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  border: none;
+  box-shadow: none;
+}
+
+.plugins-dialog-empty-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.plugins-dialog-empty-desc {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.55);
+  max-width: 22rem;
+  line-height: 1.45;
+}
+
+/* Custom Install Forms */
+.plugins-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.plugins-form-card {
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.plugins-form-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.plugins-form-desc {
+  font-size: 0.8125rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.plugins-form-row {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Borderless Glass Input & Select */
+.plugins-form-input {
+  display: flex;
+  height: 2.375rem;
+  flex: 1;
+  min-width: 200px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.25rem 0.875rem;
+  font-size: 0.875rem;
+  color: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.plugins-form-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.plugins-form-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.plugins-form-select {
+  height: 2.375rem;
+  border-radius: 12px;
+  border: none;
+  box-shadow: none;
+  background: rgba(30, 30, 40, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0.25rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #ffffff;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Glass Dialog Buttons (Primary & Secondary) */
+.plugins-dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 550;
+  height: 2.125rem;
+  padding: 0 1.125rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  border: none;
+  box-shadow: none;
+  line-height: 1;
+}
+
+.plugins-dialog-btn--primary {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #000000;
+  font-weight: 600;
+}
+
+.plugins-dialog-btn--primary:hover:not(:disabled) {
+  background: #ffffff;
+  transform: scale(1.02);
+}
+
+.plugins-dialog-btn--primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.plugins-dialog-btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #ffffff;
+}
+
+.plugins-dialog-btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Spin animation */
+@keyframes plugins-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.plugins-spin {
+  animation: plugins-spin 1s linear infinite;
+}

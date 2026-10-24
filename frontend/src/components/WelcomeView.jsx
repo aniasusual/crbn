@@ -3,6 +3,7 @@ import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
 import GitHubConnectModal from './GitHubConnectModal';
 import McpConnectModal from './McpConnectModal';
+import PluginsModal from './PluginsModal';
 import AttachmentRibbon from './AttachmentRibbon';
 import { AsciiEffect } from '@/components/ui/ascii-effect';
 import { GrainGradient } from '@/components/ui/grain-gradient';
@@ -68,6 +69,8 @@ export default function WelcomeView({
   const [isGitHubConnectModalOpen, setIsGitHubConnectModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [mcpCount, setMcpCount] = useState(0);
+  const [isPluginsModalOpen, setIsPluginsModalOpen] = useState(false);
+  const [pluginsCount, setPluginsCount] = useState(0);
   const [welcomeMode, setWelcomeMode] = useState('build');
 
   const [justConnectedProvider, setJustConnectedProvider] = useState(null);
@@ -82,8 +85,8 @@ export default function WelcomeView({
     isModelSelectorOpen ||
     isConnectModalOpen ||
     isGitHubConnectModalOpen ||
-    isMcpModalOpen;
-
+    isMcpModalOpen ||
+    isPluginsModalOpen;
 
   const fetchGlobalMcp = useCallback(() => {
     fetch(`${API_BASE_URL}/api/projects/_global/mcp`)
@@ -97,9 +100,22 @@ export default function WelcomeView({
       .catch(() => {});
   }, []);
 
+  const fetchGlobalPlugins = useCallback(() => {
+    fetch(`${API_BASE_URL}/api/projects/_global/plugins`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.plugins)) {
+          const active = data.plugins.filter((p) => p.enabled && !p.shadowed).length;
+          setPluginsCount(active);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchGlobalMcp();
-  }, [fetchGlobalMcp]);
+    fetchGlobalPlugins();
+  }, [fetchGlobalMcp, fetchGlobalPlugins]);
 
   // GitHub Integration State
   const [githubStatus, setGithubStatus] = useState(null);
@@ -400,11 +416,10 @@ export default function WelcomeView({
     if (selectedRepo) {
       const images = attachments
         .filter((a) => a.type === 'image')
-        .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
+        .map((a) => ({ data: a.data || a.base64, mimeType: a.mimeType, name: a.name }));
       const files = attachments
         .filter((a) => a.type === 'file')
-        .map((a) => ({ name: a.name, content: a.content, size: a.size }));
-
+        .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
       if (onConnectAndBuild) {
         onConnectAndBuild(selectedRepo, prompt.trim(), { images, files }, selectedBranch, welcomeMode);
       } else {
@@ -443,11 +458,10 @@ export default function WelcomeView({
 
     const images = attachments
       .filter((a) => a.type === 'image')
-      .map((a) => ({ data: a.base64, mimeType: a.mimeType, name: a.name }));
+      .map((a) => ({ data: a.data || a.base64, mimeType: a.mimeType, name: a.name }));
     const files = attachments
       .filter((a) => a.type === 'file')
-      .map((a) => ({ name: a.name, content: a.content, size: a.size }));
-
+      .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
     onSubmit(prompt, projectName.trim(), { images, files }, welcomeMode);
     clearAttachments();
   };
@@ -699,38 +713,6 @@ export default function WelcomeView({
                       </svg>
                       <span>Attach</span>
                     </button>
-                    <div className="degrees-mode-segmented" role="radiogroup" aria-label="Mode">
-                      <button
-                        type="button"
-                        className={`degrees-mode-seg-btn ${welcomeMode === 'build' ? 'degrees-mode-seg-btn--active' : ''}`}
-                        onClick={() => setWelcomeMode('build')}
-                        title="Build Mode: Agent directly edits and creates files"
-                        aria-checked={welcomeMode === 'build'}
-                        role="radio"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                        </svg>
-                        <span>Build</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={`degrees-mode-seg-btn ${welcomeMode === 'plan' ? 'degrees-mode-seg-btn--active-plan' : ''}`}
-                        onClick={() => setWelcomeMode('plan')}
-                        title="Plan Mode: Working tree is read-only. Agent explores and designs an execution plan"
-                        aria-checked={welcomeMode === 'plan'}
-                        role="radio"
-                      >
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <polyline points="14 2 14 8 20 8"></polyline>
-                          <line x1="16" y1="13" x2="8" y2="13"></line>
-                          <line x1="16" y1="17" x2="8" y2="17"></line>
-                        </svg>
-                        <span>Plan</span>
-                      </button>
-                    </div>
-
 
                     <button
                       type="button"
@@ -765,6 +747,55 @@ export default function WelcomeView({
                         <span className="degrees-mcp-badge">{mcpCount}</span>
                       )}
                     </button>
+
+                    <button
+                      type="button"
+                      className={`degrees-plugin-btn ${pluginsCount > 0 ? 'degrees-plugin-btn--active' : ''}`}
+                      onClick={() => setIsPluginsModalOpen(true)}
+                      title="Manage Extensions & Plugins"
+                      aria-label="Manage Extensions & Plugins"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+                        <line x1="7" y1="7" x2="7.01" y2="7"/>
+                      </svg>
+                      <span>Plugins</span>
+                      {pluginsCount > 0 && (
+                        <span className="degrees-plugin-badge">{pluginsCount}</span>
+                      )}
+                    </button>
+
+                    <div className="degrees-mode-segmented" role="radiogroup" aria-label="Mode">
+                      <button
+                        type="button"
+                        className={`degrees-mode-seg-btn ${welcomeMode === 'build' ? 'degrees-mode-seg-btn--active' : ''}`}
+                        onClick={() => setWelcomeMode('build')}
+                        title="Build Mode: Agent directly edits and creates files"
+                        aria-checked={welcomeMode === 'build'}
+                        role="radio"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+                        </svg>
+                        <span>Build</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`degrees-mode-seg-btn ${welcomeMode === 'plan' ? 'degrees-mode-seg-btn--active-plan' : ''}`}
+                        onClick={() => setWelcomeMode('plan')}
+                        title="Plan Mode: Working tree is read-only. Agent explores and designs an execution plan"
+                        aria-checked={welcomeMode === 'plan'}
+                        role="radio"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                          <polyline points="14 2 14 8 20 8"></polyline>
+                          <line x1="16" y1="13" x2="8" y2="13"></line>
+                          <line x1="16" y1="17" x2="8" y2="17"></line>
+                        </svg>
+                        <span>Plan</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="degrees-composer__toolbar-right">
@@ -1138,6 +1169,17 @@ export default function WelcomeView({
         }}
         projectName=""
         onReloadMcp={fetchGlobalMcp}
+      />
+
+      {/* Plugins & Extensions Modal */}
+      <PluginsModal
+        isOpen={isPluginsModalOpen}
+        onClose={() => {
+          setIsPluginsModalOpen(false);
+          fetchGlobalPlugins();
+        }}
+        projectName=""
+        onReloadPlugins={fetchGlobalPlugins}
       />
     </div>
   );

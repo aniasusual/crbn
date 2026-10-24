@@ -21,6 +21,10 @@ import type {
 import { readPlanFile } from "../../pi-harness/packages/coding-agent/src/plan-mode/plan-files";
 import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tui/src/theme/theme";
 import { clearCache as clearFsCache } from "../../pi-harness/packages/coding-agent/src/capability/fs";
+import { clearPluginRootsAndCaches } from "../../pi-harness/packages/coding-agent/src/discovery/helpers";
+import { PluginsService } from "./plugins-service";
+import type { UnifiedPlugin } from "./plugins-types";
+import { AttachmentService, type RawAttachment } from "./attachment-service";
 import { ChatHistoryManager } from "./chat-history";
 import { CheckpointManager } from "./checkpoint-manager";
 import type { ModelsService } from "./models-service";
@@ -34,7 +38,8 @@ export interface PromptImageAttachment {
 
 export interface PromptFileAttachment {
   name: string;
-  content: string;
+  content?: string;
+  data?: string;
   mimeType?: string;
   size?: number;
 }
@@ -61,6 +66,8 @@ export class SessionBridge {
   private mcpManager: MCPManager | null = null;
   private mcpStatusUnsubscribe: (() => void) | null = null;
   private turnHadError: boolean = false;
+  private pluginsService: PluginsService = new PluginsService();
+  private attachmentService: AttachmentService = new AttachmentService();
   private currentMode: "build" | "plan" = "build";
   private pendingPlanRequests = new Map<string, (result: { approved: boolean; feedback?: string }) => void>();
   private dispatchedPrompts = new Set<string>();
@@ -290,6 +297,37 @@ export class SessionBridge {
     }
   }
 
+  async reloadPlugins(): Promise<{ count: number; plugins: UnifiedPlugin[] }> {
+    if (this.initPromise) {
+      await this.initPromise;
+    }
+    clearPluginRootsAndCaches(this.activeProjectPath ? [this.activeProjectPath] : undefined);
+    if (this.session) {
+      await this.session.refreshSkillsAndCommands().catch((err) => {
+        console.warn("[SessionBridge] Failed to refresh skills and commands:", err);
+      });
+      await this.session.refreshBaseSystemPrompt().catch((err) => {
+        console.warn("[SessionBridge] Failed to refresh base system prompt:", err);
+      });
+      if (this.mcpManager) {
+        await this.reloadMcp().catch((err) => {
+          console.warn("[SessionBridge] Failed to reload MCP during plugin reload:", err);
+        });
+      }
+    }
+    const plugins = await this.pluginsService.listInstalledPlugins(this.activeProjectPath ?? undefined);
+    this.send({
+      type: "plugins_status",
+      plugins,
+      timestamp: Date.now(),
+    });
+    return { count: plugins.filter((p) => p.enabled).length, plugins };
+  }
+
+  async getPluginsStatus(): Promise<UnifiedPlugin[]> {
+    return this.pluginsService.listInstalledPlugins(this.activeProjectPath ?? undefined);
+  }
+
   private isProviderAuthenticated(providerId: string, authStorage: AuthStorage): boolean {
     const oauthMatch = this.modelsService?.oauthManager.getOAuthProviders().find(
       (p) => p.id === providerId || p.storeCredentialsAs === providerId
@@ -499,6 +537,15 @@ export class SessionBridge {
             });
           });
         }
+        this.pluginsService.listInstalledPlugins(projectPath).then((plugins) => {
+          this.send({
+            type: "plugins_status",
+            plugins,
+            timestamp: Date.now(),
+          });
+        }).catch((err) => {
+          console.warn("[SessionBridge] Failed to fetch initial plugins status:", err);
+        });
 
         ensureThemeSync();
         const uiContext: ExtensionUIContext = {
@@ -714,21 +761,44 @@ export class SessionBridge {
       return;
     }
 
-    // Prepare prompt text with non-image file attachments if any
-    let fullPromptText = promptText;
-    if (attachments?.files && attachments.files.length > 0) {
-      const fileSections = attachments.files
-        .map((f) => `--- Attached File: ${f.name} ---\n${f.content}\n--- End Attached File ---`)
-        .join("\n\n");
-      fullPromptText = fullPromptText ? `${fullPromptText}\n\n${fileSections}` : fileSections;
+    // Process attachments via AttachmentService leveraging pi-harness markit & workspace storage
+    const rawAttachments: RawAttachment[] = [];
+    if (attachments?.images) {
+      for (const img of attachments.images) {
+        rawAttachments.push({
+          name: (img as Record<string, unknown>).name as string || "image.png",
+          data: img.data,
+          mimeType: img.mimeType,
+          isImage: true,
+        });
+      }
+    }
+    if (attachments?.files) {
+      for (const file of attachments.files) {
+        const base64Data = file.data || (file.content ? Buffer.from(file.content, "utf-8").toString("base64") : "");
+        if (base64Data) {
+          rawAttachments.push({
+            name: file.name,
+            data: base64Data,
+            size: file.size,
+            mimeType: file.mimeType,
+            isImage: file.mimeType?.startsWith("image/"),
+          });
+        }
+      }
     }
 
-    // Format ImageContent blocks for pi-harness vision models
-    const images = (attachments?.images ?? []).map((img) => ({
-      type: "image" as const,
-      data: img.data,
-      mimeType: img.mimeType,
-    }));
+    const processed = await this.attachmentService.processAttachments(
+      rawAttachments,
+      this.activeProjectPath ?? undefined
+    );
+
+    let fullPromptText = promptText;
+    if (processed.promptAdditions) {
+      fullPromptText = fullPromptText ? `${fullPromptText}\n\n${processed.promptAdditions}` : processed.promptAdditions;
+    }
+
+    const images = processed.images;
 
     if (this.isGenerating) {
       // Agent is actively running: queue as follow-up in pi-harness
