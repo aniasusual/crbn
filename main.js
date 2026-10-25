@@ -1,7 +1,7 @@
 import { app, BrowserWindow, shell, dialog, Menu } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 
@@ -329,11 +329,69 @@ function createWindow() {
     mainWindow = null;
   });
 }
+function checkGitInstalled() {
+  if (process.platform === 'darwin') {
+    if (fs.existsSync('/opt/homebrew/bin/git') || fs.existsSync('/usr/local/bin/git')) {
+      return true;
+    }
+    try {
+      const out = execSync('xcode-select -p', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 })
+        .toString()
+        .trim();
+      if (out && fs.existsSync(out)) {
+        return true;
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    const cmd = process.platform === 'win32' ? 'where git' : 'which git';
+    execSync(cmd, { stdio: 'ignore', timeout: 2000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function promptInstallGit(parentWindow = null) {
+  if (checkGitInstalled()) return true;
+
+  if (process.platform === 'darwin') {
+    const result = await dialog.showMessageBox(parentWindow || undefined, {
+      type: 'info',
+      title: 'Git Required',
+      message: 'Git is required for 80degrees',
+      detail:
+        '80degrees uses Git to download plugins, skills, and manage projects.\n\nWould you like to install the Apple Command Line Developer Tools (including Git) now?',
+      buttons: ['Install Git', 'Later'],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (result.response === 0) {
+      try {
+        spawn('xcode-select', ['--install'], { stdio: 'ignore', detached: true }).unref();
+      } catch (err) {
+        console.error('[Electron] Failed to trigger xcode-select --install:', err);
+      }
+    }
+    return false;
+  }
+
+  return false;
+}
+
 
 app.whenReady().then(async () => {
   setupApplicationMenu();
   await startBackend();
   createWindow();
+  // Check and prompt for Git if missing
+  setTimeout(() => {
+    promptInstallGit(mainWindow);
+  }, 1500);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
