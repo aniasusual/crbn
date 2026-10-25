@@ -2,7 +2,7 @@
   "name": "frontend",
   "description": "AI-powered autonomous software engineering environment",
   "author": "80degrees <support@80degrees.dev>",
-  "version": "0.1.2",
+  "version": "0.1.0",
   "type": "module",
   "main": "electron/main.js",
   "repository": {
