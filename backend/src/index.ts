@@ -1,5 +1,7 @@
 import * as path from "node:path";
 import * as os from "node:os";
+import * as fs from "node:fs";
+import { execSync, spawn } from "node:child_process";
 import { ProjectManager } from "./project-manager";
 import { ModelsService, detectHardware } from "./models-service";
 import { DevServerManager } from "./dev-server";
@@ -118,6 +120,47 @@ const _server = Bun.serve<WsData>({
         { headers: CORS_HEADERS },
       );
     }
+    // System: Git status check
+    if (url.pathname === "/api/system/git-status" && req.method === "GET") {
+      let installed = false;
+      if (process.platform === "darwin") {
+        if (fs.existsSync("/opt/homebrew/bin/git") || fs.existsSync("/usr/local/bin/git")) {
+          installed = true;
+        } else {
+          try {
+            const out = execSync("xcode-select -p", { stdio: ["ignore", "pipe", "ignore"], timeout: 2000 }).toString().trim();
+            if (out && fs.existsSync(out)) installed = true;
+          } catch {}
+        }
+      } else {
+        try {
+          const cmd = process.platform === "win32" ? "where git" : "which git";
+          execSync(cmd, { stdio: "ignore", timeout: 2000 });
+          installed = true;
+        } catch {}
+      }
+      return Response.json({ installed }, { headers: CORS_HEADERS });
+    }
+
+    // System: Trigger Git install
+    if (url.pathname === "/api/system/install-git" && req.method === "POST") {
+      try {
+        if (process.platform === "darwin") {
+          spawn("xcode-select", ["--install"], { stdio: "ignore", detached: true }).unref();
+          return Response.json({ success: true, triggered: true }, { headers: CORS_HEADERS });
+        }
+        return Response.json(
+          { success: false, detail: "Automatic install trigger only supported on macOS" },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
     // Auth: Save API Key
     if (url.pathname === "/api/auth/api-key" && req.method === "POST") {
       try {

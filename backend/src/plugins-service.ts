@@ -8,7 +8,13 @@ import {
   getMarketplacesRegistryPath,
   getPluginsCacheDir,
 } from "../../pi-harness/packages/coding-agent/src/extensibility/plugins/marketplace";
-import { parsePluginId, type MarketplacePluginEntry } from "../../pi-harness/packages/coding-agent/src/extensibility/plugins/marketplace/types";
+import {
+  parsePluginId,
+  type MarketplacePluginEntry,
+  type MarketplaceRegistryEntry,
+  type MarketplacesRegistry,
+} from "../../pi-harness/packages/coding-agent/src/extensibility/plugins/marketplace/types";
+import defaultMarketplaceCatalog from "./default-marketplace.json" with { type: "json" };
 import {
   clearPluginRootsAndCaches,
   resolveOrDefaultProjectRegistryPath,
@@ -77,6 +83,106 @@ export class PluginsService {
       pluginsCacheDir: getPluginsCacheDir(),
       clearPluginRootsCache: clearPluginRootsAndCaches,
     });
+  }
+  private defaultMarketplaceSeeded = false;
+
+  /**
+   * Ensure default marketplace (claude-plugins-official) is seeded on disk and in registry.
+   * Self-heals if the user runs on a clean machine or has broken/migrated catalog paths.
+   */
+  async ensureDefaultMarketplace(): Promise<void> {
+    if (this.defaultMarketplaceSeeded) return;
+    try {
+      const regPath = getMarketplacesRegistryPath();
+      const cacheDir = getMarketplacesCacheDir();
+      const defaultMarketplaceDir = path.join(cacheDir, "claude-plugins-official");
+      const defaultCatalogPath = path.join(defaultMarketplaceDir, "marketplace.json");
+
+      // 1. Ensure the default catalog file exists in user's cache dir
+      if (!fs.existsSync(defaultCatalogPath)) {
+        fs.mkdirSync(defaultMarketplaceDir, { recursive: true });
+        fs.writeFileSync(defaultCatalogPath, JSON.stringify(defaultMarketplaceCatalog, null, 2) + "\n", "utf-8");
+      }
+
+      // 2. Read marketplaces registry
+      let registry: MarketplacesRegistry = { version: 1, marketplaces: [] };
+      if (fs.existsSync(regPath)) {
+        try {
+          const content = fs.readFileSync(regPath, "utf-8");
+          const parsed = JSON.parse(content) as MarketplacesRegistry;
+          if (parsed && parsed.version === 1 && Array.isArray(parsed.marketplaces)) {
+            registry = parsed;
+          }
+        } catch {}
+      }
+
+      // 3. Check if claude-plugins-official or any marketplace exists
+      const existingIdx = registry.marketplaces.findIndex(
+        (m) => m.name.toLowerCase() === "claude-plugins-official"
+      );
+
+      const now = new Date().toISOString();
+      const defaultEntry: MarketplaceRegistryEntry = {
+        name: "claude-plugins-official",
+        sourceType: "github",
+        sourceUri: "anthropics/claude-plugins-official",
+        catalogPath: defaultCatalogPath,
+        addedAt: now,
+        updatedAt: now,
+      };
+
+      let needsWrite = false;
+      if (existingIdx >= 0) {
+        // If it exists but catalogPath points to non-existent file or someone else's machine, fix it
+        if (!fs.existsSync(registry.marketplaces[existingIdx].catalogPath)) {
+          registry.marketplaces[existingIdx].catalogPath = defaultCatalogPath;
+          needsWrite = true;
+        }
+      } else {
+        registry.marketplaces.push(defaultEntry);
+        needsWrite = true;
+      }
+
+      if (needsWrite || !fs.existsSync(regPath)) {
+        fs.mkdirSync(path.dirname(regPath), { recursive: true });
+        const tmpPath = `${regPath}.tmp.${Date.now()}`;
+        fs.writeFileSync(tmpPath, JSON.stringify(registry, null, 2) + "\n", "utf-8");
+        try {
+          fs.renameSync(tmpPath, regPath);
+        } catch {
+          fs.copyFileSync(tmpPath, regPath);
+          try { fs.unlinkSync(tmpPath); } catch {}
+        }
+      }
+
+      this.defaultMarketplaceSeeded = true;
+    } catch (err) {
+      console.warn("[PluginsService] Failed to seed default marketplace:", err);
+    }
+  }
+
+  private async refreshCatalogOverHttp(name: string, sourceUri: string): Promise<boolean> {
+    try {
+      const cacheDir = getMarketplacesCacheDir();
+      const catalogPath = path.join(cacheDir, name, "marketplace.json");
+      const rawUrls = [
+        `https://raw.githubusercontent.com/${sourceUri}/main/.omp-plugin/marketplace.json`,
+        `https://raw.githubusercontent.com/${sourceUri}/main/.claude-plugin/marketplace.json`,
+        `https://raw.githubusercontent.com/${sourceUri}/main/marketplace.json`,
+      ];
+      for (const url of rawUrls) {
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+          if (res.ok) {
+            const text = await res.text();
+            fs.mkdirSync(path.dirname(catalogPath), { recursive: true });
+            fs.writeFileSync(catalogPath, text, "utf-8");
+            return true;
+          }
+        } catch {}
+      }
+    } catch {}
+    return false;
   }
 
   private getNpmPluginManager(projectPath?: string): PluginManager {
@@ -304,6 +410,7 @@ export class PluginsService {
    * List configured marketplaces.
    */
   async listMarketplaces(projectPath?: string): Promise<MarketplaceCatalogSummary[]> {
+    await this.ensureDefaultMarketplace();
     const cwd = projectPath || process.cwd();
     const marketplaceManager = await this.getMarketplaceManager(cwd);
     const registries = await marketplaceManager.listMarketplaces();
@@ -315,7 +422,9 @@ export class PluginsService {
         const available = await marketplaceManager.listAvailablePlugins(reg.name);
         pluginCount = available.length;
       } catch {
-        // Cached catalog might not be loaded yet
+        if (reg.name === "claude-plugins-official" && Array.isArray((defaultMarketplaceCatalog as any)?.plugins)) {
+          pluginCount = (defaultMarketplaceCatalog as any).plugins.length;
+        }
       }
 
       summaries.push({
@@ -325,6 +434,16 @@ export class PluginsService {
         pluginCount,
       });
     }
+
+    if (summaries.length === 0 && Array.isArray((defaultMarketplaceCatalog as any)?.plugins)) {
+      summaries.push({
+        name: "claude-plugins-official",
+        sourceUri: "anthropics/claude-plugins-official",
+        lastUpdated: new Date().toISOString(),
+        pluginCount: (defaultMarketplaceCatalog as any).plugins.length,
+      });
+    }
+
     return summaries;
   }
 
@@ -332,6 +451,7 @@ export class PluginsService {
    * Add a new marketplace catalog source (git URL, owner/repo, or direct catalog JSON).
    */
   async addMarketplace(source: string, projectPath?: string): Promise<{ success: boolean; name: string }> {
+    await this.ensureDefaultMarketplace();
     const cwd = projectPath || process.cwd();
     const marketplaceManager = await this.getMarketplaceManager(cwd);
     const entry = await marketplaceManager.addMarketplace(source);
@@ -352,12 +472,20 @@ export class PluginsService {
    * Update one or all marketplace catalogs.
    */
   async updateMarketplaces(name?: string, projectPath?: string): Promise<{ success: boolean }> {
+    await this.ensureDefaultMarketplace();
     const cwd = projectPath || process.cwd();
     const marketplaceManager = await this.getMarketplaceManager(cwd);
-    if (name) {
-      await marketplaceManager.updateMarketplace(name);
-    } else {
-      await marketplaceManager.updateAllMarketplaces();
+    try {
+      if (name) {
+        await marketplaceManager.updateMarketplace(name);
+      } else {
+        await marketplaceManager.updateAllMarketplaces();
+      }
+    } catch (err) {
+      console.warn("[PluginsService] Failed to update via MarketplaceManager, attempting HTTP fallback:", err);
+      if (!name || name === "claude-plugins-official") {
+        await this.refreshCatalogOverHttp("claude-plugins-official", "anthropics/claude-plugins-official");
+      }
     }
     return { success: true };
   }
@@ -370,6 +498,7 @@ export class PluginsService {
     query?: string;
     projectPath?: string;
   }): Promise<MarketplacePluginListing[]> {
+    await this.ensureDefaultMarketplace();
     const cwd = options?.projectPath || process.cwd();
     const marketplaceManager = await this.getMarketplaceManager(cwd);
 
@@ -387,6 +516,17 @@ export class PluginsService {
         }
       } catch {
         // Catalog cache might be missing or corrupt
+      }
+    }
+
+    // Fallback to in-memory bundled catalog if zero plugins loaded
+    if (
+      availableWithMarketplace.length === 0 &&
+      (!options?.marketplace || options.marketplace === "claude-plugins-official") &&
+      Array.isArray((defaultMarketplaceCatalog as any)?.plugins)
+    ) {
+      for (const p of (defaultMarketplaceCatalog as any).plugins as MarketplacePluginEntry[]) {
+        availableWithMarketplace.push({ plugin: p, marketplace: "claude-plugins-official" });
       }
     }
 

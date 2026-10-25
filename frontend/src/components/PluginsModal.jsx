@@ -134,6 +134,26 @@ export default function PluginsModal({
   const [actionLoading, setActionLoading] = useState({});
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [gitInstalled, setGitInstalled] = useState(true);
+
+  const checkGitStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/system/git-status`);
+      if (res.ok) {
+        const data = await res.json();
+        setGitInstalled(data.installed !== false);
+      }
+    } catch {}
+  }, []);
+
+  const handleInstallGit = async () => {
+    try {
+      await fetch(`${API_BASE_URL}/api/system/install-git`, { method: 'POST' });
+      setSuccessMsg('Triggered Apple Developer Tools installer. Please complete the installation.');
+    } catch (err) {
+      setErrorMsg(`Failed to trigger Git installer: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
 
   // Custom install inputs
   const [customSpec, setCustomSpec] = useState('');
@@ -217,10 +237,10 @@ export default function PluginsModal({
     setIsLoading(true);
     setErrorMsg(null);
     setSuccessMsg(null);
-    Promise.all([fetchInstalledPlugins(), fetchDiscoverPlugins(), fetchMarketplaces()])
+    Promise.all([fetchInstalledPlugins(), fetchDiscoverPlugins(), fetchMarketplaces(), checkGitStatus()])
       .catch((err) => setErrorMsg(String(err)))
       .finally(() => setIsLoading(false));
-  }, [isOpen, fetchInstalledPlugins, fetchDiscoverPlugins, fetchMarketplaces]);
+  }, [isOpen, fetchInstalledPlugins, fetchDiscoverPlugins, fetchMarketplaces, checkGitStatus]);
 
   // Auto-dismiss success message
   useEffect(() => {
@@ -578,6 +598,19 @@ export default function PluginsModal({
           {successMsg && (
             <div className="plugins-dialog-banner plugins-dialog-banner--success">
               <span>{successMsg}</span>
+            </div>
+          )}
+          {gitInstalled === false && (
+            <div className="plugins-dialog-banner plugins-dialog-banner--error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Git is not installed on this system. Git is required to download and install plugins from GitHub.</span>
+              <button
+                type="button"
+                className="plugin-action-btn plugin-action-btn--primary"
+                style={{ marginLeft: 12, padding: '4px 10px', fontSize: 11, flexShrink: 0 }}
+                onClick={handleInstallGit}
+              >
+                Install Git
+              </button>
             </div>
           )}
 
