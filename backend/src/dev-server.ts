@@ -2,6 +2,7 @@ import type { Subprocess } from "bun";
 import * as path from "node:path";
 import * as fsSync from "node:fs";
 import * as os from "node:os";
+import { getAugmentedPath } from "./runtime-env";
 export interface DevServerInfo {
   port: number;
   url: string;
@@ -368,9 +369,8 @@ export class DevServerManager {
 
     console.log(`[DevServerManager] Starting frontend for ${resolvedPath} on port ${targetPort}...`);
 
-    const bunBinDir = path.dirname(process.execPath);
     const projectBinDir = path.join(resolvedPath, "node_modules", ".bin");
-    const augmentedPath = [projectBinDir, bunBinDir, process.env.PATH || ""].filter(Boolean).join(path.delimiter);
+    const augmentedPath = [projectBinDir, getAugmentedPath()].filter(Boolean).join(path.delimiter);
 
     const frontendEnv: Record<string, string> = {
       ...process.env as Record<string, string>,
@@ -599,9 +599,8 @@ export class DevServerManager {
         const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
         if (frontendScript) {
           await killSubprocessTree(entry.frontendProc);
-          const bunBinDir = path.dirname(process.execPath);
           const projectBinDir = path.join(resolvedPath, "node_modules", ".bin");
-          const augmentedPath = [projectBinDir, bunBinDir, process.env.PATH || ""].filter(Boolean).join(path.delimiter);
+          const augmentedPath = [projectBinDir, getAugmentedPath()].filter(Boolean).join(path.delimiter);
           const frontendEnv: Record<string, string> = {
             ...process.env as Record<string, string>,
             PATH: augmentedPath,

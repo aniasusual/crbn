@@ -1,78 +1,96 @@
-import { app, BrowserWindow, shell, dialog, Menu } from 'electron';
+import { app, BrowserWindow, shell, dialog, Menu, ipcMain } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { spawn, execSync } from 'child_process';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
+import net from 'net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+app.setName('80degrees');
 
-// Load optional local .env configuration in development without external dependencies
-try {
-  const envPath = path.join(__dirname, '../.env');
-  if (fs.existsSync(envPath)) {
-    const envContent = fs.readFileSync(envPath, 'utf8');
-    for (const line of envContent.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) continue;
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx > 0) {
-        const key = trimmed.slice(0, eqIdx).trim();
-        const val = trimmed.slice(eqIdx + 1).trim();
-        if (!process.env[key]) {
-          process.env[key] = val;
-        }
-      }
-    }
-  }
-} catch {}
-// Determine if we are in development mode
-const isDev = process.env.NODE_ENV === 'development';
-
+// Determine development vs packaged production mode strictly from Electron
+const isDev = !app.isPackaged;
 const devPort = process.env.VITE_PORT || 5173;
 const devHost = process.env.VITE_HOST || 'localhost';
 const devUrl = process.env.ELECTRON_DEV_URL || `http://${devHost}:${devPort}`;
 
 let mainWindow = null;
 let backendProcess = null;
+let activeBackendPort = 8000;
 
-// Find working bun binary (prioritizing bundled sidecar binary inside app)
+// Test if an address and port can be bound or if it is currently occupied
+function isPortAvailable(port, host = '127.0.0.1') {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once('error', () => {
+      resolve(false);
+    });
+    server.once('listening', () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, host);
+  });
+}
+
+// Locate an available loopback port, attempting preferredPort first
+async function findAvailablePort(preferredPort = 8000) {
+  const preferredFree = await isPortAvailable(preferredPort);
+  if (preferredFree) {
+    return preferredPort;
+  }
+
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once('error', (err) => reject(err));
+    server.once('listening', () => {
+      const addr = server.address();
+      const port = typeof addr === 'object' && addr ? addr.port : 0;
+      server.close((closeErr) => {
+        if (closeErr) return reject(closeErr);
+        resolve(port);
+      });
+    });
+    server.listen(0, '127.0.0.1');
+  });
+}
+
+// Find working Bun binary for the current operating system and architecture
 function findBunBinary() {
   const binaryName = process.platform === 'win32' ? 'bun.exe' : 'bun';
 
-  // 1. Packaged production: inside process.resourcesPath/bin
+  // 1. Packaged production: inspect inside process.resourcesPath/bin
   if (app.isPackaged) {
+    // Primary on macOS: arch-specific binary first (bun-arm64 or bun-x64) to prevent arch mismatch
     if (process.platform === 'darwin') {
       const archBin = path.join(process.resourcesPath, 'bin', `bun-${process.arch}`);
       if (fs.existsSync(archBin)) {
         try { fs.chmodSync(archBin, 0o755); } catch {}
-        console.log(`[Electron] Using bundled arch Bun (${process.arch}): ${archBin}`);
         return archBin;
       }
     }
 
-    const bundledBin = path.join(process.resourcesPath, 'bin', binaryName);
-    if (fs.existsSync(bundledBin)) {
-      try {
-        if (process.platform !== 'win32') fs.chmodSync(bundledBin, 0o755);
-      } catch {}
-      console.log(`[Electron] Using bundled sidecar Bun: ${bundledBin}`);
-      return bundledBin;
+    // Standard binary name
+    const bundledDefault = path.join(process.resourcesPath, 'bin', binaryName);
+    if (fs.existsSync(bundledDefault)) {
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(bundledDefault, 0o755); } catch {}
+      }
+      return bundledDefault;
     }
   }
-  // 2. Local development: inside resources/bin
+
+  // 2. Local development: inspect inside resources/bin
   if (process.platform === 'darwin') {
     const localArch = path.join(__dirname, '../resources/bin', `bun-${process.arch}`);
     if (fs.existsSync(localArch)) {
-      console.log(`[Electron] Using local arch Bun (${process.arch}): ${localArch}`);
       return localArch;
     }
   }
-  const localBundled = path.join(__dirname, '../resources/bin', binaryName);
-  if (fs.existsSync(localBundled)) {
-    console.log(`[Electron] Using local resources Bun: ${localBundled}`);
-    return localBundled;
+  const localDefault = path.join(__dirname, '../resources/bin', binaryName);
+  if (fs.existsSync(localDefault)) {
+    return localDefault;
   }
 
   // 3. User system paths fallback
@@ -95,30 +113,36 @@ function findBunBinary() {
     }
   }
 
-  return 'bun';
+  return binaryName;
 }
 
-// Check if backend HTTP service is already listening
-async function isBackendRunning(port = 8000) {
+// Probe backend health endpoint
+async function checkBackendHealth(port) {
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/api/system/models-and-hardware`, {
-      signal: AbortSignal.timeout(1200),
+    const res = await fetch(`http://127.0.0.1:${port}/healthz`, {
+      signal: AbortSignal.timeout(1000),
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const body = await res.json().catch(() => null);
+    return body?.status === 'ok';
   } catch {
     return false;
   }
 }
 
-// Start backend Bun subprocess if not already running
+// Start backend Bun subprocess and wait for health handshake
 async function startBackend() {
-  const alreadyRunning = await isBackendRunning(8000);
-  if (alreadyRunning) {
-    console.log('[Electron] Backend server is already running on port 8000.');
-    return;
+  // In development mode, check if a backend server is already running on port 8000
+  if (isDev) {
+    const devHealth = await checkBackendHealth(8000);
+    if (devHealth) {
+      console.log('[Electron] Attached to existing dev backend on port 8000.');
+      activeBackendPort = 8000;
+      return;
+    }
   }
 
-  // Locate backend directory (packaged vs local development)
+  // Locate backend distribution and script
   let backendDir = path.join(__dirname, '../../backend');
   if (app.isPackaged) {
     const packagedBackend = path.join(process.resourcesPath, 'backend');
@@ -127,45 +151,98 @@ async function startBackend() {
     }
   }
 
-  const bunBinary = findBunBinary();
-  console.log(`[Electron] Launching backend using ${bunBinary} in ${backendDir}...`);
+  if (isDev) {
+    try {
+      const { ensureNativeModules } = await import('../scripts/ensure-natives.js');
+      ensureNativeModules();
+    } catch (err) {
+      console.warn('[Electron] Failed to auto-ensure native modules:', err.message);
+    }
+  }
 
   const scriptToRun = fs.existsSync(path.join(backendDir, 'dist/index.js'))
-    ? 'dist/index.js'
-    : 'src/index.ts';
+    ? path.join(backendDir, 'dist/index.js')
+    : path.join(backendDir, 'src/index.ts');
+
+  // Allocate safe port
+  const targetPort = await findAvailablePort(8000);
+  activeBackendPort = targetPort;
+
+  const bunBinary = findBunBinary();
+  console.log(`[Electron] Launching backend on port ${targetPort} using ${bunBinary}...`);
+
+  // Ensure writable working directory and log location
+  const userDataDir = app.getPath('userData');
+  const runtimeDir = path.join(userDataDir, 'backend_runtime');
+  const logsDir = path.join(userDataDir, 'logs');
+  fs.mkdirSync(runtimeDir, { recursive: true });
+  fs.mkdirSync(logsDir, { recursive: true });
+
+  const logFilePath = path.join(logsDir, 'backend.log');
+  const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+  // Compose clean augmented PATH
+  const bunBinDir = path.dirname(bunBinary);
+  const home = os.homedir();
+  const extraPaths = [
+    bunBinDir,
+    path.join(home, '.bun', 'bin'),
+    path.join(userDataDir, 'bin', 'mingit', 'cmd'),
+    path.join(userDataDir, 'bin', 'mingit', 'usr', 'bin'),
+    path.join(userDataDir, 'bin', 'mingit', 'bin'),
+    path.join(userDataDir, 'bin', 'git', 'bin'),
+    '/opt/homebrew/bin',
+    '/usr/local/bin',
+    '/usr/bin',
+    '/bin',
+    process.platform === 'win32' ? 'C:\\Program Files\\Git\\cmd' : '',
+    process.platform === 'win32' ? 'C:\\Program Files\\Git\\usr\\bin' : '',
+    process.platform === 'win32' ? 'C:\\Program Files (x86)\\Git\\cmd' : '',
+    process.platform === 'win32' ? path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'cmd') : '',
+  ].filter(Boolean);
+
+  const existingPathParts = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  const combinedPath = Array.from(new Set([...extraPaths, ...existingPathParts])).join(path.delimiter);
+
+  const backendEnv = {
+    ...process.env,
+    PATH: combinedPath,
+    PORT: String(targetPort),
+    BACKEND_PORT: String(targetPort),
+    HOST: '127.0.0.1',
+    BACKEND_HOST: '127.0.0.1',
+    NODE_ENV: isDev ? 'development' : 'production',
+    TEMPLATES_DIR: path.join(backendDir, 'templates'),
+    RESOURCES_PATH: process.resourcesPath || path.join(__dirname, '..'),
+    USER_DATA_DIR: userDataDir,
+    PI_NATIVES_DIR: path.join(backendDir, 'native'),
+  };
 
   try {
     backendProcess = spawn(bunBinary, ['run', scriptToRun], {
-      cwd: backendDir,
-      env: {
-        ...process.env,
-        PATH: [
-          path.dirname(bunBinary),
-          '/opt/homebrew/bin',
-          '/usr/local/bin',
-          '/usr/bin',
-          '/bin',
-          path.join(os.homedir(), '.bun/bin'),
-          process.env.PATH || '',
-        ].filter(Boolean).join(path.delimiter),
-        PORT: '8000',
-        NODE_ENV: isDev ? 'development' : 'production',
-      },
+      cwd: runtimeDir,
+      env: backendEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
     });
+
     backendProcess.stdout?.on('data', (data) => {
-      console.log(`[Backend] ${data.toString().trim()}`);
+      const line = data.toString();
+      logStream.write(line);
+      console.log(`[Backend] ${line.trim()}`);
     });
 
     backendProcess.stderr?.on('data', (data) => {
-      console.error(`[Backend ERR] ${data.toString().trim()}`);
+      const line = data.toString();
+      logStream.write(line);
+      console.error(`[Backend ERR] ${line.trim()}`);
     });
 
     backendProcess.on('error', (err) => {
       console.error('[Electron] Failed to spawn backend process:', err);
       dialog.showErrorBox(
         'Backend Startup Failed',
-        `Could not start the backend process with Bun (${bunBinary}):\n\n${err.message}\n\nPlease ensure Bun is installed (https://bun.sh).`
+        `Could not start the backend process (${bunBinary}):\n\n${err.message}\n\nLog file: ${logFilePath}`
       );
     });
 
@@ -174,30 +251,66 @@ async function startBackend() {
       backendProcess = null;
     });
 
-    // Wait up to 6 seconds for backend HTTP server to be ready before proceeding
-    const deadline = Date.now() + 6000;
+    // Wait up to 15 seconds for backend to pass health check
+    const deadline = Date.now() + 15000;
+    let isReady = false;
+
     while (Date.now() < deadline) {
-      if (await isBackendRunning(8000)) {
-        console.log('[Electron] Backend server is confirmed ready on port 8000.');
+      if (await checkBackendHealth(targetPort)) {
+        isReady = true;
+        console.log(`[Electron] Backend server is confirmed healthy on port ${targetPort}.`);
         break;
       }
-      await new Promise((r) => setTimeout(r, 200));
+      await new Promise((r) => setTimeout(r, 150));
+    }
+
+    if (!isReady && backendProcess) {
+      console.warn(`[Electron] Backend did not respond on port ${targetPort} within 15 seconds.`);
     }
   } catch (err) {
     console.error('[Electron] Exception launching backend:', err);
+    dialog.showErrorBox('Backend Initialization Error', `${err.message}\n\nLog file: ${logFilePath}`);
   }
 }
 
-// Cleanly kill backend child process
+// Cleanly kill backend child process tree
 function stopBackend() {
   if (backendProcess) {
     console.log('[Electron] Terminating backend process...');
-    try {
-      backendProcess.kill('SIGTERM');
-    } catch {}
+    const pid = backendProcess.pid;
+    const proc = backendProcess;
     backendProcess = null;
+    try {
+      if (process.platform === 'win32') {
+        spawn('taskkill', ['/pid', String(pid), '/T', '/F']);
+      } else {
+        proc.kill('SIGTERM');
+        try {
+          process.kill(-pid, 'SIGTERM');
+        } catch {}
+        // Schedule SIGKILL fallback if not dead after 2s
+        setTimeout(() => {
+          try {
+            proc.kill('SIGKILL');
+          } catch {}
+          try {
+            process.kill(-pid, 'SIGKILL');
+          } catch {}
+        }, 2000);
+      }
+    } catch {}
   }
 }
+
+// Provide desktop connection config to renderer via synchronous IPC
+ipcMain.on('get-desktop-config', (event) => {
+  event.returnValue = {
+    port: activeBackendPort,
+    apiBase: `http://127.0.0.1:${activeBackendPort}`,
+    wsBase: `ws://127.0.0.1:${activeBackendPort}/ws`,
+    isPackaged: app.isPackaged,
+  };
+});
 
 function setupApplicationMenu() {
   const isMac = process.platform === 'darwin';
@@ -280,6 +393,8 @@ function createWindow() {
     path.join(process.resourcesPath, 'build/icon.png'),
   ];
   const iconPath = iconCandidates.find((p) => fs.existsSync(p));
+  const preloadPath = path.join(__dirname, 'preload.cjs');
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -291,6 +406,7 @@ function createWindow() {
       nodeIntegration: true,
       contextIsolation: false,
       webviewTag: true,
+      preload: fs.existsSync(preloadPath) ? preloadPath : undefined,
     },
     show: false,
     backgroundColor: '#000000',
@@ -305,7 +421,7 @@ function createWindow() {
     return { action: 'allow' };
   });
 
-  // Prevent the main window from navigating away from the app
+  // Prevent main window from navigating away from the app
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url.startsWith('http:') || url.startsWith('https:')) {
       if (!isDev || !url.startsWith(devUrl)) {
@@ -314,11 +430,14 @@ function createWindow() {
       }
     }
   });
+
   if (isDev) {
     mainWindow.loadURL(devUrl);
     mainWindow.webContents.openDevTools();
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'), {
+      query: { backendPort: String(activeBackendPort) },
+    });
   }
 
   mainWindow.once('ready-to-show', () => {
@@ -329,69 +448,11 @@ function createWindow() {
     mainWindow = null;
   });
 }
-function checkGitInstalled() {
-  if (process.platform === 'darwin') {
-    if (fs.existsSync('/opt/homebrew/bin/git') || fs.existsSync('/usr/local/bin/git')) {
-      return true;
-    }
-    try {
-      const out = execSync('xcode-select -p', { stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 })
-        .toString()
-        .trim();
-      if (out && fs.existsSync(out)) {
-        return true;
-      }
-    } catch {
-      return false;
-    }
-  }
-
-  try {
-    const cmd = process.platform === 'win32' ? 'where git' : 'which git';
-    execSync(cmd, { stdio: 'ignore', timeout: 2000 });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function promptInstallGit(parentWindow = null) {
-  if (checkGitInstalled()) return true;
-
-  if (process.platform === 'darwin') {
-    const result = await dialog.showMessageBox(parentWindow || undefined, {
-      type: 'info',
-      title: 'Git Required',
-      message: 'Git is required for 80degrees',
-      detail:
-        '80degrees uses Git to download plugins, skills, and manage projects.\n\nWould you like to install the Apple Command Line Developer Tools (including Git) now?',
-      buttons: ['Install Git', 'Later'],
-      defaultId: 0,
-      cancelId: 1,
-    });
-
-    if (result.response === 0) {
-      try {
-        spawn('xcode-select', ['--install'], { stdio: 'ignore', detached: true }).unref();
-      } catch (err) {
-        console.error('[Electron] Failed to trigger xcode-select --install:', err);
-      }
-    }
-    return false;
-  }
-
-  return false;
-}
-
 
 app.whenReady().then(async () => {
   setupApplicationMenu();
   await startBackend();
   createWindow();
-  // Check and prompt for Git if missing
-  setTimeout(() => {
-    promptInstallGit(mainWindow);
-  }, 1500);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

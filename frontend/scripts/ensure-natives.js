@@ -70,9 +70,10 @@ export function ensureNativeModules(options = {}) {
   fs.mkdirSync(nativeDir, { recursive: true });
   fs.mkdirSync(sourceDir, { recursive: true });
 
-  const currentPlatform = process.platform;
-  const currentArch = process.arch;
-  const wantAll = Boolean(options.all || process.argv.includes('--all'));
+  const targetPlatformArg = process.argv.find((a) => a.startsWith('--platform='))?.split('=')[1];
+  const currentPlatform = options.platform || targetPlatformArg || process.platform;
+  const currentArch = options.arch || process.arch;
+  const wantAll = Boolean(options.all || currentPlatform === 'all' || process.argv.includes('--all'));
 
   for (const moduleConfig of NATIVE_MODULE_CONFIGS) {
     const targetFile = path.join(nativeDir, moduleConfig.file);

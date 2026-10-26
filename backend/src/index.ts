@@ -19,23 +19,27 @@ import {
 import type { MCPServerConfig } from "../../pi-harness/packages/coding-agent/src/mcp/types";
 import { PluginsService } from "./plugins-service";
 import type { PluginSourceType, PluginScope } from "./plugins-types";
+import { applyAugmentedPath } from "./runtime-env";
+import { detectGit, installGit } from "./git-provisioner";
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
 
-const bunBinDir = path.dirname(process.execPath);
-const home = os.homedir();
-const extraBinPaths = [
-  bunBinDir,
-  path.join(home, ".bun", "bin"),
-  "/opt/homebrew/bin",
-  "/usr/local/bin",
-  "/usr/bin",
-  "/bin",
-  process.platform === "win32" ? "C:\\Program Files\\Git\\cmd" : "",
-].filter(Boolean);
-const existingPaths = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
-process.env.PATH = Array.from(new Set([...extraBinPaths, ...existingPaths])).join(path.delimiter);
+applyAugmentedPath();
+
+// Automatically verify and provision prerequisites in the background on startup (e.g. factory-reset PCs)
+detectGit().then((status) => {
+  if (!status.installed) {
+    console.log("[80degrees Startup] Git not detected on system. Automatically provisioning portable Git in background...");
+    installGit((p) => {
+      console.log(`[80degrees Startup] Git Provisioning: ${p.phase} (${p.progress}%)`);
+    }).catch((err) => {
+      console.warn("[80degrees Startup] Warning: Automatic Git provisioning encountered an issue:", err);
+    });
+  } else {
+    console.log(`[80degrees Startup] Git confirmed ready: ${status.path} (${status.version || 'installed'})`);
+  }
+}).catch(() => {});
 
 const devServerManager = new DevServerManager();
 const projectManager = new ProjectManager({ devServerManager });
@@ -122,40 +126,33 @@ const _server = Bun.serve<WsData>({
     }
     // System: Git status check
     if (url.pathname === "/api/system/git-status" && req.method === "GET") {
-      let installed = false;
-      if (process.platform === "darwin") {
-        if (fs.existsSync("/opt/homebrew/bin/git") || fs.existsSync("/usr/local/bin/git")) {
-          installed = true;
-        } else {
-          try {
-            const out = execSync("xcode-select -p", { stdio: ["ignore", "pipe", "ignore"], timeout: 2000 }).toString().trim();
-            if (out && fs.existsSync(out)) installed = true;
-          } catch {}
-        }
-      } else {
-        try {
-          const cmd = process.platform === "win32" ? "where git" : "which git";
-          execSync(cmd, { stdio: "ignore", timeout: 2000 });
-          installed = true;
-        } catch {}
-      }
-      return Response.json({ installed }, { headers: CORS_HEADERS });
+      const gitStatus = await detectGit();
+      return Response.json(gitStatus, { headers: CORS_HEADERS });
     }
 
     // System: Trigger Git install
     if (url.pathname === "/api/system/install-git" && req.method === "POST") {
       try {
-        if (process.platform === "darwin") {
-          spawn("xcode-select", ["--install"], { stdio: "ignore", detached: true }).unref();
-          return Response.json({ success: true, triggered: true }, { headers: CORS_HEADERS });
+        const existing = await detectGit();
+        if (existing.installed) {
+          return Response.json({ success: true, installed: true, ...existing }, { headers: CORS_HEADERS });
         }
+
+        // Kick off provisioning (or join existing background run)
+        void installGit();
         return Response.json(
-          { success: false, detail: "Automatic install trigger only supported on macOS" },
-          { status: 400, headers: CORS_HEADERS }
+          {
+            success: true,
+            triggered: true,
+            started: true,
+            platform: process.platform,
+            message: "Git provisioning initiated.",
+          },
+          { headers: CORS_HEADERS }
         );
       } catch (err) {
         return Response.json(
-          { detail: err instanceof Error ? err.message : String(err) },
+          { success: false, detail: err instanceof Error ? err.message : String(err) },
           { status: 500, headers: CORS_HEADERS }
         );
       }

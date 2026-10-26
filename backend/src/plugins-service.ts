@@ -20,6 +20,7 @@ import {
   resolveOrDefaultProjectRegistryPath,
 } from "../../pi-harness/packages/coding-agent/src/discovery/helpers";
 import { setInstalledPluginEnabled } from "../../pi-harness/packages/coding-agent/src/extensibility/plugins/toggle";
+import { detectGit, installGit } from "./git-provisioner";
 import type {
   UnifiedPlugin,
   PluginCapabilities,
@@ -311,6 +312,11 @@ export class PluginsService {
     const scope = options.scope || "project";
     const type = options.type || (options.spec.includes("@") && !options.spec.startsWith("@") ? "marketplace" : "npm");
 
+    const gitCheck = await detectGit().catch(() => ({ installed: false }));
+    if (!gitCheck.installed) {
+      console.log("[PluginsService] Git not ready yet. Awaiting automated Git provisioning...");
+      await installGit().catch(() => {});
+    }
     if (type === "marketplace") {
       const parsed = parsePluginId(options.spec);
       if (!parsed) {

@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index";
 import type { DevServerManager } from "./dev-server";
+import { getAugmentedEnv } from "./runtime-env";
 export interface ProjectInfo {
   name: string;
   path: string;
@@ -206,16 +207,9 @@ export class ProjectManager {
         await fs.copyFile(srcLock, path.join(cachedTplDir, "bun.lock"));
       }
       console.log(`[ProjectManager] Installing template dependencies into cache (${cachedTplDir})...`);
-      const bunBinDir = path.dirname(process.execPath);
-      const augmentedPath = process.env.PATH?.includes(bunBinDir)
-        ? process.env.PATH
-        : `${bunBinDir}:${process.env.PATH || ""}`;
       const proc = Bun.spawn([process.execPath, "install"], {
         cwd: cachedTplDir,
-        env: {
-          ...process.env as Record<string, string>,
-          PATH: augmentedPath,
-        },
+        env: getAugmentedEnv(),
         stdout: "inherit",
         stderr: "inherit",
       });
@@ -369,7 +363,13 @@ export class ProjectManager {
 
   async openInFinder(name: string): Promise<void> {
     const proj = await this.getProject(name);
-    Bun.spawn(["open", proj.path], { stdout: "ignore", stderr: "ignore" });
+    if (process.platform === "win32") {
+      Bun.spawn(["explorer.exe", proj.path], { stdout: "ignore", stderr: "ignore" });
+    } else if (process.platform === "darwin") {
+      Bun.spawn(["open", proj.path], { stdout: "ignore", stderr: "ignore" });
+    } else {
+      Bun.spawn(["xdg-open", proj.path], { stdout: "ignore", stderr: "ignore" });
+    }
   }
 
   async saveMeta(project: ProjectInfo): Promise<void> {
