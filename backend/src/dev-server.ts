@@ -335,9 +335,13 @@ export class DevServerManager {
       return null;
     }
 
-    const occupied = this.getOccupiedPorts();
+    const activePorts = new Set(
+      Array.from(this.activeServers.values()).flatMap((s) =>
+        [s.info.port, s.info.backend_port].filter(Boolean) as number[]
+      )
+    );
     let targetPort: number;
-    if (preferredPort && !occupied.has(preferredPort) && (await this.isPortAvailable(preferredPort))) {
+    if (preferredPort && !activePorts.has(preferredPort) && (await this.isPortAvailable(preferredPort))) {
       this.reservedPorts.add(preferredPort);
       targetPort = preferredPort;
     } else {
@@ -350,7 +354,10 @@ export class DevServerManager {
       scripts = JSON.parse(rawPkg).scripts || {};
     } catch {}
 
-    const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
+    const frontendScript =
+      ("dev:frontend" in scripts ? "dev:frontend" : null) ||
+      ("dev" in scripts ? "dev" : null) ||
+      ("start" in scripts ? "start" : null);
     if (!frontendScript) {
       console.log(`[DevServerManager] No runnable dev script found in ${packageJsonPath}`);
       return null;
@@ -359,7 +366,7 @@ export class DevServerManager {
     const backendCmd = this.detectBackendCommand(resolvedPath, scripts);
     let backendPort: number | null = null;
     if (backendCmd) {
-      if (preferredBackendPort && !occupied.has(preferredBackendPort) && (await this.isPortAvailable(preferredBackendPort))) {
+      if (preferredBackendPort && !activePorts.has(preferredBackendPort) && (await this.isPortAvailable(preferredBackendPort))) {
         this.reservedPorts.add(preferredBackendPort);
         backendPort = preferredBackendPort;
       } else {
@@ -596,7 +603,10 @@ export class DevServerManager {
       // If frontend was started without backend knowledge, restart frontend dev server
       // so Vite's proxy configuration inherits the new BACKEND_PORT environment variable
       if (needsFrontendProxySync) {
-        const frontendScript = scripts["dev:frontend"] || scripts["dev"] || scripts["start"] || null;
+        const frontendScript =
+          ("dev:frontend" in scripts ? "dev:frontend" : null) ||
+          ("dev" in scripts ? "dev" : null) ||
+          ("start" in scripts ? "start" : null);
         if (frontendScript) {
           await killSubprocessTree(entry.frontendProc);
           const projectBinDir = path.join(resolvedPath, "node_modules", ".bin");
@@ -671,6 +681,42 @@ export class DevServerManager {
       },
     };
   }
+  private async forceFreePort(port?: number | null): Promise<void> {
+    if (!port || port <= 0) return;
+    const available = await this.isPortAvailable(port);
+    if (available) return;
+
+    console.warn(`[DevServerManager] Port ${port} still held after subprocess kill. Force-clearing port listener...`);
+    try {
+      if (process.platform === "win32") {
+        const netstat = Bun.spawnSync(["cmd.exe", "/c", `netstat -ano | findstr :${port}`]).stdout.toString().trim();
+        if (netstat) {
+          for (const line of netstat.split(/\r?\n/)) {
+            const parts = line.trim().split(/\s+/);
+            const pidStr = parts[parts.length - 1];
+            const pid = parseInt(pidStr, 10);
+            if (pid && pid > 0 && pid !== process.pid) {
+              try {
+                Bun.spawnSync(["taskkill", "/pid", String(pid), "/T", "/F"]);
+              } catch {}
+            }
+          }
+        }
+      } else {
+        const out = Bun.spawnSync(["lsof", "-ti", `:${port}`]).stdout.toString().trim();
+        if (out) {
+          for (const pidStr of out.split(/\r?\n/)) {
+            const pid = parseInt(pidStr, 10);
+            if (pid && pid > 0 && pid !== process.pid) {
+              try {
+                process.kill(pid, "SIGKILL");
+              } catch {}
+            }
+          }
+        }
+      }
+    } catch {}
+  }
 
   async stopDevServer(projectPath: string): Promise<void> {
     const resolvedPath = path.resolve(projectPath);
@@ -685,6 +731,16 @@ export class DevServerManager {
       kills.push(killSubprocessTree(entry.backendProc));
     }
     await Promise.all(kills);
+
+    this.reservedPorts.delete(entry.info.port);
+    if (entry.info.backend_port) {
+      this.reservedPorts.delete(entry.info.backend_port);
+    }
+
+    await Promise.all([
+      this.forceFreePort(entry.info.port),
+      this.forceFreePort(entry.info.backend_port),
+    ]);
   }
 
   async restartDevServer(projectPath: string): Promise<DevServerInfo | null> {
