@@ -478,7 +478,7 @@ export default function WelcomeView({
             <div className="degrees-welcome__ascii-frame">
               <AsciiEffect
                 variant="flow"
-                imageSrc="./images/portrait.jpg"
+                imageSrc="./images/pisa.jpg"
                 fontSize={7}
                 flowSpeed={0.22}
                 flowStrength={12}
