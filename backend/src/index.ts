@@ -1040,11 +1040,18 @@ const _server = Bun.serve<WsData>({
     }
 
     // Marketplaces: Discover / Browse Available Plugins
+    // Marketplaces: Discover / Browse Available Plugins
     if (url.pathname === "/api/marketplaces/discover" && req.method === "GET") {
       try {
         const marketplace = url.searchParams.get("marketplace") || undefined;
         const query = url.searchParams.get("q") || undefined;
-        const plugins = await pluginsService.discoverMarketplacePlugins({ marketplace, query });
+        const projectName = url.searchParams.get("project") || undefined;
+        let projectPath: string | undefined;
+        if (projectName && projectName !== "_global") {
+          const proj = await projectManager.getProject(projectName).catch(() => null);
+          if (proj) projectPath = proj.path;
+        }
+        const plugins = await pluginsService.discoverMarketplacePlugins({ marketplace, query, projectPath });
         return Response.json({ plugins }, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(

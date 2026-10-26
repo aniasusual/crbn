@@ -549,11 +549,20 @@ export class PluginsService {
     }
 
     const installed = await marketplaceManager.listInstalledPlugins();
-    const installedMap = new Map(installed.map((p) => [p.id, p.scope]));
+    const installedMap = new Map<string, "user" | "project">();
+    for (const p of installed) {
+      installedMap.set(p.id, p.scope);
+      const parsed = parsePluginId(p.id);
+      if (parsed) {
+        installedMap.set(parsed.name, p.scope);
+        installedMap.set(`${parsed.name}@${parsed.marketplace}`, p.scope);
+      }
+    }
 
     return filtered.map(({ plugin: p, marketplace }) => {
       const id = `${p.name}@${marketplace}`;
-      const isInstalled = installedMap.has(id);
+      const isInstalled = installedMap.has(id) || installedMap.has(p.name);
+      const installedScope = installedMap.get(id) || installedMap.get(p.name);
       return {
         name: p.name,
         id,
@@ -564,7 +573,7 @@ export class PluginsService {
         tags: p.tags,
         homepage: p.homepage,
         installed: isInstalled,
-        installedScope: installedMap.get(id),
+        installedScope,
       };
     });
   }

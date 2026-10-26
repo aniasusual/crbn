@@ -237,7 +237,10 @@ export default function PluginsModal({
   // 2. Fetch marketplace discover plugins
   const fetchDiscoverPlugins = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/marketplaces/discover`);
+      const url = effectiveProject
+        ? `${API_BASE_URL}/api/marketplaces/discover?project=${encodeURIComponent(effectiveProject)}`
+        : `${API_BASE_URL}/api/marketplaces/discover`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setDiscoverPlugins(Array.isArray(data.plugins) ? data.plugins : []);
@@ -245,7 +248,7 @@ export default function PluginsModal({
     } catch (err) {
       console.warn('[PluginsModal] Failed to fetch discover plugins:', err);
     }
-  }, []);
+  }, [effectiveProject]);
 
   // 3. Fetch marketplaces
   const fetchMarketplaces = useCallback(async () => {
@@ -351,6 +354,13 @@ export default function PluginsModal({
         throw new Error(data.detail || 'Failed to uninstall plugin');
       }
       setInstalledPlugins((prev) => prev.filter((p) => p.id !== plugin.id));
+      setDiscoverPlugins((prev) =>
+        prev.map((p) =>
+          p.id === plugin.id || p.name === plugin.name
+            ? { ...p, installed: false, installedScope: undefined }
+            : p
+        )
+      );
       await fetchDiscoverPlugins();
       if (onReloadPlugins) onReloadPlugins();
       setSuccessMsg(`Uninstalled ${plugin.name}`);
@@ -410,6 +420,24 @@ export default function PluginsModal({
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || 'Installation failed');
       }
+      setInstalledPlugins((prev) => [
+        ...prev.filter((p) => p.id !== item.id && p.name !== item.name),
+        {
+          id: item.id,
+          name: item.name,
+          version: item.version || '0.0.0',
+          marketplace: item.marketplace,
+          scope: targetScope,
+          enabled: true,
+        },
+      ]);
+      setDiscoverPlugins((prev) =>
+        prev.map((p) =>
+          p.id === item.id || p.name === item.name
+            ? { ...p, installed: true, installedScope: targetScope }
+            : p
+        )
+      );
       await Promise.all([fetchInstalledPlugins(), fetchDiscoverPlugins()]);
       if (onReloadPlugins) onReloadPlugins();
       setSuccessMsg(`Installed ${item.name}`);
@@ -482,6 +510,16 @@ export default function PluginsModal({
   };
 
   // Filtered lists
+  const installedLookup = useMemo(() => {
+    const map = new Map();
+    for (const p of installedPlugins) {
+      if (p.id) map.set(p.id, p);
+      if (p.name) map.set(p.name, p);
+      if (p.name && p.marketplace) map.set(`${p.name}@${p.marketplace}`, p);
+    }
+    return map;
+  }, [installedPlugins]);
+
   const filteredInstalled = useMemo(() => {
     if (!searchQuery.trim()) return installedPlugins;
     const q = searchQuery.toLowerCase();
@@ -916,10 +954,14 @@ export default function PluginsModal({
                 ) : (
                   <div className="plugins-list">
                     {filteredDiscover.map((item) => {
-                      const isInstalled = item.installed;
+                      const installedMatch =
+                        installedLookup.get(item.id) ||
+                        installedLookup.get(item.name) ||
+                        (item.marketplace ? installedLookup.get(`${item.name}@${item.marketplace}`) : null);
+                      const isInstalled = Boolean(item.installed || installedMatch);
+                      const installedScope = item.installedScope || installedMatch?.scope || 'project';
                       const isInstallingProject = Boolean(actionLoading[`${item.id}:project`]);
                       const isInstallingGlobal = Boolean(actionLoading[`${item.id}:user`]);
-
                       return (
                         <div key={item.id} className="plugin-card">
                           <div className="plugin-card-header">
@@ -956,9 +998,28 @@ export default function PluginsModal({
 
                             <div className="plugin-card-actions">
                               {isInstalled ? (
-                                <span className={`plugin-tag ${item.installedScope === 'project' ? 'plugin-tag--project' : 'plugin-tag--global'}`}>
-                                  Installed ({item.installedScope === 'project' ? 'Project' : 'User'})
-                                </span>
+                                <div
+                                  className="plugin-installed-pill"
+                                  title={`Installed in ${installedScope === 'project' ? 'this project' : 'global user profile'}`}
+                                >
+                                  <svg
+                                    className="plugin-installed-check"
+                                    width="12"
+                                    height="12"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  <span>Installed</span>
+                                  <span className="plugin-installed-scope">
+                                    {installedScope === 'project' ? 'Project' : 'User'}
+                                  </span>
+                                </div>
                               ) : (
                                 <>
                                   <button
