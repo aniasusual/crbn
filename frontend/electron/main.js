@@ -187,11 +187,18 @@ async function startBackend() {
   const extraPaths = [
     bunBinDir,
     path.join(home, '.bun', 'bin'),
+    path.join(userDataDir, 'bin', 'mingit', 'cmd'),
+    path.join(userDataDir, 'bin', 'mingit', 'usr', 'bin'),
+    path.join(userDataDir, 'bin', 'mingit', 'bin'),
+    path.join(userDataDir, 'bin', 'git', 'bin'),
     '/opt/homebrew/bin',
     '/usr/local/bin',
     '/usr/bin',
     '/bin',
     process.platform === 'win32' ? 'C:\\Program Files\\Git\\cmd' : '',
+    process.platform === 'win32' ? 'C:\\Program Files\\Git\\usr\\bin' : '',
+    process.platform === 'win32' ? 'C:\\Program Files (x86)\\Git\\cmd' : '',
+    process.platform === 'win32' ? path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Git', 'cmd') : '',
   ].filter(Boolean);
 
   const existingPathParts = (process.env.PATH || '').split(path.delimiter).filter(Boolean);
@@ -207,6 +214,8 @@ async function startBackend() {
     NODE_ENV: isDev ? 'development' : 'production',
     TEMPLATES_DIR: path.join(backendDir, 'templates'),
     RESOURCES_PATH: process.resourcesPath || path.join(__dirname, '..'),
+    USER_DATA_DIR: userDataDir,
+    PI_NATIVES_DIR: path.join(backendDir, 'native'),
   };
 
   try {

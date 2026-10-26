@@ -158,21 +158,139 @@ function downloadAndExtractBun(targetKey, targetDir) {
   }
 }
 
+function ensureBunShims(targetDir) {
+  console.log('[Stage] Generating node, npm, and npx shims redirecting to Bun...');
+
+  const posixShimHeader = '#!/bin/sh\n' +
+    'DIR="$(cd "$(dirname "$0")" && pwd)"\n' +
+    'if [ -x "$DIR/bun" ]; then\n' +
+    '  BUN_BIN="$DIR/bun"\n' +
+    'elif [ -x "$DIR/bun-arm64" ] && [ "$(uname -m)" = "arm64" ]; then\n' +
+    '  BUN_BIN="$DIR/bun-arm64"\n' +
+    'elif [ -x "$DIR/bun-x64" ]; then\n' +
+    '  BUN_BIN="$DIR/bun-x64"\n' +
+    'elif command -v bun >/dev/null 2>&1; then\n' +
+    '  BUN_BIN="bun"\n' +
+    'else\n' +
+    '  echo "[80degrees] Error: Bundled Bun binary not found for shim" >&2\n' +
+    '  exit 1\n' +
+    'fi\n';
+
+  const posixShims = {
+    node: posixShimHeader + 'exec "$BUN_BIN" "$@"\n',
+    npm: posixShimHeader +
+      'case "$1" in\n' +
+      '  -v|--version)\n' +
+      '    exec "$BUN_BIN" --version\n' +
+      '    ;;\n' +
+      '  run)\n' +
+      '    shift\n' +
+      '    exec "$BUN_BIN" run "$@"\n' +
+      '    ;;\n' +
+      '  i|install)\n' +
+      '    shift\n' +
+      '    exec "$BUN_BIN" install "$@"\n' +
+      '    ;;\n' +
+      '  add)\n' +
+      '    shift\n' +
+      '    exec "$BUN_BIN" add "$@"\n' +
+      '    ;;\n' +
+      '  rm|remove|uninstall)\n' +
+      '    shift\n' +
+      '    exec "$BUN_BIN" remove "$@"\n' +
+      '    ;;\n' +
+      '  test)\n' +
+      '    shift\n' +
+      '    exec "$BUN_BIN" test "$@"\n' +
+      '    ;;\n' +
+      '  *)\n' +
+      '    exec "$BUN_BIN" "$@"\n' +
+      '    ;;\n' +
+      'esac\n',
+    npx: posixShimHeader +
+      'case "$1" in\n' +
+      '  -v|--version)\n' +
+      '    exec "$BUN_BIN" --version\n' +
+      '    ;;\n' +
+      '  *)\n' +
+      '    exec "$BUN_BIN" x "$@"\n' +
+      '    ;;\n' +
+      'esac\n',
+  };
+
+  for (const [name, content] of Object.entries(posixShims)) {
+    const filePath = path.join(targetDir, name);
+    fs.writeFileSync(filePath, content, { encoding: 'utf8', mode: 0o755 });
+  }
+
+  const winShims = {
+    'node.cmd':
+      '@echo off\r\n' +
+      'set "BUN_BIN=%~dp0\\bun.exe"\r\n' +
+      'if not exist "%BUN_BIN%" set "BUN_BIN=bun.exe"\r\n' +
+      '"%BUN_BIN%" %*\r\n',
+    'npm.cmd':
+      '@echo off\r\n' +
+      'set "BUN_BIN=%~dp0\\bun.exe"\r\n' +
+      'if not exist "%BUN_BIN%" set "BUN_BIN=bun.exe"\r\n' +
+      'if "%~1"=="-v" ("%BUN_BIN%" --version & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="--version" ("%BUN_BIN%" --version & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="run" (shift & "%BUN_BIN%" run %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="i" (shift & "%BUN_BIN%" install %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="install" (shift & "%BUN_BIN%" install %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="add" (shift & "%BUN_BIN%" add %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="rm" (shift & "%BUN_BIN%" remove %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="remove" (shift & "%BUN_BIN%" remove %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="uninstall" (shift & "%BUN_BIN%" remove %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="test" (shift & "%BUN_BIN%" test %1 %2 %3 %4 %5 %6 %7 %8 %9 & exit /b %errorlevel%)\r\n' +
+      '"%BUN_BIN%" %*\r\n',
+    'npx.cmd':
+      '@echo off\r\n' +
+      'set "BUN_BIN=%~dp0\\bun.exe"\r\n' +
+      'if not exist "%BUN_BIN%" set "BUN_BIN=bun.exe"\r\n' +
+      'if "%~1"=="-v" ("%BUN_BIN%" --version & exit /b %errorlevel%)\r\n' +
+      'if "%~1"=="--version" ("%BUN_BIN%" --version & exit /b %errorlevel%)\r\n' +
+      '"%BUN_BIN%" x %*\r\n',
+  };
+
+  for (const [name, content] of Object.entries(winShims)) {
+    const filePath = path.join(targetDir, name);
+    fs.writeFileSync(filePath, content, { encoding: 'utf8' });
+  }
+}
+
 function stageBun() {
   ensureIcons();
-  ensureNativeModules();
+
+  const platformArg = process.argv.find((a) => a.startsWith('--platform='))?.split('=')[1];
+  const targetArg = process.argv.find((a) => a.startsWith('--target='))?.split('=')[1];
+  const effectivePlatform = platformArg || (targetArg ? targetArg.split('-')[0] : process.platform);
+
+  ensureNativeModules({ platform: effectivePlatform, all: effectivePlatform === 'all' });
 
   const targetDir = path.join(__dirname, '../resources/bin');
   fs.mkdirSync(targetDir, { recursive: true });
 
-  const platform = process.platform;
-
-  if (platform === 'darwin') {
-    // Stage both arm64 and x64 macOS binaries for universal/cross builds
+  if (effectivePlatform === 'all') {
+    downloadAndExtractBun('darwin-arm64', targetDir);
+    downloadAndExtractBun('darwin-x64', targetDir);
+    downloadAndExtractBun('win32-x64', targetDir);
+    downloadAndExtractBun('linux-x64', targetDir);
+  } else if (targetArg && TARGET_CONFIGS[targetArg]) {
+    downloadAndExtractBun(targetArg, targetDir);
+    if (targetArg.startsWith('darwin')) {
+      const hostArchBinary = path.join(targetDir, TARGET_CONFIGS[targetArg].binaryName);
+      const defaultBun = path.join(targetDir, 'bun');
+      if (fs.existsSync(hostArchBinary)) {
+        try { fs.unlinkSync(defaultBun); } catch {}
+        fs.copyFileSync(hostArchBinary, defaultBun);
+        try { fs.chmodSync(defaultBun, 0o755); } catch {}
+      }
+    }
+  } else if (effectivePlatform === 'darwin') {
     downloadAndExtractBun('darwin-arm64', targetDir);
     downloadAndExtractBun('darwin-x64', targetDir);
 
-    // Provide default 'bun' pointing to current host architecture
     const hostBinaryName = process.arch === 'arm64' ? 'bun-arm64' : 'bun-x64';
     const hostArchBinary = path.join(targetDir, hostBinaryName);
     const defaultBun = path.join(targetDir, 'bun');
@@ -185,12 +303,16 @@ function stageBun() {
       try { fs.chmodSync(defaultBun, 0o755); } catch {}
       console.log(`[Stage] Staged default 'bun' -> ${hostBinaryName}`);
     }
-  } else if (platform === 'win32') {
+  } else if (effectivePlatform === 'win32') {
     downloadAndExtractBun('win32-x64', targetDir);
-  } else {
+  } else if (effectivePlatform === 'linux') {
     downloadAndExtractBun('linux-x64', targetDir);
+  } else {
+    console.warn(`[Stage] Unknown platform target: ${effectivePlatform}, staging current host.`);
+    downloadAndExtractBun(`darwin-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, targetDir);
   }
 
+  ensureBunShims(targetDir);
   console.log('[Stage] Staging complete for release.');
 }
 

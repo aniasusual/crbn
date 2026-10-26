@@ -1,6 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as fsSync from "node:fs";
 import * as path from "node:path";
+import { getAugmentedEnv } from "./runtime-env";
+import { detectGit, installGit } from "./git-provisioner";
 export const CHECKPOINTS_FILENAME = ".80degrees_checkpoints.json";
 export const BRANCHES_FILENAME = ".80degrees_branches.json";
 
@@ -49,11 +51,9 @@ export class CheckpointManager {
         cwd: projectPath,
         stdout: "pipe",
         stderr: "pipe",
-        env: {
-          ...process.env,
-          PATH: `${process.env.PATH || ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+        env: getAugmentedEnv({
           GIT_TERMINAL_PROMPT: "0",
-        },
+        }),
       });
 
       const stdoutPromise = new Response(proc.stdout).text().catch(() => "");
@@ -79,6 +79,11 @@ export class CheckpointManager {
     const gitDir = path.join(projectPath, ".git");
 
     if (!fsSync.existsSync(gitDir)) {
+      const gitCheck = await detectGit().catch(() => ({ installed: false }));
+      if (!gitCheck.installed) {
+        console.log("[CheckpointManager] Git not ready yet. Awaiting automated Git provisioning...");
+        await installGit().catch(() => {});
+      }
       // 1. Ensure minimal .gitignore
       const gitignorePath = path.join(projectPath, ".gitignore");
       if (!fsSync.existsSync(gitignorePath)) {

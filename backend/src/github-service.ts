@@ -4,6 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { CheckpointManager } from "./checkpoint-manager";
 import type { ProjectInfo, ProjectManager } from "./project-manager";
+import { getAugmentedEnv } from "./runtime-env";
 
 
 export interface GitHubUser {
@@ -121,11 +122,9 @@ export class GithubService {
         cwd,
         stdout: "pipe",
         stderr: "pipe",
-        env: {
-          ...process.env,
-          PATH: `${process.env.PATH || ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
+        env: getAugmentedEnv({
           GIT_TERMINAL_PROMPT: "0",
-        },
+        }),
       });
 
       let timer: Timer | number | undefined;
@@ -169,10 +168,7 @@ export class GithubService {
    * Detect if the local machine has an authenticated `gh` CLI session.
    */
   async detectCliToken(): Promise<{ token: string | null; user: string | null }> {
-    const env = {
-      ...process.env,
-      PATH: `${process.env.PATH || ""}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin`,
-    };
+    const env = getAugmentedEnv();
 
     try {
       const proc = Bun.spawn(["gh", "auth", "token"], {

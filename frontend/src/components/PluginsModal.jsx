@@ -135,25 +135,54 @@ export default function PluginsModal({
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const [gitInstalled, setGitInstalled] = useState(true);
+  const [gitStatus, setGitStatus] = useState({ installed: true });
+  const [gitInstalling, setGitInstalling] = useState(false);
+  const gitPollIntervalRef = useRef(null);
 
   const checkGitStatus = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/git-status`);
       if (res.ok) {
         const data = await res.json();
+        setGitStatus(data);
         setGitInstalled(data.installed !== false);
+        if (data.installed && gitPollIntervalRef.current) {
+          clearInterval(gitPollIntervalRef.current);
+          gitPollIntervalRef.current = null;
+          setGitInstalling(false);
+          setSuccessMsg(`Git is ready (${data.version || 'installed'}).`);
+        }
       }
     } catch {}
   }, []);
 
   const handleInstallGit = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/system/install-git`, { method: 'POST' });
-      setSuccessMsg('Triggered Apple Developer Tools installer. Please complete the installation.');
+      setGitInstalling(true);
+      setErrorMsg(null);
+      const res = await fetch(`${API_BASE_URL}/api/system/install-git`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (data.installed) {
+        setGitInstalled(true);
+        setGitInstalling(false);
+        setSuccessMsg(`Git is already installed (${data.version || ''}).`);
+        return;
+      }
+      setSuccessMsg(data.message || 'Setting up Git automatically in the background...');
+      clearInterval(gitPollIntervalRef.current);
+      gitPollIntervalRef.current = setInterval(checkGitStatus, 1500);
+      await checkGitStatus();
     } catch (err) {
+      setGitInstalling(false);
       setErrorMsg(`Failed to trigger Git installer: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      clearInterval(gitPollIntervalRef.current);
+    };
+  }, []);
 
   // Custom install inputs
   const [customSpec, setCustomSpec] = useState('');
@@ -602,14 +631,19 @@ export default function PluginsModal({
           )}
           {gitInstalled === false && (
             <div className="plugins-dialog-banner plugins-dialog-banner--error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Git is not installed on this system. Git is required to download and install plugins from GitHub.</span>
+              <span>
+                {gitInstalling
+                  ? `Setting up Git... ${gitStatus.progress ? `${gitStatus.progress}%` : ''} ${gitStatus.message || ''}`
+                  : 'Git is not installed on this system. Git is required to download and install plugins from GitHub.'}
+              </span>
               <button
                 type="button"
                 className="plugin-action-btn plugin-action-btn--primary"
                 style={{ marginLeft: 12, padding: '4px 10px', fontSize: 11, flexShrink: 0 }}
                 onClick={handleInstallGit}
+                disabled={gitInstalling}
               >
-                Install Git
+                {gitInstalling ? 'Installing...' : 'Install Git Automatically'}
               </button>
             </div>
           )}
