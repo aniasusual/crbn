@@ -35,6 +35,20 @@ export interface GitHubRepo {
   is_local?: boolean;
   local_project_name?: string;
 }
+export function parseGithubFullName(input: string): string {
+  if (!input) return "";
+  let cleaned = input.trim();
+  cleaned = cleaned.replace(/^git@github\.com:/, "");
+  cleaned = cleaned.replace(/^https?:\/\/github\.com\//, "");
+  cleaned = cleaned.replace(/^ssh:\/\/git@github\.com\//, "");
+  cleaned = cleaned.replace(/\.git$/, "");
+  cleaned = cleaned.replace(/^\/+|\/+$/g, "");
+  const parts = cleaned.split("/").filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]}/${parts[1]}`;
+  }
+  return cleaned;
+}
 
 export interface ProjectGitStatus {
   is_git_repo: boolean;
@@ -44,6 +58,11 @@ export interface ProjectGitStatus {
   remote_url: string | null;
   github_repo: string | null;
   github_url: string | null;
+  upstream_repo?: string | null;
+  upstream_url?: string | null;
+  is_fork?: boolean;
+  can_push?: boolean;
+  is_third_party?: boolean;
   uncommitted_count: number;
   uncommitted_files: string[];
   ahead_count: number;
@@ -63,6 +82,41 @@ export interface ProjectGitStatus {
     is_active: boolean;
     has_remote_tracking: boolean;
   }>;
+}
+function sleepMs(ms: number): Promise<void> {
+  const { promise, resolve } = Promise.withResolvers<void>();
+  setTimeout(resolve, ms);
+  return promise;
+}
+
+export interface GitHubRepoDetails {
+  full_name: string;
+  name: string;
+  owner: string;
+  default_branch: string;
+  private: boolean;
+  fork: boolean;
+  description: string | null;
+  stargazers_count: number;
+  language: string | null;
+  permissions?: {
+    admin?: boolean;
+    maintain?: boolean;
+    push?: boolean;
+    triage?: boolean;
+    pull?: boolean;
+  };
+  can_push: boolean;
+  is_owned_by_current_user: boolean;
+}
+
+export interface GitHubForkResult {
+  full_name: string;
+  name: string;
+  owner: string;
+  html_url: string;
+  clone_url: string;
+  default_branch: string;
 }
 
 interface StoredGitHubAuth {
@@ -441,21 +495,189 @@ export class GithubService {
   }
 
   /**
+   * Fetch detailed repository metadata including push permissions and owner.
+   */
+  async getRepoDetails(fullName: string): Promise<GitHubRepoDetails> {
+    const cleanRepo = parseGithubFullName(fullName);
+    const token = await this.getToken();
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "crbn-app",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(`https://api.github.com/repos/${cleanRepo}`, { headers });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Repository "${cleanRepo}" not found or inaccessible (${res.status}): ${errText}`);
+    }
+
+    const data = (await res.json()) as Record<string, unknown>;
+    const perms = (data.permissions as Record<string, boolean> | undefined) || {};
+    const ownerObj = data.owner as Record<string, unknown> | undefined;
+    const ownerLogin = String(ownerObj?.login || cleanRepo.split("/")[0] || "");
+    const currentUser = this.cachedAuth?.user?.login;
+
+    const isOwned = Boolean(currentUser && currentUser.toLowerCase() === ownerLogin.toLowerCase());
+    const canPush = Boolean(perms.push || isOwned);
+
+    return {
+      full_name: String(data.full_name || cleanRepo),
+      name: String(data.name || cleanRepo.split("/")[1] || cleanRepo),
+      owner: ownerLogin,
+      default_branch: String(data.default_branch || "main"),
+      private: Boolean(data.private),
+      fork: Boolean(data.fork),
+      description: data.description ? String(data.description) : null,
+      stargazers_count: typeof data.stargazers_count === "number" ? data.stargazers_count : 0,
+      language: data.language ? String(data.language) : null,
+      permissions: perms,
+      can_push: canPush,
+      is_owned_by_current_user: isOwned,
+    };
+  }
+
+  /**
+   * Fork a repository to the authenticated user's GitHub account.
+   */
+  async forkRepo(fullName: string): Promise<GitHubForkResult> {
+    const token = await this.getToken();
+    if (!token) {
+      throw new Error("GitHub is not connected. Please connect your GitHub account first.");
+    }
+    const cleanRepo = parseGithubFullName(fullName);
+    const repoBaseName = cleanRepo.split("/")[1] || cleanRepo;
+    const user = await this.fetchUserProfile(token);
+
+    // If the repo already belongs to current user, return existing repo info
+    if (cleanRepo.split("/")[0]?.toLowerCase() === user.login.toLowerCase()) {
+      const details = await this.getRepoDetails(cleanRepo);
+      return {
+        full_name: details.full_name,
+        name: details.name,
+        owner: details.owner,
+        html_url: `https://github.com/${details.full_name}`,
+        clone_url: `https://github.com/${details.full_name}.git`,
+        default_branch: details.default_branch,
+      };
+    }
+
+    // Check if the user already has an existing fork
+    const userForkFullName = `${user.login}/${repoBaseName}`;
+    try {
+      const existing = await this.getRepoDetails(userForkFullName);
+      if (existing) {
+        console.log(`[GithubService] User already has a fork: ${userForkFullName}`);
+        return {
+          full_name: existing.full_name,
+          name: existing.name,
+          owner: existing.owner,
+          html_url: `https://github.com/${existing.full_name}`,
+          clone_url: `https://github.com/${existing.full_name}.git`,
+          default_branch: existing.default_branch,
+        };
+      }
+    } catch {}
+
+    console.log(`[GithubService] Forking repository "${cleanRepo}" to user "${user.login}"...`);
+    const res = await fetch(`https://api.github.com/repos/${cleanRepo}/forks`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "crbn-app",
+      },
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      throw new Error(`Failed to fork ${cleanRepo}: ${errText}`);
+    }
+
+    const forkData = (await res.json()) as Record<string, unknown>;
+    const forkedFullName = String(forkData.full_name || userForkFullName);
+
+    // Poll briefly (up to 5 seconds) to ensure GitHub backend has initialized the fork
+    for (let i = 0; i < 5; i++) {
+      await sleepMs(1000);
+      try {
+        const checkRes = await fetch(`https://api.github.com/repos/${forkedFullName}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/vnd.github+json",
+            "User-Agent": "crbn-app",
+          },
+        });
+        if (checkRes.ok) break;
+      } catch {}
+    }
+
+    return {
+      full_name: forkedFullName,
+      name: String(forkData.name || repoBaseName),
+      owner: user.login,
+      html_url: String(forkData.html_url || `https://github.com/${forkedFullName}`),
+      clone_url: String(forkData.clone_url || `https://github.com/${forkedFullName}.git`),
+      default_branch: String(forkData.default_branch || "main"),
+    };
+  }
+
+  /**
    * Clone a GitHub repository into local projects or open if already exists.
+   * Supports auto-forking and 3rd party repos.
    */
   async cloneOrOpenRepo(options: {
     full_name: string;
     project_name?: string;
     branch?: string;
     model?: string;
+    fork?: boolean;
   }): Promise<ProjectInfo> {
     const token = await this.getToken();
     if (!token) {
       throw new Error("GitHub is not connected. Please connect your GitHub account first.");
     }
 
-    const { full_name, branch, model } = options;
-    const repoBaseName = full_name.split("/")[1] || full_name;
+    const cleanSourceRepo = parseGithubFullName(options.full_name);
+    const { branch, model } = options;
+    const user = await this.fetchUserProfile(token);
+
+    let effectiveFullName = cleanSourceRepo;
+    let isFork = Boolean(options.fork);
+    let upstreamRepo: string | null = null;
+    let upstreamUrl: string | null = null;
+    let canPush = true;
+
+    // Check repository permissions
+    let repoDetails: GitHubRepoDetails | null = null;
+    try {
+      repoDetails = await this.getRepoDetails(cleanSourceRepo);
+      canPush = repoDetails.can_push;
+    } catch (e) {
+      console.warn(`[GithubService] Could not fetch repo details for ${cleanSourceRepo}:`, e);
+    }
+
+    // If fork was requested
+    if (options.fork) {
+      try {
+        const forkRes = await this.forkRepo(cleanSourceRepo);
+        effectiveFullName = forkRes.full_name;
+        isFork = true;
+        upstreamRepo = cleanSourceRepo;
+        upstreamUrl = `https://github.com/${cleanSourceRepo}`;
+        canPush = true;
+      } catch (err) {
+        console.warn(`[GithubService] Fork failed, falling back to direct clone:`, err);
+      }
+    } else if (repoDetails && !repoDetails.can_push) {
+      canPush = false;
+      upstreamRepo = cleanSourceRepo;
+      upstreamUrl = `https://github.com/${cleanSourceRepo}`;
+    }
+
+    const repoBaseName = cleanSourceRepo.split("/")[1] || cleanSourceRepo;
     const candidateName = (options.project_name || repoBaseName)
       .trim()
       .toLowerCase()
@@ -471,10 +693,10 @@ export class GithubService {
       targetDir = path.join(this.projectManager.root, finalProjectName);
       counter++;
     }
-    console.log(`[GithubService] Cloning ${full_name} into ${targetDir}...`);
+    console.log(`[GithubService] Cloning ${effectiveFullName} into ${targetDir}...`);
 
     // Clone using authenticated token in URL
-    const authCloneUrl = `https://x-access-token:${token}@github.com/${full_name}.git`;
+    const authCloneUrl = `https://x-access-token:${token}@github.com/${effectiveFullName}.git`;
     const cloneArgs = ["clone", "--depth", "50"];
     if (branch) {
       cloneArgs.push("-b", branch);
@@ -487,11 +709,10 @@ export class GithubService {
       if (fsSync.existsSync(targetDir)) {
         await fs.rm(targetDir, { recursive: true, force: true }).catch(() => {});
       }
-      throw new Error(`Failed to clone ${full_name}: ${cloneRes.stderr || cloneRes.stdout}`);
+      throw new Error(`Failed to clone ${effectiveFullName}: ${cloneRes.stderr || cloneRes.stdout}`);
     }
 
     // Configure user identity & clean origin URL in cloned repo
-    const user = this.cachedAuth?.user;
     const userName = user?.name || user?.login || "crbn";
     const userEmail = user?.email || (user?.login ? `${user.login}@users.noreply.github.com` : "user@crbn.local");
     await this.runGit(targetDir, ["config", "user.name", userName]);
@@ -499,6 +720,12 @@ export class GithubService {
 
     // Ensure origin remote uses authenticated URL for seamless push/pull
     await this.runGit(targetDir, ["remote", "set-url", "origin", authCloneUrl]);
+
+    // If it's a fork, configure upstream remote
+    if (isFork && upstreamRepo) {
+      const authUpstreamUrl = `https://x-access-token:${token}@github.com/${upstreamRepo}.git`;
+      await this.runGit(targetDir, ["remote", "add", "upstream", authUpstreamUrl]).catch(() => {});
+    }
 
     // Initialize checkpoints & branches on cloned repo
     await CheckpointManager.ensureGitRepo(targetDir);
@@ -560,22 +787,22 @@ export class GithubService {
 
     // Save metadata including GitHub linkage
     const metaPath = path.join(targetDir, ".80degrees_meta.json");
-    await fs.writeFile(
-      metaPath,
-      JSON.stringify(
-        {
-          ...projectInfo,
-          github_repo: full_name,
-          github_url: `https://github.com/${full_name}`,
-          default_branch: branch || "main",
-        },
-        null,
-        2
-      ),
-      "utf-8"
-    );
+    const metaPayload: Record<string, unknown> = {
+      ...projectInfo,
+      github_repo: effectiveFullName,
+      github_url: `https://github.com/${effectiveFullName}`,
+      default_branch: branch || repoDetails?.default_branch || "main",
+      is_fork: isFork,
+      can_push: canPush,
+      is_third_party: !canPush && !isFork,
+    };
+    if (upstreamRepo) {
+      metaPayload.upstream_repo = upstreamRepo;
+      metaPayload.upstream_url = upstreamUrl || `https://github.com/${upstreamRepo}`;
+    }
+    await fs.writeFile(metaPath, JSON.stringify(metaPayload, null, 2), "utf-8");
 
-    console.log(`[GithubService] Successfully imported ${full_name} as project "${finalProjectName}"`);
+    console.log(`[GithubService] Successfully imported ${effectiveFullName} as project "${finalProjectName}" (is_fork: ${isFork}, can_push: ${canPush})`);
     return projectInfo;
   }
 
@@ -623,16 +850,37 @@ export class GithubService {
     const remoteUrl = this.sanitizeUrl(rawRemoteUrl);
     let githubRepo = this.extractGithubRepo(rawRemoteUrl);
 
-    // Also check .80degrees_meta.json
-    if (!githubRepo) {
-      try {
-        const metaRaw = await fs.readFile(path.join(projectPath, ".80degrees_meta.json"), "utf-8");
-        const meta = JSON.parse(metaRaw);
-        if (meta.github_repo) githubRepo = meta.github_repo;
-      } catch {}
+    const githubUrl = githubRepo ? `https://github.com/${githubRepo}` : null;
+
+    // Check for upstream remote if this is a fork
+    const upstreamRes = await this.runGit(projectPath, ["remote", "get-url", "upstream"]);
+    const rawUpstreamUrl = upstreamRes.exitCode === 0 ? upstreamRes.stdout : null;
+    let upstreamRepo = this.extractGithubRepo(rawUpstreamUrl);
+
+    let isFork = Boolean(upstreamRepo);
+    let canPush = true;
+    let isThirdParty = false;
+
+    try {
+      const metaRaw = await fs.readFile(path.join(projectPath, ".80degrees_meta.json"), "utf-8");
+      const meta = JSON.parse(metaRaw);
+      if (!githubRepo && meta.github_repo) githubRepo = meta.github_repo;
+      if (!upstreamRepo && meta.upstream_repo) upstreamRepo = meta.upstream_repo;
+      if (meta.is_fork) isFork = true;
+      if (typeof meta.can_push === "boolean") canPush = meta.can_push;
+      if (meta.is_third_party) isThirdParty = true;
+    } catch {}
+
+    const currentUser = this.cachedAuth?.user?.login;
+    if (githubRepo && currentUser) {
+      const repoOwner = githubRepo.split("/")[0];
+      if (repoOwner.toLowerCase() !== currentUser.toLowerCase() && !isFork) {
+        canPush = false;
+        isThirdParty = true;
+      }
     }
 
-    const githubUrl = githubRepo ? `https://github.com/${githubRepo}` : null;
+    const upstreamUrl = upstreamRepo ? `https://github.com/${upstreamRepo}` : null;
 
     // 3. Uncommitted working tree changes
     const statusRes = await this.runGit(projectPath, ["status", "--porcelain"]);
@@ -725,6 +973,11 @@ export class GithubService {
       remote_url: remoteUrl,
       github_repo: githubRepo,
       github_url: githubUrl,
+      upstream_repo: upstreamRepo,
+      upstream_url: upstreamUrl,
+      is_fork: isFork,
+      can_push: canPush,
+      is_third_party: isThirdParty,
       uncommitted_count: uncommittedCount,
       uncommitted_files: uncommittedFiles,
       ahead_count: aheadCount,
@@ -801,6 +1054,93 @@ export class GithubService {
   }
 
   /**
+   * Fork an upstream third-party repository and retarget local origin to the user's fork.
+   */
+  async forkAndRetargetProject(
+    projectName: string,
+    options?: { branch?: string; commit_message?: string }
+  ): Promise<{
+    success: boolean;
+    fork_repo: string;
+    fork_url: string;
+    branch: string;
+    pr_url: string;
+  }> {
+    const token = await this.getToken();
+    if (!token) {
+      throw new Error("GitHub is not connected. Please connect your GitHub account first.");
+    }
+
+    const project = await this.projectManager.getProject(projectName);
+    const projectPath = project.path;
+
+    // Read project metadata
+    const metaPath = path.join(projectPath, ".80degrees_meta.json");
+    let meta: Record<string, any> = {};
+    if (fsSync.existsSync(metaPath)) {
+      try {
+        meta = JSON.parse(await fs.readFile(metaPath, "utf-8"));
+      } catch {}
+    }
+
+    // Determine target upstream repo
+    const remoteRes = await this.runGit(projectPath, ["remote", "get-url", "origin"]);
+    const currentOrigin = remoteRes.exitCode === 0 ? this.extractGithubRepo(remoteRes.stdout) : null;
+    const upstreamRepo = meta.upstream_repo || currentOrigin || meta.github_repo;
+
+    if (!upstreamRepo) {
+      throw new Error("No upstream GitHub repository found to fork.");
+    }
+
+    console.log(`[GithubService] Forking upstream ${upstreamRepo} for project ${projectName}...`);
+    const forkInfo = await this.forkRepo(upstreamRepo);
+
+    // Retarget origin to user's fork
+    const authForkUrl = `https://x-access-token:${token}@github.com/${forkInfo.full_name}.git`;
+    const checkOrigin = await this.runGit(projectPath, ["remote", "get-url", "origin"]);
+    if (checkOrigin.exitCode === 0) {
+      await this.runGit(projectPath, ["remote", "set-url", "origin", authForkUrl]);
+    } else {
+      await this.runGit(projectPath, ["remote", "add", "origin", authForkUrl]);
+    }
+
+    // Ensure upstream remote points to original repository
+    const authUpstreamUrl = `https://x-access-token:${token}@github.com/${upstreamRepo}.git`;
+    const checkUpstream = await this.runGit(projectPath, ["remote", "get-url", "upstream"]);
+    if (checkUpstream.exitCode === 0) {
+      await this.runGit(projectPath, ["remote", "set-url", "upstream", authUpstreamUrl]);
+    } else {
+      await this.runGit(projectPath, ["remote", "add", "upstream", authUpstreamUrl]);
+    }
+
+    // Update metadata
+    meta.github_repo = forkInfo.full_name;
+    meta.github_url = forkInfo.html_url;
+    meta.upstream_repo = upstreamRepo;
+    meta.upstream_url = `https://github.com/${upstreamRepo}`;
+    meta.is_fork = true;
+    meta.can_push = true;
+    meta.is_third_party = false;
+    await fs.writeFile(metaPath, JSON.stringify(meta, null, 2), "utf-8");
+
+    // Now push to origin (the user's fork)
+    const pushResult = await this.pushProject(projectName, {
+      branch: options?.branch,
+      commit_message: options?.commit_message || `Fork and update from crbn`,
+    });
+
+    const prUrl = `https://github.com/${upstreamRepo}/compare/${meta.default_branch || "main"}...${forkInfo.owner}:${pushResult.branch}?expand=1`;
+
+    return {
+      success: true,
+      fork_repo: forkInfo.full_name,
+      fork_url: forkInfo.html_url,
+      branch: pushResult.branch,
+      pr_url: prUrl,
+    };
+  }
+
+  /**
    * Push project commits to GitHub (with support for creating new remote repo if unpushed).
    */
   async pushProject(
@@ -823,6 +1163,9 @@ export class GithubService {
     github_url: string;
     commit_hash?: string;
     pushed_all?: boolean;
+    pr_url?: string;
+    is_fork?: boolean;
+    upstream_repo?: string | null;
   }> {
     const token = await this.getToken();
     if (!token) {
@@ -934,6 +1277,24 @@ export class GithubService {
       const authenticatedUrl = `https://x-access-token:${token}@github.com/${fullRepoName}.git`;
       await this.runGit(projectPath, ["remote", "set-url", "origin", authenticatedUrl]);
     }
+    // Read metadata and verify write access if pushing directly to existing origin
+    const metaPath = path.join(projectPath, ".80degrees_meta.json");
+    let meta: Record<string, any> = {};
+    try {
+      const raw = await fs.readFile(metaPath, "utf-8");
+      meta = JSON.parse(raw);
+    } catch {}
+
+    const currentUser = this.cachedAuth?.user?.login;
+    if (fullRepoName && currentUser && !options.create_repo && !options.target_repo) {
+      const repoOwner = fullRepoName.split("/")[0];
+      const isOwner = repoOwner.toLowerCase() === currentUser.toLowerCase();
+      if (!isOwner && !meta.is_fork && meta.can_push === false) {
+        throw new Error(
+          `You do not have write access to "${fullRepoName}". Please choose "Fork & Push" to push to your own account, or "Publish as new repository".`
+        );
+      }
+    }
 
     // 4. Push branch(es) to remote with upstream tracking
     if (options.push_all) {
@@ -984,10 +1345,7 @@ export class GithubService {
       }
     }
     // 5. Update .80degrees_meta.json with latest github info
-    const metaPath = path.join(projectPath, ".80degrees_meta.json");
     try {
-      const raw = await fs.readFile(metaPath, "utf-8");
-      const meta = JSON.parse(raw);
       meta.github_repo = fullRepoName;
       meta.github_url = `https://github.com/${fullRepoName}`;
       await fs.writeFile(metaPath, JSON.stringify(meta, null, 2), "utf-8");
@@ -996,12 +1354,20 @@ export class GithubService {
     const hashRes = await this.runGit(projectPath, ["rev-parse", "HEAD"]);
 
     console.log(`[GithubService] Successfully pushed ${projectName} (${remoteBranchName}) to ${fullRepoName}`);
+    const prUrl = meta.upstream_repo
+      ? `https://github.com/${meta.upstream_repo}/compare/${meta.default_branch || "main"}...${this.cachedAuth?.user?.login || ""}:${remoteBranchName}?expand=1`
+      : undefined;
+
     return {
       success: true,
       branch: remoteBranchName,
       github_repo: fullRepoName,
       github_url: `https://github.com/${fullRepoName}`,
       commit_hash: hashRes.stdout || undefined,
+      pushed_all: Boolean(options.push_all),
+      pr_url: prUrl,
+      is_fork: Boolean(meta.is_fork),
+      upstream_repo: meta.upstream_repo || null,
     };
   }
 

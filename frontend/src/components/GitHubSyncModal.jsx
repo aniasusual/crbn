@@ -40,6 +40,16 @@ const ExternalLinkIcon = () => (
     <line x1="10" y1="14" x2="21" y2="3"></line>
   </svg>
 );
+const ForkIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="18" r="3" />
+    <circle cx="6" cy="6" r="3" />
+    <circle cx="18" cy="6" r="3" />
+    <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
+    <path d="M12 12v3" />
+  </svg>
+);
+
 
 const CloseIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -208,6 +218,52 @@ export default function GitHubSyncModal({
 
 
   // Handle Publish / Create Repo & Push (pushes all branches on initial publish)
+  // Handle Fork & Push for 3rd-party repositories
+  const handleForkAndPush = async () => {
+    try {
+      setActionInProgress(true);
+      setProgressMessage('Forking repository to your account and pushing...');
+      setError(null);
+
+      const targetBranch = useCustomBranch && customBranch.trim()
+        ? customBranch.trim()
+        : (activeBranch || gitStatus?.active_branch || 'main');
+
+      const res = await fetch(
+        `${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/fork-and-push`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            branch: targetBranch,
+            commit_message: commitMessage.trim() || undefined,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to fork and push repository');
+      }
+
+      setSuccessInfo({
+        type: 'fork_and_push',
+        message: `Successfully forked to ${data.fork_repo} and pushed branch!`,
+        repoUrl: data.fork_url,
+        prUrl: data.pr_url,
+        branch: data.branch,
+      });
+
+      setCommitMessage('');
+      await fetchStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setActionInProgress(false);
+      setProgressMessage('');
+    }
+  };
+
   const handlePublishRepo = async (e) => {
     e?.preventDefault();
     if (!newRepoName.trim()) {
@@ -456,6 +512,17 @@ export default function GitHubSyncModal({
                   className="gh-sync-external-link"
                 >
                   View on GitHub <ExternalLinkIcon />
+                </a>
+              )}
+              {successInfo.prUrl && (
+                <a
+                  href={successInfo.prUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="gh-sync-external-link"
+                  style={{ marginLeft: 8 }}
+                >
+                  Open PR on GitHub <ExternalLinkIcon />
                 </a>
               )}
             </div>
@@ -726,14 +793,22 @@ export default function GitHubSyncModal({
               <div className="gh-sync-remote-card">
                 <div className="gh-sync-remote-left">
                   <span className="gh-sync-remote-label">Connected Remote</span>
-                  <a
-                    href={gitStatus.github_url || `https://github.com/${gitStatus.github_repo}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gh-sync-remote-url"
-                  >
-                    github.com/{gitStatus.github_repo} <ExternalLinkIcon />
-                  </a>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <a
+                      href={gitStatus.github_url || `https://github.com/${gitStatus.github_repo}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gh-sync-remote-url"
+                    >
+                      github.com/{gitStatus.github_repo} <ExternalLinkIcon />
+                    </a>
+                    {gitStatus.is_fork && gitStatus.upstream_repo && (
+                      <span className="gh-sync-fork-badge" title={`Fork of ${gitStatus.upstream_repo}`}>
+                        <ForkIcon size={11} />
+                        <span>Fork of {gitStatus.upstream_repo}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="gh-sync-remote-right">
                   <button
@@ -749,6 +824,29 @@ export default function GitHubSyncModal({
                   </span>
                 </div>
               </div>
+              {/* Non-owner / No Write Access Notice */}
+              {gitStatus.can_push === false && (
+                <div className="gh-sync-non-owner-card">
+                  <div className="gh-sync-non-owner-icon">
+                    <ForkIcon size={16} />
+                  </div>
+                  <div className="gh-sync-non-owner-body">
+                    <span className="gh-sync-non-owner-title">3rd-Party Repository (No Push Access)</span>
+                    <span className="gh-sync-non-owner-desc">
+                      This repository belongs to <strong>@{gitStatus.github_repo?.split('/')[0]}</strong>. Pushing directly to this remote is not permitted. You can fork it to your account in one click to push commits and open pull requests.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="gh-sync-primary-btn gh-sync-primary-btn--fork"
+                    onClick={handleForkAndPush}
+                    disabled={actionInProgress || isAgentRunning}
+                  >
+                    {actionInProgress ? 'Forking...' : 'Fork & Push'}
+                  </button>
+                </div>
+              )}
+
 
               {/* Retarget / Push to Another Repo Form */}
               {isRetargeting && (
@@ -1027,6 +1125,17 @@ export default function GitHubSyncModal({
                     >
                       Branch on GitHub <ExternalLinkIcon />
                     </a>
+                    {gitStatus.is_fork && gitStatus.upstream_repo && (
+                      <a
+                        href={`https://github.com/${gitStatus.upstream_repo}/compare/${gitStatus.default_branch || 'main'}...${authStatus?.user?.login || ''}:${currentBranchName}?expand=1`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="gh-sync-quick-link"
+                        title={`Create Pull Request to upstream ${gitStatus.upstream_repo}`}
+                      >
+                        Create PR to <strong>{gitStatus.upstream_repo}</strong> <ExternalLinkIcon />
+                      </a>
+                    )}
                   </>
                 )}
               </div>
@@ -1057,26 +1166,47 @@ export default function GitHubSyncModal({
                   </button>
                 )}
 
-                <button
-                  type="button"
-                  className="gh-sync-primary-btn"
-                  onClick={handlePush}
-                  disabled={actionInProgress || isAgentRunning}
-                >
-                  {actionInProgress ? (
-                    <>
-                      <div className="gh-sync-spinner-small" />
-                      <span>{progressMessage || 'Pushing...'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <ArrowUpIcon />
-                      <span>
-                        Push {useCustomBranch && customBranch ? customBranch : currentBranchName}
-                      </span>
-                    </>
-                  )}
-                </button>
+                {gitStatus.can_push === false ? (
+                  <button
+                    type="button"
+                    className="gh-sync-primary-btn gh-sync-primary-btn--fork"
+                    onClick={handleForkAndPush}
+                    disabled={actionInProgress || isAgentRunning}
+                  >
+                    {actionInProgress ? (
+                      <>
+                        <div className="gh-sync-spinner-small" />
+                        <span>{progressMessage || 'Forking & Pushing...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <ForkIcon size={13} />
+                        <span>Fork to @{authStatus?.user?.login || 'account'} & Push</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="gh-sync-primary-btn"
+                    onClick={handlePush}
+                    disabled={actionInProgress || isAgentRunning}
+                  >
+                    {actionInProgress ? (
+                      <>
+                        <div className="gh-sync-spinner-small" />
+                        <span>{progressMessage || 'Pushing...'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <ArrowUpIcon />
+                        <span>
+                          Push {useCustomBranch && customBranch ? customBranch : currentBranchName}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </div>
           )}

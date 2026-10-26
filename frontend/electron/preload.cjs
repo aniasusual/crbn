@@ -29,3 +29,12 @@ if (desktopConfig) {
     window.__80DEGREES_CONFIG__ = desktopConfig;
   }
 }
+try {
+  contextBridge.exposeInMainWorld('crbnDesktop', {
+    selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  });
+} catch {
+  window.crbnDesktop = {
+    selectDirectory: () => ipcRenderer.invoke('select-directory'),
+  };
+}

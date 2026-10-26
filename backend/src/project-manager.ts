@@ -3,6 +3,7 @@ import * as fsSync from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index";
+import { CheckpointManager } from "./checkpoint-manager";
 import type { DevServerManager } from "./dev-server";
 import { getAugmentedEnv } from "./runtime-env";
 export interface ProjectInfo {
@@ -351,7 +352,16 @@ export class ProjectManager {
     const validatedName = this.validateName(name);
     const projectDir = path.join(this.root, validatedName);
     if (fsSync.existsSync(projectDir)) {
-      await fs.rm(projectDir, { recursive: true, force: true });
+      try {
+        const stat = fsSync.lstatSync(projectDir);
+        if (stat.isSymbolicLink()) {
+          fsSync.unlinkSync(projectDir);
+        } else {
+          await fs.rm(projectDir, { recursive: true, force: true });
+        }
+      } catch {
+        await fs.rm(projectDir, { recursive: true, force: true }).catch(() => {});
+      }
     }
     try {
       const sessionDir = SessionManager.getDefaultSessionDir(projectDir);
@@ -359,6 +369,120 @@ export class ProjectManager {
         await fs.rm(sessionDir, { recursive: true, force: true });
       }
     } catch {}
+  }
+  async importLocalProject(dirPath: string, preferredName?: string): Promise<ProjectInfo> {
+    const resolvedPath = path.resolve(dirPath);
+    if (!fsSync.existsSync(resolvedPath)) {
+      throw new Error(`Directory does not exist: ${resolvedPath}`);
+    }
+    const stat = fsSync.statSync(resolvedPath);
+    if (!stat.isDirectory()) {
+      throw new Error(`Path is not a directory: ${resolvedPath}`);
+    }
+
+    const dirBase = path.basename(resolvedPath);
+    const candidateName = (preferredName || dirBase)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "-")
+      .replace(/-+/g, "-");
+
+    // Deduplicate in projects folder if needed
+    let finalProjectName = candidateName;
+    let linkPath = path.join(this.root, finalProjectName);
+    let counter = 2;
+    while (fsSync.existsSync(linkPath)) {
+      try {
+        const existingTarget = fsSync.realpathSync(linkPath);
+        if (existingTarget === fsSync.realpathSync(resolvedPath)) {
+          return await this.getProject(finalProjectName);
+        }
+      } catch {}
+      finalProjectName = `${candidateName}-${counter}`;
+      linkPath = path.join(this.root, finalProjectName);
+      counter++;
+    }
+
+    // Create symlink in ~/.80degrees/projects so it appears in listProjects()
+    await fs.symlink(resolvedPath, linkPath, "junction");
+
+    // Initialize git checkpoints in the imported directory if not already
+    await CheckpointManager.ensureGitRepo(resolvedPath);
+
+    // Ensure .80degrees_* metadata files are excluded from Git
+    try {
+      const excludeDir = path.join(resolvedPath, ".git", "info");
+      if (!fsSync.existsSync(excludeDir)) {
+        await fs.mkdir(excludeDir, { recursive: true });
+      }
+      const excludePath = path.join(excludeDir, "exclude");
+      let currentExclude = "";
+      if (fsSync.existsSync(excludePath)) {
+        currentExclude = await fs.readFile(excludePath, "utf-8");
+      }
+      const linesToAdd = [
+        ".80degrees_chat.json",
+        ".80degrees_checkpoints.json",
+        ".80degrees_branches.json",
+        ".80degrees_meta.json",
+      ].filter((line) => !currentExclude.includes(line));
+      if (linesToAdd.length > 0) {
+        await fs.appendFile(excludePath, "\n" + linesToAdd.join("\n") + "\n", "utf-8");
+      }
+    } catch (e) {
+      console.warn("[ProjectManager] Non-fatal: could not update .git/info/exclude on import:", e);
+    }
+
+    // Read or create .80degrees_meta.json
+    const metaPath = path.join(resolvedPath, META_FILENAME);
+    let projectInfo: ProjectInfo;
+    const now = new Date().toISOString();
+
+    if (fsSync.existsSync(metaPath)) {
+      try {
+        const raw = await fs.readFile(metaPath, "utf-8");
+        const meta = JSON.parse(raw);
+        projectInfo = {
+          name: meta.name ?? finalProjectName,
+          path: resolvedPath,
+          template: meta.template ?? "local_import",
+          model: meta.model ?? undefined,
+          status: "stopped",
+          port: null,
+          backend_port: null,
+          pid: null,
+          created_at: meta.created_at ?? now,
+          last_opened: now,
+        };
+      } catch {
+        projectInfo = {
+          name: finalProjectName,
+          path: resolvedPath,
+          template: "local_import",
+          status: "stopped",
+          port: null,
+          backend_port: null,
+          pid: null,
+          created_at: now,
+          last_opened: now,
+        };
+      }
+    } else {
+      projectInfo = {
+        name: finalProjectName,
+        path: resolvedPath,
+        template: "local_import",
+        status: "stopped",
+        port: null,
+        backend_port: null,
+        pid: null,
+        created_at: now,
+        last_opened: now,
+      };
+      await fs.writeFile(metaPath, JSON.stringify(projectInfo, null, 2), "utf-8");
+    }
+
+    return projectInfo;
   }
 
   async openInFinder(name: string): Promise<void> {

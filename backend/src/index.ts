@@ -456,6 +456,7 @@ const _server = Bun.serve<WsData>({
           project_name?: string;
           branch?: string;
           model?: string;
+          fork?: boolean;
         };
         if (!body.full_name) {
           return Response.json(
@@ -468,6 +469,7 @@ const _server = Bun.serve<WsData>({
           project_name: body.project_name,
           branch: body.branch,
           model: body.model,
+          fork: body.fork,
         });
         return Response.json(project, { headers: CORS_HEADERS });
       } catch (err) {
@@ -493,6 +495,40 @@ const _server = Bun.serve<WsData>({
         );
       }
     }
+    // GitHub: Repo details & permissions
+    if (url.pathname === "/api/github/repo-info" && req.method === "GET") {
+      const repo = url.searchParams.get("repo");
+      if (!repo) {
+        return Response.json({ detail: "repo query parameter is required" }, { status: 400, headers: CORS_HEADERS });
+      }
+      try {
+        const info = await githubService.getRepoDetails(repo);
+        return Response.json(info, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // GitHub: Fork Repo
+    if (url.pathname === "/api/github/fork" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { full_name?: string };
+        if (!body.full_name) {
+          return Response.json({ detail: "full_name is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const forked = await githubService.forkRepo(body.full_name);
+        return Response.json(forked, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
 
 
     // GitHub: Create Repo
@@ -566,6 +602,23 @@ const _server = Bun.serve<WsData>({
         );
       }
     }
+    // Projects: Import Local Directory
+    if (url.pathname === "/api/projects/import-local" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as { path?: string; name?: string };
+        if (!body.path) {
+          return Response.json({ detail: "Directory path is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        const project = await projectManager.importLocalProject(body.path, body.name);
+        return Response.json(project, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
 
     // Projects: Delete
     if (url.pathname.match(/^\/api\/projects\/[^/]+$/) && req.method === "DELETE") {
@@ -1220,6 +1273,25 @@ const _server = Bun.serve<WsData>({
         );
       }
     }
+    // Projects: Fork and Push (for non-owner/third-party repositories)
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/fork-and-push$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json().catch(() => ({}))) as {
+          branch?: string;
+          commit_message?: string;
+        };
+        const result = await githubService.forkAndRetargetProject(projectName, body);
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
+
 
     // Projects: Git Pull from GitHub
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/git-pull$/) && req.method === "POST") {

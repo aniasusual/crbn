@@ -40,11 +40,28 @@ const LockIcon = () => (
     <path d="M7 11V7a5 5 0 0 1 10 0v4" />
   </svg>
 );
+const ForkIcon = ({ size = 11 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="18" r="3" />
+    <circle cx="6" cy="6" r="3" />
+    <circle cx="18" cy="6" r="3" />
+    <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9" />
+    <path d="M12 12v3" />
+  </svg>
+);
+
+const FolderIcon = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+);
+
 
 export default function WelcomeView({
   onSubmit,
   onConnectAndBuild,
   onOpenProject,
+  onImportLocalProject,
   onDeleteProject,
   isExiting = false,
   isTransitioning = false,
@@ -128,6 +145,71 @@ export default function WelcomeView({
   const [repoBranches, setRepoBranches] = useState([]);
   const [selectedBranch, setSelectedBranch] = useState('main');
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [shouldForkThirdParty, setShouldForkThirdParty] = useState(true);
+
+  const isCurrentUserRepo = Boolean(
+    githubStatus?.user &&
+    selectedRepo &&
+    selectedRepo.owner?.toLowerCase() === githubStatus.user.login?.toLowerCase()
+  );
+  const isThirdPartyRepo = Boolean(selectedRepo && !isCurrentUserRepo);
+  const isCustomRepoQuery = Boolean(repoSearch.trim().includes('/') || repoSearch.trim().includes('github.com'));
+
+  const handleOpenFolder = async () => {
+    try {
+      let usedIpc = false;
+      if (window.crbnDesktop?.selectDirectory) {
+        usedIpc = true;
+        try {
+          const chosen = await window.crbnDesktop.selectDirectory();
+          if (chosen) {
+            onImportLocalProject?.(chosen);
+          }
+          return;
+        } catch (ipcErr) {
+          console.warn('[WelcomeView] Desktop native folder picker unavailable in current Electron process:', ipcErr);
+        }
+      }
+
+      // Fallback if running Electron main process hasn't restarted or if running in web
+      const entered = window.prompt(
+        usedIpc
+          ? 'Native dialog is loading or needs an Electron restart. Enter folder path directly:'
+          : 'Enter path to local project folder:'
+      );
+      if (entered && entered.trim()) {
+        onImportLocalProject?.(entered.trim());
+      }
+    } catch (err) {
+      console.error('Failed to open local directory:', err);
+    }
+  };
+
+  const handleFetchAndSelectCustomRepo = async (query) => {
+    let raw = query.trim();
+    raw = raw.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+    const parts = raw.split('/').filter(Boolean);
+    if (parts.length < 2) {
+      alert('Please enter a valid repository format, e.g. owner/repo');
+      return;
+    }
+    const fullName = `${parts[0]}/${parts[1]}`;
+    try {
+      setIsLoadingBranches(true);
+      const res = await fetch(`${API_BASE_URL}/api/github/repo-info?repo=${encodeURIComponent(fullName)}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Repository "${fullName}" not found or inaccessible`);
+      }
+      const data = await res.json();
+      handleSelectRepo(data);
+      setRepoSearch('');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  };
 
   const textareaId = useId();
 
@@ -289,6 +371,7 @@ export default function WelcomeView({
 
   const handleSelectRepo = useCallback((repo) => {
     setSelectedRepo(repo);
+    setShouldForkThirdParty(true);
     // Scroll composer into view
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const textarea = document.getElementById(textareaId);
@@ -421,7 +504,14 @@ export default function WelcomeView({
         .filter((a) => a.type === 'file')
         .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
       if (onConnectAndBuild) {
-        onConnectAndBuild(selectedRepo, prompt.trim(), { images, files }, selectedBranch, welcomeMode);
+        onConnectAndBuild(
+          selectedRepo,
+          prompt.trim(),
+          { images, files },
+          selectedBranch,
+          welcomeMode,
+          { fork: isThirdPartyRepo && shouldForkThirdParty }
+        );
       } else {
         onSubmit(prompt.trim(), selectedRepo.name, { images, files }, welcomeMode);
       }
@@ -513,6 +603,15 @@ export default function WelcomeView({
             <div className="degrees-welcome__right-inner">
               {/* Top Bar with GitHub Connect & Model Auth */}
               <div className="degrees-welcome__top-bar">
+                <button
+                  type="button"
+                  className="degrees-open-folder-btn"
+                  onClick={handleOpenFolder}
+                  title="Open an existing local project folder or cloned repository on your computer"
+                >
+                  <FolderIcon size={13} />
+                  <span>Open Folder</span>
+                </button>
                 {githubStatus?.connected && githubStatus?.user ? (
                   <button
                     type="button"
@@ -651,6 +750,27 @@ export default function WelcomeView({
                       >
                         {selectedRepo.private ? 'Private' : 'Public'}
                       </span>
+                      {isThirdPartyRepo && (
+                        <div className="degrees-composer__fork-toggle-wrap">
+                          <button
+                            type="button"
+                            className={`degrees-composer__fork-chip ${shouldForkThirdParty ? 'degrees-composer__fork-chip--active' : ''}`}
+                            onClick={() => setShouldForkThirdParty(true)}
+                            title={`Fork to @${githubStatus?.user?.login || 'account'} so you can push commits and create PRs`}
+                          >
+                            <ForkIcon size={10} />
+                            <span>Fork to @{githubStatus?.user?.login || 'account'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`degrees-composer__fork-chip ${!shouldForkThirdParty ? 'degrees-composer__fork-chip--active' : ''}`}
+                            onClick={() => setShouldForkThirdParty(false)}
+                            title="Clone detached (read-only origin). You can publish as a new repository later."
+                          >
+                            <span>Clone detached</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                     <button
                       type="button"
@@ -1010,6 +1130,24 @@ export default function WelcomeView({
                   </div>
                 ) : filteredGithubRepos.length > 0 ? (
                   <div className="degrees-timelines__interactive-wrap">
+                    {isCustomRepoQuery && (
+                      <div className="degrees-github-custom-clone-card">
+                        <div className="degrees-github-custom-clone-left">
+                          <span className="degrees-github-custom-clone-badge">Custom Repo</span>
+                          <span className="degrees-github-custom-clone-name">
+                            {repoSearch.trim().replace(/^https?:\/\/github\.com\//, '')}
+                          </span>
+                          <span className="degrees-github-custom-clone-hint">Clone any public GitHub repository</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="degrees-repo-select-btn degrees-repo-select-btn--active"
+                          onClick={() => handleFetchAndSelectCustomRepo(repoSearch)}
+                        >
+                          Clone & Build
+                        </button>
+                      </div>
+                    )}
                     <InteractiveListPreview
                       items={githubRepoItems}
                       colWidths={['32%', '22%', '26%', '20%']}
@@ -1020,14 +1158,23 @@ export default function WelcomeView({
                   <div className="degrees-timelines__empty">
                     {repoSearch.trim() ? (
                       <div className="degrees-timelines__empty-search">
-                        <span>No repositories matching &ldquo;{repoSearch}&rdquo;</span>
-                        <button
-                          type="button"
-                          className="degrees-timelines__clear-btn"
-                          onClick={() => setRepoSearch('')}
-                        >
-                          Clear search
-                        </button>
+                        <span>No connected repositories matching &ldquo;{repoSearch}&rdquo;</span>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="degrees-repo-select-btn degrees-repo-select-btn--active"
+                            onClick={() => handleFetchAndSelectCustomRepo(repoSearch)}
+                          >
+                            Clone &ldquo;{repoSearch.trim().replace(/^https?:\/\/github\.com\//, '')}&rdquo; from GitHub
+                          </button>
+                          <button
+                            type="button"
+                            className="degrees-timelines__clear-btn"
+                            onClick={() => setRepoSearch('')}
+                          >
+                            Clear search
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <p>No repositories found matching your filter criteria.</p>
