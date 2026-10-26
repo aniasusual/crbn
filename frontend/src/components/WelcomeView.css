@@ -1108,6 +1108,28 @@
   margin-bottom: 8px;
 }
 
+.degrees-open-folder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11.5px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: 8px;
+}
+
+.degrees-open-folder-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
 .degrees-github-connect-btn {
   display: inline-flex;
   align-items: center;
@@ -1295,6 +1317,86 @@
 .degrees-composer__target-vis--private {
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.12);
+}
+
+.degrees-composer__fork-toggle-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-left: 4px;
+}
+
+.degrees-composer__fork-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  font-family: inherit;
+}
+
+.degrees-composer__fork-chip:hover {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.degrees-composer__fork-chip--active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.degrees-github-custom-clone-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.degrees-github-custom-clone-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.degrees-github-custom-clone-badge {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 2px 7px;
+  border-radius: 9999px;
+}
+
+.degrees-github-custom-clone-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: var(--font-mono, monospace);
+}
+
+.degrees-github-custom-clone-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .degrees-composer__deselect-btn {

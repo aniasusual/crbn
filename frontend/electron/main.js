@@ -311,6 +311,20 @@ ipcMain.on('get-desktop-config', (event) => {
     isPackaged: app.isPackaged,
   };
 });
+ipcMain.handle('select-directory', async () => {
+  const targetWindow = mainWindow || BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+  const options = {
+    title: 'Open Existing Project Folder in crbn',
+    properties: ['openDirectory', 'createDirectory'],
+  };
+  const result = targetWindow
+    ? await dialog.showOpenDialog(targetWindow, options)
+    : await dialog.showOpenDialog(options);
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+    return null;
+  }
+  return result.filePaths[0];
+});
 
 function setupApplicationMenu() {
   const isMac = process.platform === 'darwin';

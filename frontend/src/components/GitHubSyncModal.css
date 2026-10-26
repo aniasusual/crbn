@@ -207,6 +207,70 @@
   white-space: nowrap;
 }
 
+.gh-sync-fork-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 550;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 0.2rem 0.5rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono, monospace);
+}
+
+.gh-sync-non-owner-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+  padding: 0.875rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.gh-sync-non-owner-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.gh-sync-non-owner-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+}
+
+.gh-sync-non-owner-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fde68a;
+}
+
+.gh-sync-non-owner-desc {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.35;
+}
+
+.gh-sync-primary-btn--fork {
+  background: #38bdf8 !important;
+  color: #000000 !important;
+}
+
+.gh-sync-primary-btn--fork:hover {
+  background: #7dd3fc !important;
+}
+
 .gh-sync-loading {
   display: flex;
   flex-direction: column;

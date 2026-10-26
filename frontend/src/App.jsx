@@ -835,7 +835,7 @@ export default function App() {
   );
   // Handle Cloning and Building on a GitHub Repository
   const handleConnectAndBuild = useCallback(
-    async (repo, prompt, attachments, targetBranch, initialMode = 'build') => {
+    async (repo, prompt, attachments, targetBranch, initialMode = 'build', options = {}) => {
       try {
         setIsTransitioning(true);
         const branchToUse = targetBranch || repo.default_branch;
@@ -846,6 +846,7 @@ export default function App() {
             full_name: repo.full_name,
             branch: branchToUse,
             model: globalDefaultModel,
+            fork: Boolean(options.fork),
           }),
         });
         const data = await response.json();
@@ -862,6 +863,31 @@ export default function App() {
       }
     },
     [globalDefaultModel, handleOpenProject]
+  );
+
+  // Handle Importing a Local Folder into Workspace
+  const handleImportLocalProject = useCallback(
+    async (dirPath) => {
+      try {
+        setIsTransitioning(true);
+        const response = await fetch(`${API_BASE_URL}/api/projects/import-local`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: dirPath }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to open local directory');
+        }
+        handleOpenProject(data);
+        setIsTransitioning(false);
+      } catch (err) {
+        console.error('Failed to import local folder:', err);
+        alert(`Failed to open local folder: ${err instanceof Error ? err.message : String(err)}`);
+        setIsTransitioning(false);
+      }
+    },
+    [handleOpenProject]
   );
 
 
@@ -1269,6 +1295,7 @@ export default function App() {
           onSubmit={handleCreateProject}
           onConnectAndBuild={handleConnectAndBuild}
           onOpenProject={(proj) => handleOpenProject(proj)}
+          onImportLocalProject={handleImportLocalProject}
           onDeleteProject={handleDeleteProjectFromTabs}
           isTransitioning={isTransitioning}
           hardwareInfo={hardwareInfo}
