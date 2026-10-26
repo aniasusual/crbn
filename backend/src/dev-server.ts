@@ -458,6 +458,7 @@ export class DevServerManager {
     });
 
     if (backendProc) {
+      const allocatedBackendPort = backendPort;
       backendProc.exited.then((code) => {
         const entry = this.activeServers.get(resolvedPath);
         if (entry?.backendProc === backendProc) {
@@ -466,6 +467,10 @@ export class DevServerManager {
           entry.info.backend_port = null;
           entry.info.backend_url = null;
           entry.info.backend_pid = null;
+          if (allocatedBackendPort) {
+            this.reservedPorts.delete(allocatedBackendPort);
+            void this.forceFreePort(allocatedBackendPort);
+          }
         }
       });
     }

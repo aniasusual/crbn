@@ -58,6 +58,7 @@ interface WsData {
   unsubscribeDevServer?: () => void;
   messageQueue?: Promise<void>;
   send?: (msg: Record<string, unknown>) => void;
+  isExplicitClose?: boolean;
 }
 
 const activeSockets = new Set<(msg: Record<string, unknown>) => void>();
@@ -1463,6 +1464,7 @@ const _server = Bun.serve<WsData>({
         return;
       }
       if (action === "close_project") {
+        ws.data.isExplicitClose = true;
         const projectName = ws.data.activeProjectName;
         if (projectName) {
           const pending = projectCleanupTimers.get(projectName);
@@ -1470,8 +1472,8 @@ const _server = Bun.serve<WsData>({
             clearTimeout(pending);
             projectCleanupTimers.delete(projectName);
           }
-          projectManager.getProject(projectName).then(proj => {
-            devServerManager.stopDevServer(proj.path);
+          projectManager.getProject(projectName).then(async (proj) => {
+            await devServerManager.stopDevServer(proj.path);
           }).catch(() => {});
         }
         bridge.stop().catch(() => {});
@@ -1822,16 +1824,22 @@ const _server = Bun.serve<WsData>({
         if (activeBridges.get(closingProject) === ws.data.bridge) {
           activeBridges.delete(closingProject);
         }
-        // Start orphan cleanup timer: if no connection re-attaches to this project within 4s, stop dev server
-        const timer = setTimeout(() => {
-          projectCleanupTimers.delete(closingProject);
-          if (!activeBridges.has(closingProject)) {
-            projectManager.getProject(closingProject).then(proj => {
-              devServerManager.stopDevServer(proj.path);
-            }).catch(() => {});
-          }
-        }, 4000);
-        projectCleanupTimers.set(closingProject, timer);
+        if (ws.data.isExplicitClose) {
+          projectManager.getProject(closingProject).then(async (proj) => {
+            await devServerManager.stopDevServer(proj.path);
+          }).catch(() => {});
+        } else {
+          // Start orphan cleanup timer: if no connection re-attaches to this project within 4s, stop dev server
+          const timer = setTimeout(() => {
+            projectCleanupTimers.delete(closingProject);
+            if (!activeBridges.has(closingProject)) {
+              projectManager.getProject(closingProject).then(async (proj) => {
+                await devServerManager.stopDevServer(proj.path);
+              }).catch(() => {});
+            }
+          }, 4000);
+          projectCleanupTimers.set(closingProject, timer);
+        }
       }
       ws.data.bridge?.dispose().catch(() => {});
     },

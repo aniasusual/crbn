@@ -1563,6 +1563,9 @@ export class SessionBridge {
     this.pendingPlanRequests.clear();
 
     if (this.session) {
+      try {
+        await this.session.abort({ reason: "Session disposed" }).catch(() => {});
+      } catch {}
       this.unsubscribe?.();
       this.unsubscribe = null;
       await this.session.dispose().catch(() => {});
