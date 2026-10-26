@@ -69,6 +69,7 @@ class EightyDegrees(BaseAgent):
         identity_path = self.logs_dir / "identity.json"
         context.metadata = {
             "identity": json.loads(identity_path.read_text()) if identity_path.exists() else None,
+            "outcome": json.loads((self.logs_dir / "outcome.json").read_text()) if (self.logs_dir / "outcome.json").exists() else None,
             "uncached_input_tokens": tokens.get("input"),
             "cached_input_tokens": tokens.get("cacheRead"),
             "cache_write_tokens": tokens.get("cacheWrite"),

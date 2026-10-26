@@ -43,12 +43,18 @@ session.subscribe(event => {
   if (event.type !== "message_update") appendFileSync(`${logs}/events.jsonl`, JSON.stringify(event) + "\n");
 });
 let failed = false;
+let safetyRefusal = false;
 try {
   await session.prompt(readFileSync(instructionPath, "utf8"));
-  failed = session.messages.some(m => m.role === "assistant" && m.stopReason === "error");
+  const errors = session.messages.filter(m => m.role === "assistant" && m.stopReason === "error");
+  failed = errors.length > 0;
+  safetyRefusal = errors.some(m => /cyber_policy|flagged for possible cybersecurity risk/i.test(String((m as any).errorMessage ?? "")));
 } finally {
   writeFileSync(`${logs}/stats.json`, JSON.stringify(session.getSessionStats(), null, 2));
+  writeFileSync(`${logs}/outcome.json`, JSON.stringify({ failed, safety_refusal: safetyRefusal }, null, 2));
   await session.dispose();
   auth.close();
 }
-process.exit(failed ? 1 : 0);
+// Match Harbor Codex semantics: a policy refusal is a completed agent outcome
+// and must proceed to the verifier (normally scoring 0), not an infra failure.
+process.exit(failed && !safetyRefusal ? 1 : 0);
