@@ -1,7 +1,7 @@
 # ==============================================================================
 # 80degrees Desktop Installer for Windows
 # Usage:
-#   irm https://get.80degrees.dev/ps1 | iex
+#   irm https://get.80degreeslabs.com | iex
 #   & ([scriptblock]::Create((irm https://raw.githubusercontent.com/aniasusual/crbn/main/scripts/install.ps1)))
 #
 # Options:

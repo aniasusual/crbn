@@ -6,7 +6,7 @@ set -e
 # Installs standalone desktop app with zero Apple Developer ID fees & no Gatekeeper blocks.
 #
 # Usage:
-#   curl -fsSL https://get.80degrees.dev | sh
+#   curl -fsSL https://get.80degreeslabs.com | sh
 #   curl -fsSL https://raw.githubusercontent.com/aniasusual/crbn/main/scripts/install.sh | sh
 #
 # Options:
