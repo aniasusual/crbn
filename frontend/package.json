@@ -2,7 +2,7 @@
   "name": "frontend",
   "description": "AI-powered autonomous software engineering environment",
   "author": "80degrees <support@80degrees.dev>",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "main": "electron/main.js",
   "repository": {
@@ -59,6 +59,7 @@
   "build": {
     "appId": "com.80degrees.app",
     "productName": "80degrees",
+    "artifactName": "${productName}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "aniasusual",
@@ -99,14 +100,14 @@
       "category": "public.app-category.developer-tools",
       "target": [
         {
-          "target": "dmg",
+          "target": "zip",
           "arch": [
             "arm64",
             "x64"
           ]
         },
         {
-          "target": "zip",
+          "target": "dmg",
           "arch": [
             "arm64",
             "x64"
@@ -136,14 +137,15 @@
     "win": {
       "icon": "build/icon.png",
       "target": [
-        "nsis",
-        "zip"
+        "zip",
+        "nsis"
       ]
     },
     "linux": {
       "icon": "build/icon.png",
       "maintainer": "80degrees <support@80degrees.dev>",
       "target": [
+        "tar.gz",
         "AppImage",
         "deb"
       ]

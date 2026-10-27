@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnnotatedText } from '@/components/ui/annotated-text';
+import { API_BASE_URL } from '../config';
 import './TabBar.css';
 
 export default function TabBar({
@@ -12,6 +13,58 @@ export default function TabBar({
   onRefreshTab,
   onNewTab,
 }) {
+  const [updateInfo, setUpdateInfo] = useState(null);
+  const [updateStatus, setUpdateStatus] = useState('idle'); // 'idle' | 'updating' | 'ready' | 'error'
+  const [updateError, setUpdateError] = useState('');
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkUpdates = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/system/update/check`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (isMounted && data.hasUpdate) {
+          setUpdateInfo(data);
+        }
+      } catch {}
+    };
+
+    checkUpdates();
+    const interval = setInterval(checkUpdates, 1000 * 60 * 60 * 2); // Every 2 hours
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const handleApplyUpdate = async () => {
+    if (updateStatus === 'updating') return;
+    if (updateStatus === 'ready') {
+      if (window.crbnDesktop?.restartApp) {
+        window.crbnDesktop.restartApp();
+      } else {
+        window.location.reload();
+      }
+      return;
+    }
+
+    setUpdateStatus('updating');
+    setUpdateError('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/system/update/apply`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setUpdateStatus('ready');
+      } else {
+        setUpdateStatus('error');
+        setUpdateError(data.error || data.message || 'Update failed');
+      }
+    } catch (err) {
+      setUpdateStatus('error');
+      setUpdateError(err.message || 'Network error');
+    }
+  };
   return (
     <div className="tab-bar">
       <div className="tab-bar__left">
@@ -135,6 +188,41 @@ export default function TabBar({
         </div>
       </div>
 
+      {updateInfo && (
+        <div className="tab-bar__right">
+          <button
+            type="button"
+            className={`tab-bar__update-btn ${updateStatus === 'ready' ? 'tab-bar__update-btn--success' : ''}`}
+            onClick={handleApplyUpdate}
+            title={updateError || (updateStatus === 'ready' ? 'Restart to apply update' : `Update to v${updateInfo.latestVersion}`)}
+          >
+            {updateStatus === 'idle' && (
+              <>
+                <span>⚡</span>
+                <span>Update to v{updateInfo.latestVersion}</span>
+              </>
+            )}
+            {updateStatus === 'updating' && (
+              <>
+                <span className="tab-bar__spin">⏳</span>
+                <span>Updating...</span>
+              </>
+            )}
+            {updateStatus === 'ready' && (
+              <>
+                <span>✓</span>
+                <span>Restart to apply</span>
+              </>
+            )}
+            {updateStatus === 'error' && (
+              <>
+                <span>⚠</span>
+                <span>Update failed (retry)</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,14 +16,14 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            build_cmd: npm run dist:mac
-            artifact_pattern: 'frontend/release/*.dmg,frontend/release/*.zip'
+            build_cmd: npm run dist:mac:all
+            artifact_pattern: 'frontend/release/*.zip,frontend/release/*.dmg'
           - os: windows-latest
             build_cmd: npm run dist:win
-            artifact_pattern: 'frontend/release/*.exe,frontend/release/*.zip'
+            artifact_pattern: 'frontend/release/*.zip,frontend/release/*.exe'
           - os: ubuntu-latest
             build_cmd: npm run dist:linux
-            artifact_pattern: 'frontend/release/*.AppImage,frontend/release/*.deb'
+            artifact_pattern: 'frontend/release/*.tar.gz,frontend/release/*.AppImage,frontend/release/*.deb'
     runs-on: ${{ matrix.os }}
 
     steps:
