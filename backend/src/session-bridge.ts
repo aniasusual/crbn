@@ -746,11 +746,13 @@ export class SessionBridge {
         this.handlePreviewReady(activeUrl);
       }
     }
-
+    if (promptText.trim() === "/clear") {
+      await this.clear();
+      return;
+    }
     const session = this.session;
     if (!session) {
       this.send({
-        type: "auth_required",
         message: "Authentication required: No model provider has active credentials. Please connect an API key or log in with OAuth to activate the agent.",
       });
       this.send({
@@ -937,27 +939,69 @@ export class SessionBridge {
   }
 
   async clear(): Promise<void> {
-    if (this.activeProjectPath) {
-      await ChatHistoryManager.clearHistory(this.activeProjectPath);
-      if (this.session) {
-        try {
-          await this.session.newSession();
-        } catch (err) {
-          console.warn("[SessionBridge] Failed to reset AgentSession to new session:", err);
-        }
-      }
-      this.activeTurns = [];
+    if (!this.activeProjectPath) return;
+
+    if (this.isGenerating || (this.session && this.session.isStreaming)) {
       this.send({
-        type: "chat_history_loaded",
-        project: this.activeProjectPath,
-        messages: [],
+        type: "assistant_error",
+        error: "Agent busy",
+        message: "⚠️ Cannot clear context while the agent is running. Please stop the agent first.",
       });
-      this.send({
-        type: "status",
-        content: "Session context reset.",
-      });
-      this.emitContextTelemetry();
+      return;
     }
+
+    if (this.session?.isCompacting) {
+      this.session.abortCompaction();
+      while (this.session.isCompacting) {
+        await Bun.sleep(20);
+      }
+    }
+
+    let droppedCount = 0;
+    if (this.session) {
+      try {
+        const result = await this.session.resetSessionContext();
+        if (!result) {
+          this.send({
+            type: "status",
+            content: "Context reset skipped: agent or tool execution was in flight.",
+          });
+          return;
+        }
+        droppedCount = result.droppedCount;
+      } catch (err) {
+        console.warn("[SessionBridge] Failed to reset AgentSession context:", err);
+      }
+    }
+
+    for (const [, req] of this.pendingUiRequests.entries()) {
+      req.reject(new Error("Context reset by user."));
+    }
+    this.pendingUiRequests.clear();
+
+    this.activeTurns = [];
+    this.activeToolCalls.clear();
+    this.pendingFollowUps = [];
+    this.dispatchedPrompts.clear();
+
+    await ChatHistoryManager.recordResetBoundary(this.activeProjectPath, this.activeBranchName);
+
+    this.send({
+      type: "session_cleared",
+      droppedCount,
+      timestamp: new Date().toISOString(),
+    });
+    this.send({
+      type: "chat_history_loaded",
+      project: this.activeProjectPath,
+      messages: [],
+    });
+    const messageNoun = droppedCount === 1 ? "message" : "messages";
+    this.send({
+      type: "status",
+      content: `Context reset — ${droppedCount} ${messageNoun} dropped; session continues.`,
+    });
+    this.emitContextTelemetry();
   }
 
   async rewindToStep(

@@ -27,6 +27,25 @@ const StopIcon = () => (
     <rect x="5" y="5" width="14" height="14" rx="2" ry="2"></rect>
   </svg>
 );
+
+const ClearIcon = ({ size = 12, className = '' }) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+  >
+    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+    <path d="M22 21H7" />
+    <path d="m5 11 9 9" />
+  </svg>
+);
+
 const SearchIcon = ({ size = 13, className = '' }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <circle cx="11" cy="11" r="8"></circle>
@@ -187,6 +206,7 @@ export default function ChatPanel({
   isAgentRunning,
   agentStatus = null,
   onClearStatus,
+  onClearContext,
   pendingApproval,
   onApproveCommand,
   onDenyCommand,
@@ -443,10 +463,20 @@ export default function ChatPanel({
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, data: a.data, size: a.size, mimeType: a.mimeType }));
 
+    if (typeof input === 'string' && input.trim() === '/clear') {
+      setInput('');
+      clearAttachments();
+      if (onClearContext) {
+        onClearContext();
+      } else {
+        onSendMessage('/clear');
+      }
+      return;
+    }
+
     onSendMessage(input, { images, files });
     setInput('');
     clearAttachments();
-
     isUserScrolledRef.current = false;
     setTimeout(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -515,6 +545,21 @@ export default function ChatPanel({
           <span className="chat-panel__project-title">{projectName || _projectName || 'Workspace'}</span>
         </div>
         <div className="chat-panel__header-right">
+          <button
+            type="button"
+            className="chat-panel__clear-btn"
+            onClick={onClearContext}
+            disabled={Boolean(isAgentRunning)}
+            title={
+              isAgentRunning
+                ? "Cannot clear context while agent is generating"
+                : "Clear conversation context in place — drops message history from model memory while keeping workspace files, checkpoints, and git branches intact."
+            }
+            aria-label="Clear conversation context"
+          >
+            <ClearIcon size={12} />
+            <span>Clear</span>
+          </button>
           <button
             type="button"
             className={`chat-panel__search-toggle-btn ${isSearchOpen ? 'chat-panel__search-toggle-btn--active' : ''}`}
