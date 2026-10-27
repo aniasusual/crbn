@@ -19,7 +19,11 @@ export class ChatHistoryManager {
     return path.join(projectPath, CHAT_FILENAME);
   }
 
-  static async loadHistory(projectPath: string, branchName?: string): Promise<ChatStoragePayload> {
+  static async loadHistory(
+    projectPath: string,
+    branchName?: string,
+    options?: { raw?: boolean },
+  ): Promise<ChatStoragePayload> {
     const filePath = this.getChatFilePath(projectPath);
     const projectName = path.basename(projectPath);
     const now = new Date().toISOString();
@@ -62,6 +66,16 @@ export class ChatHistoryManager {
       }
 
       const branchEvents = branches[targetBranch] || uiEvents;
+      let visibleEvents = branchEvents;
+      if (!options?.raw) {
+        const lastBoundaryIdx = branchEvents.findLastIndex(
+          (ev: Record<string, unknown>) => ev.type === "reset_boundary"
+        );
+        if (lastBoundaryIdx >= 0) {
+          visibleEvents = branchEvents.slice(lastBoundaryIdx + 1);
+        }
+      }
+
       return {
         version: data.version ?? 3,
         project_name: data.project_name ?? projectName,
@@ -69,7 +83,7 @@ export class ChatHistoryManager {
         updated_at: data.updated_at ?? now,
         active_branch: targetBranch,
         branches,
-        ui_events: branchEvents,
+        ui_events: visibleEvents,
       };
     } catch {
       const recovered = await this.recoverFromSession(projectPath);
@@ -129,7 +143,7 @@ export class ChatHistoryManager {
     newBranch: string,
     fromStepId?: string,
   ): Promise<Record<string, unknown>[]> {
-    const history = await this.loadHistory(projectPath, sourceBranch);
+    const history = await this.loadHistory(projectPath, sourceBranch, { raw: true });
     const sourceEvents = history.ui_events;
     let cutoffIndex = sourceEvents.length - 1;
 
@@ -145,7 +159,8 @@ export class ChatHistoryManager {
 
     const clonedEvents = sourceEvents.slice(0, cutoffIndex + 1);
     await this.saveHistory(projectPath, clonedEvents, newBranch);
-    return clonedEvents;
+    const lastBoundaryIdx = clonedEvents.findLastIndex((ev) => ev.type === "reset_boundary");
+    return lastBoundaryIdx >= 0 ? clonedEvents.slice(lastBoundaryIdx + 1) : clonedEvents;
   }
 
   static async appendEvent(
@@ -153,16 +168,22 @@ export class ChatHistoryManager {
     event: Record<string, unknown>,
     branchName?: string,
   ): Promise<void> {
-    const history = await this.loadHistory(projectPath, branchName);
+    const history = await this.loadHistory(projectPath, branchName, { raw: true });
     history.ui_events.push(event);
     await this.saveHistory(projectPath, history.ui_events, branchName || history.active_branch || "main");
   }
 
-  static async clearHistory(projectPath: string): Promise<void> {
-    const filePath = this.getChatFilePath(projectPath);
-    if (fsSync.existsSync(filePath)) {
-      await fs.unlink(filePath).catch(() => {});
-    }
+  static async recordResetBoundary(projectPath: string, branchName?: string): Promise<void> {
+    const boundaryEvent: Record<string, unknown> = {
+      type: "reset_boundary",
+      id: `reset_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+    };
+    await this.appendEvent(projectPath, boundaryEvent, branchName);
+  }
+
+  static async clearHistory(projectPath: string, branchName?: string): Promise<void> {
+    await this.recordResetBoundary(projectPath, branchName);
   }
 
   static async pruneHistoryAfter(
@@ -170,9 +191,8 @@ export class ChatHistoryManager {
     targetStepId: string,
     targetTimestamp?: string,
   ): Promise<Record<string, unknown>[]> {
-    const history = await this.loadHistory(projectPath);
+    const history = await this.loadHistory(projectPath, undefined, { raw: true });
     const events = history.ui_events;
-
     // 1. Try finding by step_id
     let cutoffIndex = -1;
     for (let i = events.length - 1; i >= 0; i--) {
@@ -203,8 +223,9 @@ export class ChatHistoryManager {
       ? events.slice(0, cutoffIndex + 1)
       : events;
 
-    await this.saveHistory(projectPath, prunedEvents);
-    return prunedEvents;
+    await this.saveHistory(projectPath, prunedEvents, history.active_branch);
+    const lastBoundaryIdx = prunedEvents.findLastIndex((ev) => ev.type === "reset_boundary");
+    return lastBoundaryIdx >= 0 ? prunedEvents.slice(lastBoundaryIdx + 1) : prunedEvents;
   }
 
   static async recoverFromSession(projectPath: string): Promise<Record<string, unknown>[]> {
@@ -213,8 +234,11 @@ export class ChatHistoryManager {
       const branch = sm.getBranch();
       if (!branch || branch.length === 0) return [];
 
+      const lastResetIdx = branch.findLastIndex((e) => e.type === "reset_boundary");
+      const activeEntries = lastResetIdx >= 0 ? branch.slice(lastResetIdx + 1) : branch;
+
       const events: Record<string, unknown>[] = [];
-      for (const entry of branch) {
+      for (const entry of activeEntries) {
         if (entry.type !== "message") continue;
         const m = entry.message;
         const msgTime = new Date(m.timestamp || Date.now()).toISOString();

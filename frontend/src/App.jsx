@@ -201,6 +201,22 @@ export default function App() {
               agentStatus: t.agentStatus !== 'awaiting_human' ? 'generating' : t.agentStatus,
             }));
           }
+          if (data.type === 'session_cleared') {
+            updateTab(tabId, (t) => ({
+              agentStatus: null,
+              messages: [],
+              queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
+              inputText: '',
+              contextTelemetry: t.contextTelemetry ? {
+                ...t.contextTelemetry,
+                total_tokens: 0,
+                provider_prompt_tokens: 0,
+                usage_pct: 0,
+                status: 'normal',
+              } : t.contextTelemetry,
+            }));
+            return;
+          }
 
           if (data.type === 'queue_update') {
             updateTab(tabId, {
@@ -935,6 +951,14 @@ export default function App() {
   const activeTab = tabs.find((t) => t.id === activeTabId) || null;
 
   // Active Tab Action Handlers
+  const handleClearContext = useCallback(() => {
+    if (!activeTabId) return;
+    const ws = socketsRef.current.get(activeTabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'clear' }));
+    }
+  }, [activeTabId]);
+
   const handleSendMessage = useCallback(
     (prompt, attachments) => {
       if ((!prompt && (!attachments || (!attachments.images?.length && !attachments.files?.length))) || !activeTabId) return;
@@ -942,6 +966,12 @@ export default function App() {
       const tab = tabs.find((t) => t.id === activeTabId);
       if (!ws || !tab) return;
 
+      if (typeof prompt === 'string' && prompt.trim() === '/clear') {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: 'clear' }));
+        }
+        return;
+      }
       const images = attachments?.images ?? [];
       const files = attachments?.files ?? [];
 
@@ -1322,8 +1352,8 @@ export default function App() {
           isAgentRunning={activeTab.agentStatus === 'generating'}
           agentStatus={activeTab.agentStatus}
           onClearStatus={() => updateTab(activeTab.id, { agentStatus: null })}
+          onClearContext={handleClearContext}
           previewData={activeTab.previewData}
-          lastChangeTimestamp={activeTab.lastChangeTimestamp}
           onStopPreview={handleStopPreview}
           onGoBack={() => setCurrentView('welcome')}
           projectName={activeTab.projectName}

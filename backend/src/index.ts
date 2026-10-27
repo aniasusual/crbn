@@ -1784,7 +1784,16 @@ const _server = Bun.serve<WsData>({
         }
 
         if (action === "clear") {
-          await bridge.clear();
+          try {
+            await bridge.clear();
+          } catch (err) {
+            console.error("[WebSocket] Failed to clear session:", err);
+            ws.send(JSON.stringify({
+              type: "assistant_error",
+              error: "Clear failed",
+              message: `Failed to reset context: ${err instanceof Error ? err.message : String(err)}`,
+            }));
+          }
           return;
         }
 

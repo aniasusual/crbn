@@ -11,6 +11,7 @@ export default function WorkspaceView({
   isAgentRunning,
   agentStatus = null,
   onClearStatus,
+  onClearContext,
   previewData,
   lastChangeTimestamp,
   onStopPreview,
@@ -118,8 +119,8 @@ export default function WorkspaceView({
             isAgentRunning={isAgentRunning ?? (agentStatus === 'generating')}
             agentStatus={agentStatus}
             onClearStatus={onClearStatus}
+            onClearContext={onClearContext}
             pendingApproval={pendingApproval}
-            onApproveCommand={onApproveCommand}
             onDenyCommand={onDenyCommand}
             models={models}
             providers={providers}
