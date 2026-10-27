@@ -103,4 +103,19 @@ describe("Backend HTTP API", () => {
     const data = (await res.json()) as { success: boolean; installed?: boolean };
     expect(data.success).toBe(true);
   });
+
+  it("responds to GET /api/system/update/check with version details", async () => {
+    const res = await fetch(`http://127.0.0.1:${testPort}/api/system/update/check`);
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as {
+      hasUpdate: boolean;
+      currentVersion: string;
+      latestVersion: string;
+    };
+
+    expect(typeof data.hasUpdate).toBe("boolean");
+    expect(typeof data.currentVersion).toBe("string");
+    expect(typeof data.latestVersion).toBe("string");
+  });
 });

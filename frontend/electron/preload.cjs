@@ -32,9 +32,11 @@ if (desktopConfig) {
 try {
   contextBridge.exposeInMainWorld('crbnDesktop', {
     selectDirectory: () => ipcRenderer.invoke('select-directory'),
+    restartApp: () => ipcRenderer.invoke('restart-app'),
   });
 } catch {
   window.crbnDesktop = {
     selectDirectory: () => ipcRenderer.invoke('select-directory'),
+    restartApp: () => ipcRenderer.invoke('restart-app'),
   };
 }

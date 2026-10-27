@@ -21,6 +21,7 @@ import { PluginsService } from "./plugins-service";
 import type { PluginSourceType, PluginScope } from "./plugins-types";
 import { applyAugmentedPath } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
+import { UpdateService } from "./update-service";
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
@@ -46,6 +47,7 @@ const projectManager = new ProjectManager({ devServerManager });
 const modelsService = new ModelsService();
 const githubService = new GithubService(projectManager);
 const pluginsService = new PluginsService();
+const updateService = new UpdateService();
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
@@ -154,6 +156,31 @@ const _server = Bun.serve<WsData>({
       } catch (err) {
         return Response.json(
           { success: false, detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+    // System: In-App Update Check
+    if (url.pathname === "/api/system/update/check" && req.method === "GET") {
+      try {
+        const checkResult = await updateService.checkForUpdates();
+        return Response.json(checkResult, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { error: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // System: In-App Update Apply
+    if (url.pathname === "/api/system/update/apply" && req.method === "POST") {
+      try {
+        const applyResult = await updateService.applyUpdate();
+        return Response.json(applyResult, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { success: false, error: err instanceof Error ? err.message : String(err) },
           { status: 500, headers: CORS_HEADERS }
         );
       }
