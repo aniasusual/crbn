@@ -212,6 +212,7 @@ async function startBackend() {
     HOST: '127.0.0.1',
     BACKEND_HOST: '127.0.0.1',
     NODE_ENV: isDev ? 'development' : 'production',
+    APP_VERSION: app.getVersion(),
     TEMPLATES_DIR: path.join(backendDir, 'templates'),
     RESOURCES_PATH: process.resourcesPath || path.join(__dirname, '..'),
     USER_DATA_DIR: userDataDir,
