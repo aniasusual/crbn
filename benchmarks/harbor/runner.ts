@@ -3,8 +3,8 @@ import { mkdirSync, appendFileSync, writeFileSync, readFileSync } from "node:fs"
 import { createAgentSession, SessionManager, Settings, AuthStorage, ModelRegistry } from "../../pi-harness/packages/coding-agent/src/index";
 
 const [modelId, effort, instructionPath, logs] = process.argv.slice(2);
-if (!["gpt-6.1-sol", "gpt-6-astra"].includes(modelId) || !["medium", "high"].includes(effort)) {
-  throw new Error("Expected an explicitly supported model and medium/high effort");
+if (!["gpt-6.1-sol", "gpt-6-astra"].includes(modelId) || effort !== "medium") {
+  throw new Error("Expected gpt-6.1-sol or gpt-6-astra with medium effort");
 }
 mkdirSync(logs, { recursive: true });
 const auth = await AuthStorage.create(":memory:");
@@ -26,13 +26,11 @@ const settings = Settings.isolated({
 });
 const { session } = await createAgentSession({
   cwd: process.cwd(), agentDir: "/tmp/80degrees-agent", model,
-  thinkingLevel: effort as "medium" | "high",
-  thinkingLevelCeiling: effort as "medium" | "high",
+  thinkingLevel: "medium", thinkingLevelCeiling: "medium",
   authStorage: auth, modelRegistry: registry, settings,
   sessionManager: SessionManager.create(process.cwd(), `${logs}/sessions`),
   interactivePrompts: false, cacheWarming: false, allowSessionModelFallback: false,
   openAIServiceTier: null,
-  // Predeclared single-agent profile: no delegation to a different model/effort.
   toolNames: ["read", "bash", "edit", "write", "grep", "todo"],
 });
 writeFileSync(`${logs}/identity.json`, JSON.stringify({
@@ -42,16 +40,21 @@ writeFileSync(`${logs}/identity.json`, JSON.stringify({
 }, null, 2));
 if (session.model?.id !== modelId || session.thinkingLevel !== effort) throw new Error("Model/effort mismatch");
 session.subscribe(event => {
-  // Preserve completed messages and tool events without duplicating streamed token deltas.
   if (event.type !== "message_update") appendFileSync(`${logs}/events.jsonl`, JSON.stringify(event) + "\n");
 });
 let failed = false;
+let safetyRefusal = false;
 try {
   await session.prompt(readFileSync(instructionPath, "utf8"));
-  failed = session.messages.some(m => m.role === "assistant" && m.stopReason === "error");
+  const errors = session.messages.filter(m => m.role === "assistant" && m.stopReason === "error");
+  failed = errors.length > 0;
+  safetyRefusal = errors.some(m => /cyber_policy|flagged for possible cybersecurity risk/i.test(String((m as any).errorMessage ?? "")));
 } finally {
   writeFileSync(`${logs}/stats.json`, JSON.stringify(session.getSessionStats(), null, 2));
+  writeFileSync(`${logs}/outcome.json`, JSON.stringify({ failed, safety_refusal: safetyRefusal }, null, 2));
   await session.dispose();
   auth.close();
 }
-process.exit(failed ? 1 : 0);
+// Match Harbor Codex semantics: a policy refusal is a completed agent outcome
+// and must proceed to the verifier (normally scoring 0), not an infra failure.
+process.exit(failed && !safetyRefusal ? 1 : 0);
