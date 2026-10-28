@@ -6,6 +6,8 @@ import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index
 import { CheckpointManager } from "./checkpoint-manager";
 import type { DevServerManager } from "./dev-server";
 import { getAugmentedEnv } from "./runtime-env";
+import { telemetry } from "./telemetry-service";
+
 export interface ProjectInfo {
   name: string;
   path: string;
@@ -275,6 +277,11 @@ export class ProjectManager {
       last_opened: now,
     };
     await this.saveMeta(project);
+    telemetry.track("project_created", {
+      template,
+      has_model: Boolean(model),
+      model: model || undefined,
+    });
     return project;
   }
 
@@ -351,6 +358,7 @@ export class ProjectManager {
   async deleteProject(name: string): Promise<void> {
     const validatedName = this.validateName(name);
     const projectDir = path.join(this.root, validatedName);
+    telemetry.track("project_deleted");
     if (fsSync.existsSync(projectDir)) {
       try {
         const stat = fsSync.lstatSync(projectDir);
@@ -481,6 +489,11 @@ export class ProjectManager {
       };
       await fs.writeFile(metaPath, JSON.stringify(projectInfo, null, 2), "utf-8");
     }
+
+    const isGit = fsSync.existsSync(path.join(resolvedPath, ".git"));
+    telemetry.track("project_imported", {
+      is_git_repo: isGit,
+    });
 
     return projectInfo;
   }

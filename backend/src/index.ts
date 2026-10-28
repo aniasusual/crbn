@@ -22,6 +22,8 @@ import type { PluginSourceType, PluginScope } from "./plugins-types";
 import { applyAugmentedPath } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
 import { UpdateService } from "./update-service";
+import { telemetry } from "./telemetry-service";
+
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
@@ -32,15 +34,33 @@ applyAugmentedPath();
 detectGit().then((status) => {
   if (!status.installed) {
     console.log("[80degrees Startup] Git not detected on system. Automatically provisioning portable Git in background...");
+    telemetry.track("git_provision_started");
     installGit((p) => {
       console.log(`[80degrees Startup] Git Provisioning: ${p.phase} (${p.progress}%)`);
+    }).then(() => {
+      telemetry.track("git_provision_completed", { success: true });
     }).catch((err) => {
       console.warn("[80degrees Startup] Warning: Automatic Git provisioning encountered an issue:", err);
+      telemetry.track("git_provision_failed", { error: String(err) });
     });
   } else {
     console.log(`[80degrees Startup] Git confirmed ready: ${status.path} (${status.version || 'installed'})`);
+    telemetry.track("git_status_checked", { installed: true, version: status.version || "installed" });
   }
 }).catch(() => {});
+
+try {
+  const hwProfile = detectHardware();
+  telemetry.track("app_launched", {
+    port: PORT,
+    cpu_threads: hwProfile.cpuThreads,
+    ram_gb: hwProfile.ramGb,
+    gpu_renderer: hwProfile.gpuRenderer,
+    gpu_vram_gb: hwProfile.gpuVramGb,
+    is_apple_silicon: hwProfile.isAppleSilicon,
+  });
+  telemetry.flush().catch(() => {});
+} catch {}
 
 const devServerManager = new DevServerManager();
 devServerManager.sweepOrphanedPorts().catch(() => {});

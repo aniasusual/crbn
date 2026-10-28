@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as os from "node:os";
 import * as fs from "node:fs";
 import { execSync } from "node:child_process";
+import { telemetry } from "./telemetry-service";
 
 export interface UpdateCheckResult {
   hasUpdate: boolean;
@@ -211,7 +212,7 @@ export class UpdateService {
         }
       }
 
-      return {
+      const result: UpdateCheckResult = {
         hasUpdate,
         currentVersion: this.currentVersion,
         latestVersion: latestVer,
@@ -220,6 +221,12 @@ export class UpdateService {
         downloadUrl,
         publishedAt: release.published_at,
       };
+      telemetry.track("update_checked", {
+        current_version: this.currentVersion,
+        latest_version: latestVer,
+        has_update: hasUpdate,
+      });
+      return result;
     } catch {
       return fallbackResult;
     }
@@ -424,7 +431,29 @@ export class UpdateService {
         latestVersion: check.latestVersion,
         message: `Successfully updated to v${check.latestVersion}. Restart required.`,
       };
+      telemetry.track("update_applied", {
+        from_version: this.currentVersion,
+        to_version: check.latestVersion,
+        success: true,
+      });
       this.notifyListeners();
+    } catch (err) {
+      this.status = {
+        state: "error",
+        progress: 0,
+        bytesDownloaded: 0,
+        totalBytes: 0,
+        currentVersion: this.currentVersion,
+        latestVersion: check.latestVersion,
+        error: String(err),
+      };
+      this.notifyListeners();
+      telemetry.track("update_applied", {
+        from_version: this.currentVersion,
+        to_version: check.latestVersion,
+        success: false,
+        error: String(err),
+      });
     } finally {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
