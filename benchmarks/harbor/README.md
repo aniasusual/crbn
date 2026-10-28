@@ -1,7 +1,7 @@
 # Harbor evaluation adapter
 
 Study protocols, community configuration, sanitized charts and results live in
-[80Degrees-Benchmarks](https://github.com/ivasuy/80Degrees-Benchmarks).
+[80Degrees-Benchmarks](https://github.com/80degrees-labs/80Degrees-Benchmarks).
 See [COMPETITORS.md](COMPETITORS.md) for the experimental Claude Code, Cursor,
 Antigravity and custom CLI execution contract. Those profiles are separate from
 the frozen October comparison and have not been validated with paid runs.

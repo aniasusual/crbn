@@ -1,7 +1,7 @@
 # Comparing other harnesses
 
 The public study tooling and contribution process live in
-[80Degrees-Benchmarks](https://github.com/ivasuy/80Degrees-Benchmarks).
+[80Degrees-Benchmarks](https://github.com/80degrees-labs/80Degrees-Benchmarks).
 This source repository owns the actual 80 Degrees engine and Harbor adapters.
 
 `eighty_degrees:EightyDegrees` is the frozen Codex-subscription, medium-only
