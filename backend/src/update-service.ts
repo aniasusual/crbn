@@ -36,20 +36,19 @@ export class UpdateService {
   private repo = "aniasusual/crbn";
   private appName = "80degrees";
   private currentVersion: string;
-  private status: UpdateStatus = {
-    state: "idle",
-    progress: 0,
-    bytesDownloaded: 0,
-    totalBytes: 0,
-    currentVersion: "0.1.4",
-    latestVersion: "0.1.4",
-  };
+  private status: UpdateStatus;
   private statusListeners: Array<(status: UpdateStatus) => void> = [];
 
   constructor() {
     this.currentVersion = this.resolveCurrentVersion();
-    this.status.currentVersion = this.currentVersion;
-    this.status.latestVersion = this.currentVersion;
+    this.status = {
+      state: "idle",
+      progress: 0,
+      bytesDownloaded: 0,
+      totalBytes: 0,
+      currentVersion: this.currentVersion,
+      latestVersion: this.currentVersion,
+    };
   }
 
   onStatusUpdate(cb: (status: UpdateStatus) => void): () => void {
@@ -70,21 +69,39 @@ export class UpdateService {
   getStatus(): UpdateStatus {
     return { ...this.status };
   }
+  resetStatus(): void {
+    this.status = {
+      state: "idle",
+      progress: 0,
+      bytesDownloaded: 0,
+      totalBytes: 0,
+      currentVersion: this.currentVersion,
+      latestVersion: this.currentVersion,
+    };
+    this.notifyListeners();
+  }
+
 
   private resolveCurrentVersion(): string {
     if (process.env.APP_VERSION) {
       return process.env.APP_VERSION.replace(/^v/, "");
     }
     try {
-      const pkgPath = path.resolve(__dirname, "../../frontend/package.json");
-      if (fs.existsSync(pkgPath)) {
-        const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
-        if (pkg.version) return pkg.version;
+      const candidates = [
+        path.resolve(__dirname, "../../frontend/package.json"),
+        path.resolve(process.cwd(), "package.json"),
+        path.resolve(process.cwd(), "../frontend/package.json"),
+        path.resolve(process.cwd(), "frontend/package.json"),
+      ];
+      for (const p of candidates) {
+        if (fs.existsSync(p)) {
+          const pkg = JSON.parse(fs.readFileSync(p, "utf-8"));
+          if (pkg.version) return pkg.version;
+        }
       }
     } catch {}
-    return "0.1.4";
+    return "0.0.0";
   }
-
   /**
    * Compares two semver strings: a > b -> 1, a < b -> -1, a == b -> 0
    */
@@ -136,13 +153,28 @@ export class UpdateService {
   /**
    * Check GitHub Releases for available updates
    */
-  async checkForUpdates(): Promise<UpdateCheckResult> {
+  async checkForUpdates(forceDev?: boolean): Promise<UpdateCheckResult> {
+    const { targetOs, arch, ext } = this.getPlatformArch();
+    const expectedAssetName = `${this.appName}-${targetOs}-${arch}.${ext}`;
+    if (forceDev || process.env.DEV_MOCK_UPDATE) {
+      const parts = this.currentVersion.split(".").map((x) => parseInt(x, 10) || 0);
+      const mockNextVersion = `${parts[0] ?? 0}.${parts[1] ?? 1}.${(parts[2] ?? 0) + 1}`;
+      return {
+        hasUpdate: true,
+        currentVersion: this.currentVersion,
+        latestVersion: mockNextVersion,
+        releaseName: `v${mockNextVersion}`,
+        releaseNotes: "Dev Mock Update Release",
+        downloadUrl: `https://github.com/${this.repo}/releases/latest/download/${expectedAssetName}`,
+        publishedAt: new Date().toISOString(),
+      };
+    }
+
     const fallbackResult: UpdateCheckResult = {
       hasUpdate: false,
       currentVersion: this.currentVersion,
       latestVersion: this.currentVersion,
     };
-
     try {
       const response = await fetch(`https://api.github.com/repos/${this.repo}/releases/latest`, {
         headers: {
@@ -196,7 +228,7 @@ export class UpdateService {
   /**
    * Start async background update job without blocking the HTTP connection
    */
-  async startUpdate(): Promise<UpdateApplyResult> {
+  async startUpdate(forceDev?: boolean): Promise<UpdateApplyResult> {
     if (this.status.state === "downloading" || this.status.state === "extracting" || this.status.state === "installing") {
       return {
         success: true,
@@ -205,25 +237,14 @@ export class UpdateService {
       };
     }
 
-    const check = await this.checkForUpdates();
-    if (!check.hasUpdate && !process.env.FORCE_UPDATE) {
+    const check = await this.checkForUpdates(forceDev);
+    if (!check.hasUpdate && !process.env.FORCE_UPDATE && !forceDev) {
       return {
         success: false,
         message: `Already on the latest version (${this.currentVersion}).`,
         version: this.currentVersion,
       };
     }
-
-    this.status = {
-      state: "downloading",
-      progress: 0,
-      bytesDownloaded: 0,
-      totalBytes: 0,
-      currentVersion: this.currentVersion,
-      latestVersion: check.latestVersion,
-      message: `Downloading update to v${check.latestVersion}...`,
-    };
-    this.notifyListeners();
 
     // Run the download and extraction asynchronously in background
     this.runUpdateJob(check).catch((err) => {
@@ -334,58 +355,66 @@ export class UpdateService {
         console.log(`[UpdateService] Stripping Gatekeeper quarantine...`);
         execSync(`xattr -cr "${extractedApp}" 2>/dev/null || true`);
 
-        let destApp = "/Applications/80degrees.app";
-        if (process.env.RESOURCES_PATH) {
-          try {
-            const candidateApp = path.resolve(process.env.RESOURCES_PATH, "../..");
-            if (candidateApp.endsWith(".app") && fs.existsSync(candidateApp) && !candidateApp.includes("node_modules")) {
-              destApp = candidateApp;
-            }
-          } catch {}
-        }
-        if (!fs.existsSync(destApp)) {
-          const userApp = path.join(os.homedir(), "Applications", `${this.appName}.app`);
-          if (fs.existsSync(userApp)) {
-            destApp = userApp;
+        const isPackaged = Boolean(process.env.RESOURCES_PATH && !process.env.RESOURCES_PATH.includes("node_modules"));
+        if (!isPackaged) {
+          console.log(`[UpdateService] Running in development mode (source build). Verified update package extracted cleanly.`);
+        } else {
+          let destApp = "/Applications/80degrees.app";
+          if (process.env.RESOURCES_PATH) {
+            try {
+              const candidateApp = path.resolve(process.env.RESOURCES_PATH, "../..");
+              if (candidateApp.endsWith(".app") && fs.existsSync(candidateApp) && !candidateApp.includes("node_modules")) {
+                destApp = candidateApp;
+              }
+            } catch {}
           }
-        }
-
-        console.log(`[UpdateService] Swapping application at ${destApp}...`);
-        const backupApp = `${destApp}.bak.${Date.now()}`;
-        if (fs.existsSync(destApp)) {
-          fs.renameSync(destApp, backupApp);
-        }
-
-        fs.renameSync(extractedApp, destApp);
-        execSync(`xattr -cr "${destApp}" 2>/dev/null || true`);
-        execSync(`chmod -R u+rwX "${destApp}" 2>/dev/null || true`);
-
-        try {
-          fs.rmSync(backupApp, { recursive: true, force: true });
-        } catch {}
-
-      } else if (targetOs === "win") {
-        let installDir = path.join(process.env.LOCALAPPDATA || os.homedir(), "Programs", this.appName);
-        if (process.env.RESOURCES_PATH) {
-          try {
-            const candidateDir = path.resolve(process.env.RESOURCES_PATH, "..");
-            if (fs.existsSync(path.join(candidateDir, `${this.appName}.exe`)) && !candidateDir.includes("node_modules")) {
-              installDir = candidateDir;
+          if (!fs.existsSync(destApp)) {
+            const userApp = path.join(os.homedir(), "Applications", `${this.appName}.app`);
+            if (fs.existsSync(userApp)) {
+              destApp = userApp;
             }
-          } catch {}
-        }
-        execSync(`powershell -NoProfile -Command "Get-ChildItem -Path '${extractDir}' -Recurse | Unblock-File" 2>nul || true`);
+          }
 
-        if (fs.existsSync(installDir)) {
-          const backupDir = `${installDir}.bak.${Date.now()}`;
+          console.log(`[UpdateService] Swapping application at ${destApp}...`);
+          const backupApp = `${destApp}.bak.${Date.now()}`;
+          if (fs.existsSync(destApp)) {
+            fs.renameSync(destApp, backupApp);
+          }
+
+          fs.renameSync(extractedApp, destApp);
+          execSync(`xattr -cr "${destApp}" 2>/dev/null || true`);
+          execSync(`chmod -R u+rwX "${destApp}" 2>/dev/null || true`);
+
           try {
-            fs.renameSync(installDir, backupDir);
+            fs.rmSync(backupApp, { recursive: true, force: true });
           } catch {}
         }
-        fs.mkdirSync(installDir, { recursive: true });
-        fs.cpSync(extractDir, installDir, { recursive: true });
-      }
+      } else if (targetOs === "win") {
+        const isPackaged = Boolean(process.env.RESOURCES_PATH && !process.env.RESOURCES_PATH.includes("node_modules"));
+        if (!isPackaged) {
+          console.log(`[UpdateService] Running in development mode (source build). Verified update package extracted cleanly.`);
+        } else {
+          let installDir = path.join(process.env.LOCALAPPDATA || os.homedir(), "Programs", this.appName);
+          if (process.env.RESOURCES_PATH) {
+            try {
+              const candidateDir = path.resolve(process.env.RESOURCES_PATH, "..");
+              if (fs.existsSync(path.join(candidateDir, `${this.appName}.exe`)) && !candidateDir.includes("node_modules")) {
+                installDir = candidateDir;
+              }
+            } catch {}
+          }
+          execSync(`powershell -NoProfile -Command "Get-ChildItem -Path '${extractDir}' -Recurse | Unblock-File" 2>nul || true`);
 
+          if (fs.existsSync(installDir)) {
+            const backupDir = `${installDir}.bak.${Date.now()}`;
+            try {
+              fs.renameSync(installDir, backupDir);
+            } catch {}
+          }
+          fs.mkdirSync(installDir, { recursive: true });
+          fs.cpSync(extractDir, installDir, { recursive: true });
+        }
+      }
       this.status = {
         state: "ready",
         progress: 100,
