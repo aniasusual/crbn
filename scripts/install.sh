@@ -16,7 +16,44 @@ set -e
 REPO="aniasusual/crbn"
 APP_NAME="80degrees"
 REF=""
+TELEMETRY_ENDPOINT="${TELEMETRY_ENDPOINT:-https://get.80degreeslabs.com/api/v1/telemetry}"
+INSTALL_START_TIME="$(date +%s 2>/dev/null || echo 0)"
+INSTALL_SUCCESS=0
+CURRENT_STAGE="init"
+CLI_LINKED=0
 
+get_or_create_device_id() {
+  ID_FILE="$HOME/.80degrees/device_id"
+  if [ -f "$ID_FILE" ]; then
+    EXISTING="$(cat "$ID_FILE" 2>/dev/null)"
+    if [ -n "$EXISTING" ]; then
+      printf "%s" "$EXISTING"
+      return
+    fi
+  fi
+  NEW_ID="$(LC_ALL=C tr -dc 'a-f0-9' </dev/urandom 2>/dev/null | head -c 32 || echo "sh-$(date +%s)")"
+  mkdir -p "$HOME/.80degrees" 2>/dev/null || true
+  printf "%s" "$NEW_ID" > "$ID_FILE" 2>/dev/null || true
+  printf "%s" "$NEW_ID"
+}
+
+DEVICE_ID="$(get_or_create_device_id)"
+
+send_telemetry() {
+  if [ "$DO_NOT_TRACK" = "1" ] || [ "${_80DEGREES_NO_TELEMETRY:-$NO_TELEMETRY}" = "1" ]; then
+    return
+  fi
+  _EVENT="$1"
+  _PROPS="$2"
+  (
+    _NOW="$(date +%s 2>/dev/null || echo 0)000"
+    _PAYLOAD=$(printf '{"device_id":"%s","event":"%s","properties":%s,"timestamp":%s}' \
+      "$DEVICE_ID" "$_EVENT" "$_PROPS" "$_NOW")
+    curl -s -m 2 -X POST "$TELEMETRY_ENDPOINT" \
+      -H "Content-Type: application/json" \
+      -d "$_PAYLOAD" >/dev/null 2>&1
+  ) &
+}
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref|-r)
@@ -85,6 +122,7 @@ else
   # Direct GitHub CDN redirect URL (completely bypasses GitHub API 60 req/hr rate limits)
   DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_FILE}"
 fi
+send_telemetry "install_started" "{\"os\":\"$TARGET_OS\",\"arch\":\"$ARCH\",\"ref\":\"$REF\",\"installer\":\"sh\"}"
 
 echo ""
 echo "  ⚡ Installing ${APP_NAME} (${TARGET_OS}-${ARCH})..."
@@ -93,12 +131,16 @@ echo ""
 
 TMP_DIR="$(mktemp -d 2>/dev/null || mktemp -d -t '80degrees-install')"
 cleanup() {
+  _EXIT_CODE=$?
+  if [ "$INSTALL_SUCCESS" -ne 1 ]; then
+    send_telemetry "install_failed" "{\"stage\":\"$CURRENT_STAGE\",\"exit_code\":$_EXIT_CODE,\"os\":\"$TARGET_OS\",\"arch\":\"$ARCH\"}"
+  fi
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT INT TERM
 
+CURRENT_STAGE="download"
 DOWNLOAD_PATH="$TMP_DIR/$ASSET_FILE"
-
 # Download with interactive progress bar
 if command -v curl >/dev/null 2>&1; then
   if ! curl -#fSL --connect-timeout 15 --retry 2 "$DOWNLOAD_URL" -o "$DOWNLOAD_PATH"; then
@@ -120,9 +162,9 @@ fi
 EXTRACT_DIR="$TMP_DIR/extracted"
 mkdir -p "$EXTRACT_DIR"
 
+CURRENT_STAGE="extract"
 echo ""
 echo "  ==> Extracting ${ASSET_FILE}..."
-
 if [ "$TARGET_OS" = "mac" ]; then
   if ! unzip -q "$DOWNLOAD_PATH" -d "$EXTRACT_DIR"; then
     echo "Error: Failed to unzip archive" >&2
@@ -175,7 +217,7 @@ else
   open -a 80degrees --args "$@"
 fi
 EOF
-      chmod +x "$bin_dir/80degrees" 2>/dev/null || true
+      chmod +x "$bin_dir/80degrees" 2>/dev/null && CLI_LINKED=1 || true
       break
     fi
   done
@@ -202,7 +244,7 @@ elif [ "$TARGET_OS" = "linux" ]; then
   EXE_PATH="$INSTALL_DIR/${APP_NAME}"
   if [ -f "$EXE_PATH" ]; then
     chmod +x "$EXE_PATH"
-    ln -sf "$EXE_PATH" "$BIN_DIR/${APP_NAME}"
+    ln -sf "$EXE_PATH" "$BIN_DIR/${APP_NAME}" && CLI_LINKED=1 || true
   fi
 
   # Create desktop entry
@@ -227,5 +269,10 @@ EOF
     nohup "$EXE_PATH" >/dev/null 2>&1 &
   fi
 fi
+
+INSTALL_SUCCESS=1
+_END_TIME="$(date +%s 2>/dev/null || echo 0)"
+_DURATION=$(( _END_TIME - INSTALL_START_TIME ))
+send_telemetry "install_completed" "{\"os\":\"$TARGET_OS\",\"arch\":\"$ARCH\",\"duration_sec\":$_DURATION,\"cli_linked\":$CLI_LINKED}"
 
 echo ""

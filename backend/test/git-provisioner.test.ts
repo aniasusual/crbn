@@ -40,9 +40,8 @@ describe("git-provisioner", () => {
 
       const gitExePath = path.join(
         portableBinDir,
-        process.platform === "win32" ? "git.exe" : "git"
+        process.platform === "win32" ? "git.cmd" : "git"
       );
-
       if (process.platform === "win32") {
         fs.writeFileSync(
           gitExePath,
