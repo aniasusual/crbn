@@ -110,7 +110,7 @@ function ensureIcons() {
 }
 
 
-function downloadAndExtractBun(targetKey, targetDir) {
+async function downloadAndExtractBun(targetKey, targetDir) {
   const config = TARGET_CONFIGS[targetKey];
   if (!config) {
     throw new Error(`Unknown target config key: ${targetKey}`);
@@ -134,20 +134,24 @@ function downloadAndExtractBun(targetKey, targetDir) {
   }
 
   const downloadUrl = `https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/${config.assetName}`;
-  const tmpZip = path.join(os.tmpdir(), `bun-stage-${targetKey}-${Date.now()}.zip`);
+  const tmpZipName = `bun-stage-${targetKey}-${Date.now()}.zip`;
+  const tmpZip = path.join(targetDir, tmpZipName);
 
   console.log(`[Stage] Downloading standalone Bun from ${downloadUrl}...`);
   try {
-    execSync(`curl -fsSL "${downloadUrl}" -o "${tmpZip}"`, { stdio: 'inherit' });
+    const res = await fetch(downloadUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const buffer = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(tmpZip, buffer);
+
     if (process.platform === 'win32') {
-      const posixZip = tmpZip.replace(/\\/g, '/');
-      const posixTarget = targetDir.replace(/\\/g, '/');
-      execSync(`tar -xf "${posixZip}" -C "${posixTarget}"`, { stdio: 'inherit' });
+      execSync(`tar -xf "${tmpZipName}"`, { cwd: targetDir, stdio: 'inherit' });
+      const nested = path.join(targetDir, 'bun-windows-x64', 'bun.exe');
       if (fs.existsSync(nested) && !fs.existsSync(destinationPath)) {
         fs.copyFileSync(nested, destinationPath);
       }
     } else {
-      execSync(`unzip -p "${tmpZip}" "${config.internalPath}" > "${destinationPath}"`, { stdio: 'inherit' });
+      execSync(`unzip -p "${tmpZipName}" "${config.internalPath}" > "${destinationPath}"`, { cwd: targetDir, stdio: 'inherit' });
       fs.chmodSync(destinationPath, 0o755);
     }
     try { fs.unlinkSync(tmpZip); } catch {}
@@ -273,12 +277,12 @@ async function stageBun() {
   fs.mkdirSync(targetDir, { recursive: true });
 
   if (effectivePlatform === 'all') {
-    downloadAndExtractBun('darwin-arm64', targetDir);
-    downloadAndExtractBun('darwin-x64', targetDir);
-    downloadAndExtractBun('win32-x64', targetDir);
-    downloadAndExtractBun('linux-x64', targetDir);
+    await downloadAndExtractBun('darwin-arm64', targetDir);
+    await downloadAndExtractBun('darwin-x64', targetDir);
+    await downloadAndExtractBun('win32-x64', targetDir);
+    await downloadAndExtractBun('linux-x64', targetDir);
   } else if (targetArg && TARGET_CONFIGS[targetArg]) {
-    downloadAndExtractBun(targetArg, targetDir);
+    await downloadAndExtractBun(targetArg, targetDir);
     if (targetArg.startsWith('darwin')) {
       const hostArchBinary = path.join(targetDir, TARGET_CONFIGS[targetArg].binaryName);
       const defaultBun = path.join(targetDir, 'bun');
@@ -289,8 +293,8 @@ async function stageBun() {
       }
     }
   } else if (effectivePlatform === 'darwin') {
-    downloadAndExtractBun('darwin-arm64', targetDir);
-    downloadAndExtractBun('darwin-x64', targetDir);
+    await downloadAndExtractBun('darwin-arm64', targetDir);
+    await downloadAndExtractBun('darwin-x64', targetDir);
 
     const hostBinaryName = process.arch === 'arm64' ? 'bun-arm64' : 'bun-x64';
     const hostArchBinary = path.join(targetDir, hostBinaryName);
@@ -305,12 +309,12 @@ async function stageBun() {
       console.log(`[Stage] Staged default 'bun' -> ${hostBinaryName}`);
     }
   } else if (effectivePlatform === 'win32') {
-    downloadAndExtractBun('win32-x64', targetDir);
+    await downloadAndExtractBun('win32-x64', targetDir);
   } else if (effectivePlatform === 'linux') {
-    downloadAndExtractBun('linux-x64', targetDir);
+    await downloadAndExtractBun('linux-x64', targetDir);
   } else {
     console.warn(`[Stage] Unknown platform target: ${effectivePlatform}, staging current host.`);
-    downloadAndExtractBun(`darwin-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, targetDir);
+    await downloadAndExtractBun(`darwin-${process.arch === 'arm64' ? 'arm64' : 'x64'}`, targetDir);
   }
 
   ensureBunShims(targetDir);
