@@ -160,6 +160,11 @@ export class UpdateService {
     if (forceDev || process.env.DEV_MOCK_UPDATE) {
       const parts = this.currentVersion.split(".").map((x) => parseInt(x, 10) || 0);
       const mockNextVersion = `${parts[0] ?? 0}.${parts[1] ?? 1}.${(parts[2] ?? 0) + 1}`;
+      telemetry.track("update_checked", {
+        current_version: this.currentVersion,
+        latest_version: mockNextVersion,
+        has_update: true,
+      });
       return {
         hasUpdate: true,
         currentVersion: this.currentVersion,
