@@ -10,7 +10,7 @@ import { GrainGradient } from '@/components/ui/grain-gradient';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
 import { SilkAurora } from '@/components/ui/silk-aurora';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, APP_VERSION } from '../config';
 import './WelcomeView.css';
 
 const GitHubIcon = ({ size = 16 }) => (
@@ -1201,6 +1201,13 @@ export default function WelcomeView({
                 )
               )}
             </section>
+            {/* Studio Footer with App Version */}
+            <footer className="degrees-welcome__footer">
+              <span className="degrees-welcome__version-badge">
+                <span className="degrees-welcome__version-dot" />
+                <span>80degrees v{APP_VERSION}</span>
+              </span>
+            </footer>
             </div>
           </main>
         </>

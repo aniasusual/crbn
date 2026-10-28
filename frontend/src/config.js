@@ -1,3 +1,5 @@
+import packageJson from '../package.json';
+
 /**
  * Centralized Application Configuration for 80degrees Frontend.
  * Supports dynamic runtime ports injected by Electron desktop preload,
@@ -44,3 +46,8 @@ export const WS_BASE_URL =
 
 export const DEV_PORT =
   Number(import.meta.env.VITE_PORT) || 5173;
+
+export const APP_VERSION =
+  desktopConfig?.version ||
+  packageJson?.version ||
+  '0.1.8';
