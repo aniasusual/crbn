@@ -171,7 +171,8 @@ const _server = Bun.serve<WsData>({
     // System: In-App Update Check
     if (url.pathname === "/api/system/update/check" && req.method === "GET") {
       try {
-        const checkResult = await updateService.checkForUpdates();
+        const forceDev = url.searchParams.get("dev") === "1" || url.searchParams.get("mock") === "1";
+        const checkResult = await updateService.checkForUpdates(forceDev);
         return Response.json(checkResult, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -189,7 +190,8 @@ const _server = Bun.serve<WsData>({
     // System: In-App Update Apply
     if (url.pathname === "/api/system/update/apply" && req.method === "POST") {
       try {
-        const applyResult = await updateService.startUpdate();
+        const forceDev = url.searchParams.get("dev") === "1" || url.searchParams.get("mock") === "1";
+        const applyResult = await updateService.startUpdate(forceDev);
         return Response.json(applyResult, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -197,6 +199,12 @@ const _server = Bun.serve<WsData>({
           { status: 500, headers: CORS_HEADERS }
         );
       }
+    }
+
+    // System: In-App Update Reset (for testing & development)
+    if (url.pathname === "/api/system/update/reset" && req.method === "POST") {
+      updateService.resetStatus();
+      return Response.json({ success: true, status: updateService.getStatus() }, { headers: CORS_HEADERS });
     }
 
     // Auth: Save API Key

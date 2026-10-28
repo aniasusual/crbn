@@ -160,9 +160,9 @@ async function startBackend() {
     }
   }
 
-  const scriptToRun = fs.existsSync(path.join(backendDir, 'dist/index.js'))
-    ? path.join(backendDir, 'dist/index.js')
-    : path.join(backendDir, 'src/index.ts');
+  const scriptToRun = (!app.isPackaged || !fs.existsSync(path.join(backendDir, 'dist/index.js')))
+    ? path.join(backendDir, 'src/index.ts')
+    : path.join(backendDir, 'dist/index.js');
 
   // Allocate safe port
   const targetPort = await findAvailablePort(8000);

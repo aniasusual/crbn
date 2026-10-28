@@ -48,13 +48,81 @@ export default function TabBar({
   const [updateError, setUpdateError] = useState('');
   useEffect(() => {
     let isMounted = true;
+    let pollInterval = null;
+
+    const syncStatus = (status) => {
+      if (!isMounted || !status) return;
+      if (status.state === 'downloading') {
+        setUpdateStatus('updating');
+        setUpdateStage(`Downloading ${status.progress || 0}%`);
+      } else if (status.state === 'extracting') {
+        setUpdateStatus('updating');
+        setUpdateStage('Extracting...');
+      } else if (status.state === 'installing') {
+        setUpdateStatus('updating');
+        setUpdateStage('Installing...');
+      } else if (status.state === 'ready') {
+        setUpdateStatus('ready');
+        setUpdateStage('');
+        if (pollInterval) clearInterval(pollInterval);
+      } else if (status.state === 'error') {
+        setUpdateStatus('error');
+        setUpdateError(status.error || 'Update failed');
+        if (pollInterval) clearInterval(pollInterval);
+      } else if (status.state === 'idle') {
+        setUpdateStatus('idle');
+        setUpdateStage('');
+      }
+    };
+
     const checkUpdates = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/system/update/check`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (isMounted && data.hasUpdate) {
-          setUpdateInfo(data);
+        const isDevQuery = typeof window !== 'undefined' && (window.location.search.includes('mockUpdate') || window.location.search.includes('devUpdate'));
+        if (isDevQuery && isMounted) {
+          setUpdateInfo((prev) => prev || {
+            hasUpdate: true,
+            latestVersion: 'Next',
+            currentVersion: 'Current',
+            releaseName: 'Dev Preview',
+          });
+        }
+
+        const checkUrl = `${API_BASE_URL}/api/system/update/check${isDevQuery ? '?dev=1' : ''}`;
+        const [checkRes, statusRes] = await Promise.all([
+          fetch(checkUrl).catch(() => null),
+          fetch(`${API_BASE_URL}/api/system/update/status`).catch(() => null),
+        ]);
+
+        if (checkRes && checkRes.ok) {
+          const data = await checkRes.json();
+          if (isMounted && data.hasUpdate) {
+            setUpdateInfo(data);
+          }
+        }
+
+        if (statusRes && statusRes.ok) {
+          const status = await statusRes.json();
+          if (status.state && status.state !== 'idle') {
+            if (isMounted) {
+              setUpdateInfo((prev) => prev || {
+                hasUpdate: true,
+                latestVersion: status.latestVersion,
+                currentVersion: status.currentVersion,
+              });
+              syncStatus(status);
+              if (['downloading', 'extracting', 'installing'].includes(status.state)) {
+                pollInterval = setInterval(async () => {
+                  try {
+                    const pollRes = await fetch(`${API_BASE_URL}/api/system/update/status`);
+                    if (pollRes.ok) {
+                      const current = await pollRes.json();
+                      syncStatus(current);
+                    }
+                  } catch {}
+                }, 500);
+              }
+            }
+          }
         }
       } catch {}
     };
@@ -64,6 +132,7 @@ export default function TabBar({
     return () => {
       isMounted = false;
       clearInterval(interval);
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, []);
 
@@ -83,7 +152,9 @@ export default function TabBar({
     setUpdateError('');
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/system/update/apply`, { method: 'POST' });
+      const isDevQuery = typeof window !== 'undefined' && (window.location.search.includes('mockUpdate') || window.location.search.includes('devUpdate'));
+      const applyUrl = `${API_BASE_URL}/api/system/update/apply${isDevQuery ? '?dev=1' : ''}`;
+      const res = await fetch(applyUrl, { method: 'POST' });
       const data = await res.json();
       if (!data.success && !data.status) {
         setUpdateStatus('error');
@@ -116,6 +187,19 @@ export default function TabBar({
     } catch (err) {
       setUpdateStatus('error');
       setUpdateError(err.message || 'Network error');
+    }
+  };
+
+  const handleDevCycleState = (e) => {
+    if (import.meta.env.DEV) {
+      e.preventDefault();
+      const states = ['idle', 'updating', 'ready', 'error'];
+      const nextIdx = (states.indexOf(updateStatus) + 1) % states.length;
+      const nextState = states[nextIdx];
+      setUpdateStatus(nextState);
+      if (nextState === 'updating') setUpdateStage('Downloading 42%');
+      if (nextState === 'error') setUpdateError('Simulated error for styling test');
+      if (!updateInfo) setUpdateInfo({ latestVersion: 'Next', currentVersion: 'Current' });
     }
   };
   return (
@@ -247,7 +331,8 @@ export default function TabBar({
             type="button"
             className={`tab-bar__update-btn tab-bar__update-btn--${updateStatus}`}
             onClick={handleApplyUpdate}
-            title={updateError || (updateStatus === 'ready' ? 'Restart to apply update' : `Update to v${updateInfo.latestVersion}`)}
+            onContextMenu={handleDevCycleState}
+            title={updateError || (updateStatus === 'ready' ? 'Restart to apply update' : (import.meta.env.DEV ? `Update to v${updateInfo.latestVersion} (Right-click to cycle styles in dev)` : `Update to v${updateInfo.latestVersion}`))}
             aria-label={`Software Update ${updateInfo.latestVersion}`}
           >
             {updateStatus === 'idle' && (

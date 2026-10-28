@@ -55,11 +55,28 @@ jobs:
           bun install --cwd pi-harness
           bun install --cwd backend
           bun install --cwd backend/templates/node_react
-      - name: Install Frontend Dependencies & Build All
+      - name: Install Frontend Dependencies
         shell: bash
         run: |
           cd frontend
           npm install
+
+      - name: Run Backend Subsystem & Integration Tests
+        shell: bash
+        run: |
+          cd backend
+          bun test
+
+      - name: Verify Frontend Production Build
+        shell: bash
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Package Desktop App
+        shell: bash
+        run: |
+          cd frontend
           ${{ matrix.build_cmd }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
