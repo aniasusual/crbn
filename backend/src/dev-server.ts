@@ -720,6 +720,10 @@ export class DevServerManager {
           }
         }
       }
+      for (let i = 0; i < 20; i++) {
+        if (await this.isPortAvailable(port)) break;
+        await Bun.sleep(25);
+      }
     } catch {}
   }
 
