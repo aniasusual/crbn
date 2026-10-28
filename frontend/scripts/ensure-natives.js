@@ -44,9 +44,12 @@ function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
     execSync(`curl -fsSL "${url}" -o "${tmpTgz}"`, { stdio: 'inherit' });
     const extractDir = path.dirname(targetFile);
     fs.mkdirSync(extractDir, { recursive: true });
-    execSync(`tar -xzf "${tmpTgz}" -C "${extractDir}" --strip-components=1 "package/${moduleConfig.file}"`, {
-      stdio: 'inherit',
-    });
+    execSync(`tar -xzf "${tmpTgz}" -C "${extractDir}"`, { stdio: 'inherit' });
+    const extractedFile = path.join(extractDir, 'package', moduleConfig.file);
+    if (fs.existsSync(extractedFile)) {
+      fs.copyFileSync(extractedFile, targetFile);
+      try { fs.rmSync(path.join(extractDir, 'package'), { recursive: true, force: true }); } catch {}
+    }
     try { fs.unlinkSync(tmpTgz); } catch {}
     if (sourceFile && fs.existsSync(targetFile)) {
       try {
