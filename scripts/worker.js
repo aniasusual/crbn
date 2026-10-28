@@ -77,7 +77,6 @@ export default {
             ip_user_agent: request.headers.get('user-agent') || undefined,
             $lib: '80degrees-worker-ingest',
           },
-          timestamp: evt.timestamp ? new Date(evt.timestamp).toISOString() : new Date().toISOString(),
         }));
 
         const forwardPromise = forwardToPostHog(posthogBatch, posthogHost, posthogKey);
@@ -99,13 +98,13 @@ export default {
     }
 
     // Helper to log edge install requests
-    const trackInstallerHit = (platform) => {
+    const trackInstallerHit = (platform, trackingId) => {
       const cf = request.cf || {};
       const hitPromise = forwardToPostHog(
         [
           {
             event: 'installer_requested',
-            distinct_id: request.headers.get('cf-ray') || crypto.randomUUID(),
+            distinct_id: trackingId,
             properties: {
               platform,
               path: url.pathname,
@@ -116,7 +115,6 @@ export default {
               cf_colo: cf.colo || undefined,
               $lib: '80degrees-edge-worker',
             },
-            timestamp: new Date().toISOString(),
           },
         ],
         posthogHost,
@@ -129,23 +127,29 @@ export default {
 
     // 3. Explicit PowerShell script request or PowerShell User-Agent
     if (pathname.endsWith('.ps1') || pathname === '/win' || pathname === '/windows' || userAgent.includes('powershell')) {
-      trackInstallerHit('windows');
+      const trackingId = crypto.randomUUID();
+      trackInstallerHit('windows', trackingId);
       const resp = await fetch(`${RAW_BASE}/install.ps1`);
-      return new Response(resp.body, {
+      const rawText = await resp.text();
+      const dynamicText = rawText.replace('$DeviceIdOverride = ""', `$DeviceIdOverride = "${trackingId}"`);
+      return new Response(dynamicText, {
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',
-          'Cache-Control': 'public, max-age=300',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
         },
       });
     }
 
     // 4. Default: Shell installer for macOS & Linux
-    trackInstallerHit('unix');
+    const trackingId = crypto.randomUUID();
+    trackInstallerHit('unix', trackingId);
     const resp = await fetch(`${RAW_BASE}/install.sh`);
-    return new Response(resp.body, {
+    const rawText = await resp.text();
+    const dynamicText = rawText.replace('DEVICE_ID_OVERRIDE=""', `DEVICE_ID_OVERRIDE="${trackingId}"`);
+    return new Response(dynamicText, {
       headers: {
         'Content-Type': 'text/plain; charset=utf-8',
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
     });
   },

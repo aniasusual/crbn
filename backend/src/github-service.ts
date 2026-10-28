@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { CheckpointManager } from "./checkpoint-manager";
 import type { ProjectInfo, ProjectManager } from "./project-manager";
 import { getAugmentedEnv } from "./runtime-env";
-
+import { telemetry } from "./telemetry-service";
 
 export interface GitHubUser {
   id: number;
@@ -154,6 +154,16 @@ export class GithubService {
   private async saveAuthToDisk(auth: StoredGitHubAuth): Promise<void> {
     this.cachedAuth = auth;
     await fs.writeFile(this.authFilePath, JSON.stringify(auth, null, 2), "utf-8");
+    if (auth.user?.email) {
+      telemetry.identifyUser(auth.user.email, {
+        github_username: auth.user.login,
+        name: auth.user.name,
+      });
+    }
+    telemetry.track("github_connected", {
+      has_email: Boolean(auth.user?.email),
+      public_repos: auth.user?.public_repos,
+    });
   }
 
   private async removeAuthFromDisk(): Promise<void> {
@@ -161,6 +171,7 @@ export class GithubService {
     if (fsSync.existsSync(this.authFilePath)) {
       await fs.unlink(this.authFilePath).catch(() => {});
     }
+    telemetry.track("github_disconnected");
   }
 
   /**

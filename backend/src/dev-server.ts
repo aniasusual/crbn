@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as fsSync from "node:fs";
 import * as os from "node:os";
 import { getAugmentedPath } from "./runtime-env";
+import { telemetry } from "./telemetry-service";
 export interface DevServerInfo {
   port: number;
   url: string;
@@ -195,6 +196,14 @@ export class DevServerManager {
   }
 
   private emit(event: Parameters<PreviewEventCallback>[0]): void {
+    if (event.type === "preview_ready") {
+      telemetry.track("dev_server_started", {
+        port: event.port,
+        has_backend: Boolean(event.backend_port),
+      });
+    } else if (event.type === "preview_stopped") {
+      telemetry.track("dev_server_stopped");
+    }
     for (const cb of this.eventCallbacks) {
       try {
         cb(event);
