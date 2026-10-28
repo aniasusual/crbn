@@ -66,16 +66,21 @@ export async function detectGit(): Promise<GitStatus> {
 
   // 1. Check portable Git if already provisioned by 80degrees
   if (process.platform === "win32") {
-    const portableWinGit = path.join(userData, "bin", "mingit", "cmd", "git.exe");
-    const test = testGitExecutable(portableWinGit);
-    if (test.ok) {
-      return {
-        installed: true,
-        isPortable: true,
-        path: portableWinGit,
-        version: test.version,
-        phase: "completed",
-      };
+    const candidatePaths = [
+      path.join(userData, "bin", "mingit", "cmd", "git.exe"),
+      path.join(userData, "bin", "mingit", "cmd", "git.cmd"),
+    ];
+    for (const portableWinGit of candidatePaths) {
+      const test = testGitExecutable(portableWinGit);
+      if (test.ok) {
+        return {
+          installed: true,
+          isPortable: true,
+          path: portableWinGit,
+          version: test.version,
+          phase: "completed",
+        };
+      }
     }
   } else {
     const portableUnixGit = path.join(userData, "bin", "git", "bin", "git");

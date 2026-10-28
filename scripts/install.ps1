@@ -18,6 +18,35 @@ $ErrorActionPreference = "Stop"
 $Repo = "aniasusual/crbn"
 $AppName = "80degrees"
 $AssetFile = "${AppName}-win-x64.zip"
+$TelemetryEndpoint = if ($env:TELEMETRY_ENDPOINT) { $env:TELEMETRY_ENDPOINT } else { "https://get.80degreeslabs.com/api/v1/telemetry" }
+$InstallStartTime = [System.DateTime]::UtcNow
+$CurrentStage = "init"
+$InstallSuccess = $false
+
+# Resolve or generate anonymous device ID
+$ConfigDir = [System.IO.Path]::Combine($env:USERPROFILE, ".80degrees")
+if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
+$IdFile = [System.IO.Path]::Combine($ConfigDir, "device_id")
+$DeviceId = if (Test-Path $IdFile) { (Get-Content -Path $IdFile -Raw).Trim() } else { "" }
+if (-not $DeviceId) {
+    $DeviceId = [System.Guid]::NewGuid().ToString("D")
+    Set-Content -Path $IdFile -Value $DeviceId -NoNewline -ErrorAction SilentlyContinue
+}
+
+function Send-Telemetry([string]$EventName, [hashtable]$Props) {
+    if ($env:DO_NOT_TRACK -eq "1" -or $env:80DEGREES_NO_TELEMETRY -eq "1") { return }
+    try {
+        $payload = @{
+            device_id = $DeviceId
+            event = $EventName
+            properties = $Props
+            timestamp = [System.DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+        } | ConvertTo-Json -Compress
+        $null = Invoke-RestMethod -Uri $TelemetryEndpoint -Method Post -Body $payload -ContentType "application/json" -TimeoutSec 2 -ErrorAction SilentlyContinue
+    } catch {}
+}
+
+Send-Telemetry "install_started" @{ os = "windows"; arch = "x64"; ref = $Ref; installer = "ps1" }
 
 if ($Ref) {
     $DownloadUrl = "https://github.com/${Repo}/releases/download/${Ref}/${AssetFile}"
@@ -25,7 +54,6 @@ if ($Ref) {
     # Direct GitHub CDN redirect URL (bypasses rate limits)
     $DownloadUrl = "https://github.com/${Repo}/releases/latest/download/${AssetFile}"
 }
-
 Write-Host ""
 Write-Host "  ⚡ Installing ${AppName} for Windows (x64)..." -ForegroundColor Cyan
 Write-Host "  Downloading from GitHub Releases CDN..." -ForegroundColor Gray
@@ -42,9 +70,11 @@ try {
     [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]::Tls12
 
     # Download payload
+    $CurrentStage = "download"
     Write-Host "  ==> Downloading ${AssetFile}..." -ForegroundColor Yellow
     Invoke-WebRequest -Uri $DownloadUrl -OutFile $ZipPath -UseBasicParsing
 
+    $CurrentStage = "extract"
     Write-Host "  ==> Extracting archive..." -ForegroundColor Yellow
     Expand-Archive -Path $ZipPath -DestinationPath $ExtractPath -Force
 
@@ -60,6 +90,7 @@ try {
     $SourceDir = $ExeFile.Directory.FullName
 
     # Target directory
+    $CurrentStage = "install"
     $InstallDir = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Programs", $AppName)
     if (Test-Path $InstallDir) {
         Write-Host "  ==> Updating existing installation..." -ForegroundColor Gray
@@ -103,9 +134,17 @@ try {
     Write-Host "  ✓ Successfully installed ${AppName} to ${InstallDir}" -ForegroundColor Green
     Write-Host "  ✓ Shortcuts added to Start Menu and Desktop." -ForegroundColor Green
     Write-Host ""
+    $CurrentStage = "launch"
     Write-Host "  ==> Launching ${AppName}..." -ForegroundColor Cyan
     Start-Process -FilePath $FinalExe
 
+    $InstallSuccess = $true
+    $Duration = [int]([System.DateTime]::UtcNow - $InstallStartTime).TotalSeconds
+    Send-Telemetry "install_completed" @{ os = "windows"; arch = "x64"; duration_sec = $Duration; install_dir = $InstallDir }
+
+} catch {
+    Send-Telemetry "install_failed" @{ os = "windows"; arch = "x64"; stage = $CurrentStage; error_msg = $_.Exception.Message }
+    throw $_
 } finally {
     if (Test-Path $TempDir) {
         Remove-Item -Path $TempDir -Recurse -Force -ErrorAction SilentlyContinue
