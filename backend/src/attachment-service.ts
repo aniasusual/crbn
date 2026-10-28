@@ -15,7 +15,8 @@ export interface RawAttachment {
   isImage?: boolean;
   isVideo?: boolean;
   thumbnailUrl?: string;
-  data: string; // Base64 encoded file bytes
+  path?: string;
+  data?: string; // Base64 encoded file bytes (optional if path is provided)
 }
 
 export interface ImageContentBlock {
@@ -66,22 +67,39 @@ export class AttachmentService {
     }
 
     for (const att of attachments) {
-      if (!att.data || typeof att.data !== "string") continue;
-
       const rawExt = path.extname(att.name).toLowerCase();
-      const safeName = `${Date.now()}_${sanitizeFileName(att.name)}`;
-      const filePath = path.join(targetDir, safeName);
-
+      let filePath: string;
       let buffer: Buffer;
-      try {
-        buffer = Buffer.from(att.data, "base64");
-        fs.writeFileSync(filePath, buffer);
+
+      if (att.path) {
+        filePath = projectPath && !path.isAbsolute(att.path)
+          ? path.resolve(projectPath, att.path)
+          : path.resolve(att.path);
+
+        if (!fs.existsSync(filePath)) {
+          console.warn(`[AttachmentService] Pre-uploaded attachment not found at ${filePath}`);
+          continue;
+        }
         savedPaths.push(filePath);
-      } catch (err) {
-        console.error(`[AttachmentService] Failed to write attachment to ${filePath}:`, err);
+        try {
+          buffer = fs.readFileSync(filePath);
+        } catch {
+          buffer = Buffer.alloc(0);
+        }
+      } else if (att.data && typeof att.data === "string") {
+        const safeName = `${Date.now()}_${sanitizeFileName(att.name)}`;
+        filePath = path.join(targetDir, safeName);
+        try {
+          buffer = Buffer.from(att.data, "base64");
+          fs.writeFileSync(filePath, buffer);
+          savedPaths.push(filePath);
+        } catch (err) {
+          console.error(`[AttachmentService] Failed to write attachment to ${filePath}:`, err);
+          continue;
+        }
+      } else {
         continue;
       }
-
       const relPath = projectPath ? path.relative(projectPath, filePath) : filePath;
       const isImg =
         Boolean(att.isImage) ||
@@ -91,12 +109,12 @@ export class AttachmentService {
       // Case 1: Image attachment -> emit multimodal vision block
       if (isImg) {
         const mimeType = att.mimeType || (rawExt === ".png" ? "image/png" : "image/jpeg");
+        const imageData = att.data || buffer.toString("base64");
         images.push({
           type: "image",
-          data: att.data,
+          data: imageData,
           mimeType,
         });
-        promptAdditions += `<file name="${relPath}" type="image">${att.name} (saved to ${relPath})</file>\n\n`;
         continue;
       }
 

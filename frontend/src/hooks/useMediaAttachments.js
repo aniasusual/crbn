@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
+import { API_BASE_URL } from '../config';
 
 const MAX_IMAGE_DIMENSION = 2048;
 
@@ -136,19 +137,41 @@ function captureVideoThumbnail(file) {
   });
 }
 
-export function useMediaAttachments() {
+async function uploadAttachmentBinary(file, projectName) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (projectName) {
+      formData.append('project', projectName);
+    }
+    const endpoint = projectName
+      ? `${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/attachments/upload`
+      : `${API_BASE_URL}/api/attachments/upload`;
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[useMediaAttachments] Direct upload failed, falling back to base64:', err);
+    return null;
+  }
+}
+
+export function useMediaAttachments(projectName = '') {
   const [attachments, setAttachments] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
-
-  const addFiles = useCallback(async (filesList) => {
+  const addFiles = useCallback(async (filesList, projectOverride = '') => {
     if (!filesList || filesList.length === 0) return;
+    const activeProject = projectOverride || projectName;
 
     for (const file of filesList) {
       const id = `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const isImage = file.type.startsWith('image/');
       const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(file.name);
-
       if (isImage) {
         const processed = await downscaleImage(file);
         if (processed) {
@@ -167,10 +190,17 @@ export function useMediaAttachments() {
           ]);
         }
       } else if (isVideo) {
-        const [thumbnailUrl, base64Data] = await Promise.all([
-          captureVideoThumbnail(file),
-          readFileAsBase64(file),
-        ]);
+        // Capture lightweight 10KB canvas thumbnail for instant visual display
+        const thumbnailUrl = await captureVideoThumbnail(file);
+
+        // Upload binary file directly via HTTP stream (zero WebSocket 16MB ceiling / zero memory freeze)
+        const uploadResult = await uploadAttachmentBinary(file, activeProject);
+
+        let base64Data = '';
+        if (!uploadResult?.path) {
+          base64Data = await readFileAsBase64(file);
+        }
+
         setAttachments((prev) => [
           ...prev,
           {
@@ -181,12 +211,26 @@ export function useMediaAttachments() {
             mimeType: file.type || 'video/mp4',
             thumbnailUrl: thumbnailUrl || undefined,
             dataUrl: thumbnailUrl || undefined,
-            base64: base64Data,
-            data: base64Data,
+            path: uploadResult?.path,
+            savedPath: uploadResult?.path,
+            base64: base64Data || undefined,
+            data: base64Data || undefined,
           },
         ]);
       } else {
-        const base64Data = await readFileAsBase64(file);
+        let savedPath = null;
+        let base64Data = '';
+
+        // For files >= 2MB, stream upload directly to avoid base64 ballooning
+        if (file.size >= 2 * 1024 * 1024) {
+          const uploadResult = await uploadAttachmentBinary(file, activeProject);
+          savedPath = uploadResult?.path || null;
+        }
+
+        if (!savedPath) {
+          base64Data = await readFileAsBase64(file);
+        }
+
         setAttachments((prev) => [
           ...prev,
           {
@@ -195,13 +239,14 @@ export function useMediaAttachments() {
             size: file.size,
             type: 'file',
             mimeType: file.type || 'application/octet-stream',
-            data: base64Data,
+            path: savedPath || undefined,
+            savedPath: savedPath || undefined,
+            data: base64Data || undefined,
           },
         ]);
       }
     }
-  }, []);
-
+  }, [projectName]);
   const removeAttachment = useCallback((id) => {
     setAttachments((prev) => prev.filter((a) => a.id !== id));
   }, []);

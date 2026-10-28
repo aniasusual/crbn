@@ -3,6 +3,7 @@ import * as fsSync from "node:fs";
 import * as path from "node:path";
 import { getAugmentedEnv } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
+import { ChatHistoryManager } from "./chat-history";
 export const CHECKPOINTS_FILENAME = ".80degrees_checkpoints.json";
 export const BRANCHES_FILENAME = ".80degrees_branches.json";
 
@@ -517,7 +518,7 @@ export class CheckpointManager {
     if (!target) {
       throw new Error(`Branch "${branchName}" not found.`);
     }
-    if (target.name === "main") {
+    if (target.name === "main" || target.name === "master" || target.git_branch === "main" || target.git_branch === "master") {
       throw new Error("Cannot delete main branch.");
     }
     if (target.name === state.active_branch) {

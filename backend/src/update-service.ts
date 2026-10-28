@@ -13,6 +13,19 @@ export interface UpdateCheckResult {
   publishedAt?: string;
 }
 
+export type UpdateState = "idle" | "checking" | "downloading" | "extracting" | "installing" | "ready" | "error";
+
+export interface UpdateStatus {
+  state: UpdateState;
+  progress: number;
+  bytesDownloaded: number;
+  totalBytes: number;
+  currentVersion: string;
+  latestVersion: string;
+  error?: string;
+  message?: string;
+}
+
 export interface UpdateApplyResult {
   success: boolean;
   message: string;
@@ -23,9 +36,39 @@ export class UpdateService {
   private repo = "aniasusual/crbn";
   private appName = "80degrees";
   private currentVersion: string;
+  private status: UpdateStatus = {
+    state: "idle",
+    progress: 0,
+    bytesDownloaded: 0,
+    totalBytes: 0,
+    currentVersion: "0.1.4",
+    latestVersion: "0.1.4",
+  };
+  private statusListeners: Array<(status: UpdateStatus) => void> = [];
 
   constructor() {
     this.currentVersion = this.resolveCurrentVersion();
+    this.status.currentVersion = this.currentVersion;
+    this.status.latestVersion = this.currentVersion;
+  }
+
+  onStatusUpdate(cb: (status: UpdateStatus) => void): () => void {
+    this.statusListeners.push(cb);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== cb);
+    };
+  }
+
+  private notifyListeners(): void {
+    for (const listener of this.statusListeners) {
+      try {
+        listener(this.status);
+      } catch {}
+    }
+  }
+
+  getStatus(): UpdateStatus {
+    return { ...this.status };
   }
 
   private resolveCurrentVersion(): string {
@@ -151,9 +194,17 @@ export class UpdateService {
   }
 
   /**
-   * Download and apply the update without terminal commands or Apple Developer ID verification
+   * Start async background update job without blocking the HTTP connection
    */
-  async applyUpdate(): Promise<UpdateApplyResult> {
+  async startUpdate(): Promise<UpdateApplyResult> {
+    if (this.status.state === "downloading" || this.status.state === "extracting" || this.status.state === "installing") {
+      return {
+        success: true,
+        message: "Update already in progress.",
+        version: this.status.latestVersion,
+      };
+    }
+
     const check = await this.checkForUpdates();
     if (!check.hasUpdate && !process.env.FORCE_UPDATE) {
       return {
@@ -163,6 +214,44 @@ export class UpdateService {
       };
     }
 
+    this.status = {
+      state: "downloading",
+      progress: 0,
+      bytesDownloaded: 0,
+      totalBytes: 0,
+      currentVersion: this.currentVersion,
+      latestVersion: check.latestVersion,
+      message: `Downloading update to v${check.latestVersion}...`,
+    };
+    this.notifyListeners();
+
+    // Run the download and extraction asynchronously in background
+    this.runUpdateJob(check).catch((err) => {
+      console.error("[UpdateService] Background update failed:", err);
+      this.status = {
+        state: "error",
+        progress: 0,
+        bytesDownloaded: 0,
+        totalBytes: 0,
+        currentVersion: this.currentVersion,
+        latestVersion: check.latestVersion,
+        error: err instanceof Error ? err.message : String(err),
+      };
+      this.notifyListeners();
+    });
+
+    return {
+      success: true,
+      message: `Update to v${check.latestVersion} started in background.`,
+      version: check.latestVersion,
+    };
+  }
+
+  async applyUpdate(): Promise<UpdateApplyResult> {
+    return await this.startUpdate();
+  }
+
+  private async runUpdateJob(check: UpdateCheckResult): Promise<void> {
     const { targetOs, arch, ext } = this.getPlatformArch();
     const assetName = `${this.appName}-${targetOs}-${arch}.${ext}`;
     const downloadUrl = check.downloadUrl || `https://github.com/${this.repo}/releases/latest/download/${assetName}`;
@@ -173,25 +262,64 @@ export class UpdateService {
     fs.mkdirSync(extractDir, { recursive: true });
 
     try {
-      console.log(`[UpdateService] Downloading update package from ${downloadUrl}...`);
+      console.log(`[UpdateService] Streaming update package from ${downloadUrl}...`);
       const resp = await fetch(downloadUrl);
-      if (!resp.ok) {
+      if (!resp.ok || !resp.body) {
         throw new Error(`Failed to download update: HTTP ${resp.status} ${resp.statusText}`);
       }
-      const buffer = await resp.arrayBuffer();
-      fs.writeFileSync(zipPath, Buffer.from(buffer));
+      const totalBytes = Number(resp.headers.get("content-length") || 0);
+      this.status.totalBytes = totalBytes;
+
+      const fileStream = fs.createWriteStream(zipPath);
+      let downloaded = 0;
+      const reader = resp.body.getReader();
+      let lastEmitTime = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fileStream.write(value);
+        downloaded += value.length;
+
+        const now = Date.now();
+        if (now - lastEmitTime > 300) {
+          lastEmitTime = now;
+          const pct = totalBytes > 0 ? Math.round((downloaded / totalBytes) * 100) : 0;
+          this.status = {
+            ...this.status,
+            state: "downloading",
+            progress: pct,
+            bytesDownloaded: downloaded,
+          };
+          this.notifyListeners();
+        }
+      }
+      fileStream.end();
 
       console.log(`[UpdateService] Extracting update package...`);
+      this.status = {
+        ...this.status,
+        state: "extracting",
+        progress: 100,
+        bytesDownloaded: downloaded,
+      };
+      this.notifyListeners();
+
       if (targetOs === "mac" || (targetOs === "win" && ext === "zip")) {
         execSync(`unzip -q "${zipPath}" -d "${extractDir}"`);
       } else {
         execSync(`tar -xzf "${zipPath}" -C "${extractDir}"`);
       }
 
+      this.status = {
+        ...this.status,
+        state: "installing",
+      };
+      this.notifyListeners();
+
       if (targetOs === "mac") {
         let extractedApp = path.join(extractDir, `${this.appName}.app`);
         if (!fs.existsSync(extractedApp)) {
-          // Look for nested .app folder
           const entries = fs.readdirSync(extractDir, { withFileTypes: true });
           const appEntry = entries.find((e) => e.isDirectory() && e.name.endsWith(".app"));
           if (appEntry) {
@@ -203,16 +331,14 @@ export class UpdateService {
           throw new Error("Extracted package did not contain an .app bundle.");
         }
 
-        // Recursively strip Gatekeeper quarantine BEFORE swapping
         console.log(`[UpdateService] Stripping Gatekeeper quarantine...`);
         execSync(`xattr -cr "${extractedApp}" 2>/dev/null || true`);
 
-        // Find installed destination path dynamically from running process if available
         let destApp = "/Applications/80degrees.app";
         if (process.env.RESOURCES_PATH) {
           try {
             const candidateApp = path.resolve(process.env.RESOURCES_PATH, "../..");
-            if (candidateApp.endsWith(".app") && fs.existsSync(candidateApp)) {
+            if (candidateApp.endsWith(".app") && fs.existsSync(candidateApp) && !candidateApp.includes("node_modules")) {
               destApp = candidateApp;
             }
           } catch {}
@@ -234,7 +360,6 @@ export class UpdateService {
         execSync(`xattr -cr "${destApp}" 2>/dev/null || true`);
         execSync(`chmod -R u+rwX "${destApp}" 2>/dev/null || true`);
 
-        // Clean up backup asynchronously
         try {
           fs.rmSync(backupApp, { recursive: true, force: true });
         } catch {}
@@ -244,7 +369,7 @@ export class UpdateService {
         if (process.env.RESOURCES_PATH) {
           try {
             const candidateDir = path.resolve(process.env.RESOURCES_PATH, "..");
-            if (fs.existsSync(path.join(candidateDir, `${this.appName}.exe`))) {
+            if (fs.existsSync(path.join(candidateDir, `${this.appName}.exe`)) && !candidateDir.includes("node_modules")) {
               installDir = candidateDir;
             }
           } catch {}
@@ -261,11 +386,16 @@ export class UpdateService {
         fs.cpSync(extractDir, installDir, { recursive: true });
       }
 
-      return {
-        success: true,
+      this.status = {
+        state: "ready",
+        progress: 100,
+        bytesDownloaded: downloaded,
+        totalBytes: downloaded,
+        currentVersion: this.currentVersion,
+        latestVersion: check.latestVersion,
         message: `Successfully updated to v${check.latestVersion}. Restart required.`,
-        version: check.latestVersion,
       };
+      this.notifyListeners();
     } finally {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });

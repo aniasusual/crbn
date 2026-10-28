@@ -1368,6 +1368,36 @@ export default function ChatMessage({
       );
     }
 
+    // Error message
+    if (message.type === 'error') {
+      const errText = message.content || message.message || 'An error occurred';
+      return (
+        <div className={`chat-msg chat-msg--assistant ${isOutOfContext ? 'chat-msg--out-of-context' : ''}`}>
+          <div className="chat-msg__assistant-row">
+            <div className="chat-msg__assistant-icon" title="Error">
+              <AgentIcon />
+            </div>
+            <div className="chat-msg__content" style={{ flex: 1, minWidth: 0 }}>
+              <div className="chat-msg__box chat-msg__box--assistant" style={{ borderColor: 'rgba(239, 68, 68, 0.4)', background: 'rgba(239, 68, 68, 0.08)' }}>
+                <div style={{ color: '#f87171', fontWeight: 500, fontSize: '0.85rem' }}>
+                  {errText}
+                </div>
+              </div>
+            </div>
+          </div>
+          <MessageFooter
+            timestamp={message.timestamp}
+            contentToCopy={errText}
+            debug={message.debug}
+            onOpenDebug={openDebug}
+            stepId={message.step_id}
+            onRewindToStep={onRewindToStep}
+            onBranchFromStep={onBranchFromStep}
+          />
+        </div>
+      );
+    }
+
     // Fallback for untyped content if it exists
     if (message.content) {
       return (

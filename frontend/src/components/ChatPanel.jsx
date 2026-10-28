@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import BranchSelector from './BranchSelector';
 import BranchTreeModal from './BranchTreeModal';
 import GitHubSyncModal from './GitHubSyncModal';
@@ -357,7 +357,7 @@ export default function ChatPanel({
     handleDrop,
     handlePaste,
     addFiles,
-  } = useMediaAttachments();
+  } = useMediaAttachments(projectName || _projectName);
   const [selectedSubagentMsg, setSelectedSubagentMsg] = useState(null);
   const [isTodoExpanded, setIsTodoExpanded] = useState(false);
   const [isTreeModalOpen, setIsTreeModalOpen] = useState(false);
@@ -367,10 +367,23 @@ export default function ChatPanel({
   const scrollContainerRef = useRef(null);
   const isUserScrolledRef = useRef(false);
 
+  // Progressive Reverse Tail-Windowing for 60fps rendering across thousands of turns
+  const INITIAL_VISIBLE_COUNT = 40;
+  const BATCH_INCREMENT = 30;
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  const prevScrollHeightRef = useRef(0);
+  const isExpandingRef = useRef(false);
+
+  const allMessages = messages || [];
+  const totalMessagesCount = allMessages.length;
+  const effectiveVisibleCount = isSearchOpen ? totalMessagesCount : visibleCount;
+  const startIndex = Math.max(0, totalMessagesCount - effectiveVisibleCount);
+  const visibleMessages = allMessages.slice(startIndex);
+  const hasEarlierMessages = startIndex > 0;
+
   const currentModelObj = models.find((m) => m.id === selectedModel || m.canonical_id === selectedModel) || (
     selectedModel ? { name: selectedModel, compatibility_label: 'Optimal' } : null
   );
-
   const handleOpenSubagent = (msg) => {
     if (msg && isSubagentTool(msg.name)) {
       setSelectedSubagentMsg(msg);
@@ -431,14 +444,31 @@ export default function ChatPanel({
     const isAtBottom = distanceToBottom < 60;
     isUserScrolledRef.current = !isAtBottom;
     setShowScrollBottom(distanceToBottom > 120);
+
+    // Auto-expand earlier messages when scrolling near the top
+    if (container.scrollTop < 80 && hasEarlierMessages && !isExpandingRef.current) {
+      isExpandingRef.current = true;
+      prevScrollHeightRef.current = container.scrollHeight;
+      setVisibleCount((prev) => Math.min(prev + BATCH_INCREMENT, totalMessagesCount));
+    }
   };
+
+  useLayoutEffect(() => {
+    if (isExpandingRef.current && scrollContainerRef.current) {
+      const newScrollHeight = scrollContainerRef.current.scrollHeight;
+      const heightDiff = newScrollHeight - prevScrollHeightRef.current;
+      if (heightDiff > 0) {
+        scrollContainerRef.current.scrollTop += heightDiff;
+      }
+      isExpandingRef.current = false;
+    }
+  }, [visibleMessages.length]);
 
   const handleScrollToBottomClick = () => {
     isUserScrolledRef.current = false;
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setShowScrollBottom(false);
   };
-
   const scrollToBottom = () => {
     if (!isUserScrolledRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -469,14 +499,22 @@ export default function ChatPanel({
       .filter((a) => a.type === 'video')
       .map((a) => ({
         name: a.name,
-        data: a.data || a.base64,
+        path: a.savedPath || a.path,
+        data: (a.savedPath || a.path) ? undefined : (a.data || a.base64),
         mimeType: a.mimeType,
         size: a.size,
         thumbnailUrl: a.thumbnailUrl,
       }));
     const files = attachments
       .filter((a) => a.type === 'file')
-      .map((a) => ({ name: a.name, data: a.data, size: a.size, mimeType: a.mimeType }));
+      .map((a) => ({
+        name: a.name,
+        path: a.savedPath || a.path,
+        data: (a.savedPath || a.path) ? undefined : a.data,
+        size: a.size,
+        mimeType: a.mimeType,
+      }));
+
     if (typeof input === 'string' && input.trim() === '/clear') {
       setInput('');
       clearAttachments();
@@ -731,11 +769,30 @@ export default function ChatPanel({
         ref={scrollContainerRef}
         onScroll={handleScroll}
       >
+        {hasEarlierMessages && (
+          <div className="chat-panel__load-older-wrap">
+            <button
+              type="button"
+              className="chat-panel__load-older-btn"
+              onClick={() => {
+                isExpandingRef.current = true;
+                prevScrollHeightRef.current = scrollContainerRef.current?.scrollHeight || 0;
+                setVisibleCount((prev) => Math.min(prev + BATCH_INCREMENT, totalMessagesCount));
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15" />
+              </svg>
+              <span>Load earlier messages ({startIndex} remaining)</span>
+            </button>
+          </div>
+        )}
         {(() => {
-          const lastBoundaryIndex = (messages || []).findLastIndex(
+          const lastBoundaryIndex = allMessages.findLastIndex(
             (m) => m.type === 'reset_boundary' || m.type === 'reset_divider'
           );
-          return messages?.map((msg, i) => {
+          return visibleMessages.map((msg, idx) => {
+            const i = startIndex + idx;
             const isDivider = msg.type === 'reset_boundary' || msg.type === 'reset_divider';
             const isUser = !isDivider && isUserMessage(msg);
             const isOutOfContext = lastBoundaryIndex >= 0 && i < lastBoundaryIndex;
@@ -747,7 +804,7 @@ export default function ChatPanel({
               >
                 <ChatMessage
                   message={msg}
-                  isActive={isAgentRunning && i === messages.length - 1}
+                  isActive={isAgentRunning && i === totalMessagesCount - 1}
                   isOutOfContext={isOutOfContext}
                   isSearchActive={currentMatch?.messageIndex === i}
                   isSearchMatch={matchingIndices.has(i)}
