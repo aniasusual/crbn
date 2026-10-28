@@ -24,13 +24,19 @@ $CurrentStage = "init"
 $InstallSuccess = $false
 
 # Resolve or generate anonymous device ID
+$DeviceIdOverride = ""
 $ConfigDir = [System.IO.Path]::Combine($env:USERPROFILE, ".80degrees")
 if (-not (Test-Path $ConfigDir)) { New-Item -ItemType Directory -Path $ConfigDir -Force | Out-Null }
 $IdFile = [System.IO.Path]::Combine($ConfigDir, "device_id")
-$DeviceId = if (Test-Path $IdFile) { (Get-Content -Path $IdFile -Raw).Trim() } else { "" }
-if (-not $DeviceId) {
-    $DeviceId = [System.Guid]::NewGuid().ToString("D")
+if ($DeviceIdOverride) {
+    $DeviceId = $DeviceIdOverride
     Set-Content -Path $IdFile -Value $DeviceId -NoNewline -ErrorAction SilentlyContinue
+} else {
+    $DeviceId = if (Test-Path $IdFile) { (Get-Content -Path $IdFile -Raw).Trim() } else { "" }
+    if (-not $DeviceId) {
+        $DeviceId = [System.Guid]::NewGuid().ToString("D")
+        Set-Content -Path $IdFile -Value $DeviceId -NoNewline -ErrorAction SilentlyContinue
+    }
 }
 
 function Send-Telemetry([string]$EventName, [hashtable]$Props) {

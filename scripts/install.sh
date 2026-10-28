@@ -21,9 +21,16 @@ INSTALL_START_TIME="$(date +%s 2>/dev/null || echo 0)"
 INSTALL_SUCCESS=0
 CURRENT_STAGE="init"
 CLI_LINKED=0
+DEVICE_ID_OVERRIDE=""
 
 get_or_create_device_id() {
   ID_FILE="$HOME/.80degrees/device_id"
+  if [ -n "$DEVICE_ID_OVERRIDE" ]; then
+    mkdir -p "$HOME/.80degrees" 2>/dev/null || true
+    printf "%s" "$DEVICE_ID_OVERRIDE" > "$ID_FILE" 2>/dev/null || true
+    printf "%s" "$DEVICE_ID_OVERRIDE"
+    return
+  fi
   if [ -f "$ID_FILE" ]; then
     EXISTING="$(cat "$ID_FILE" 2>/dev/null)"
     if [ -n "$EXISTING" ]; then

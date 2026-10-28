@@ -84,6 +84,14 @@ export class TelemetryService {
     return !this.disabled;
   }
 
+  public identifyUser(distinctId: string, traits: Record<string, unknown> = {}): void {
+    if (this.disabled) return;
+    this.track("$identify", {
+      $set: traits,
+      distinct_id: distinctId,
+    });
+    this.flush().catch(() => {});
+  }
   public track(event: string, properties: Record<string, unknown> = {}): void {
     if (this.disabled) return;
 
