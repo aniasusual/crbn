@@ -110,14 +110,15 @@ describe("Rigorous Clear & Subsystem Integration Suite", () => {
     const contextAfterClear = sessionManager.buildSessionContext();
     expect(contextAfterClear.messages.length).toBe(0);
 
-    // 2. Visible UI chat events must be empty
+    // 2. Chat history preserves previous turns plus the reset_boundary divider
     const historyAfterClear = await ChatHistoryManager.loadHistory(projectPath);
-    expect(historyAfterClear.ui_events.length).toBe(0);
+    expect(historyAfterClear.ui_events.length).toBe(5);
+    expect(historyAfterClear.ui_events[4].type).toBe("reset_boundary");
 
-    // 3. Raw history must preserve all previous events + reset_boundary
+    // 3. Raw history also preserves all 5 entries
     const rawHistory = await ChatHistoryManager.loadHistory(projectPath, defaultBranch, { raw: true });
+    expect(rawHistory.ui_events.length).toBe(5);
     expect(rawHistory.ui_events[4].type).toBe("reset_boundary");
-
     // 4. Git working tree and checkpoints must remain completely untouched
     expect(fsSync.existsSync(path.join(projectPath, "app.js"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectPath, "style.css"))).toBe(true);
@@ -155,11 +156,11 @@ describe("Rigorous Clear & Subsystem Integration Suite", () => {
     const userText = getMessageText(contextPostClear.messages[0]);
     expect(userText).toBe("Create feature.js");
 
-    // 2. Visible UI events must ONLY see post-clear turns
+    // 2. UI chat events include previous turns + divider + post-clear turns
     const historyPostClear = await ChatHistoryManager.loadHistory(projectPath);
-    expect(historyPostClear.ui_events.length).toBe(2);
-    expect(historyPostClear.ui_events[0].content).toBe("Create feature.js");
-
+    expect(historyPostClear.ui_events.length).toBe(7);
+    expect(historyPostClear.ui_events[4].type).toBe("reset_boundary");
+    expect(historyPostClear.ui_events[5].content).toBe("Create feature.js");
     // 3. Checkpoints timeline includes all steps
     const checkpoints = await CheckpointManager.getCheckpoints(projectPath);
     expect(checkpoints.length).toBe(4); // step_0, step_1, step_2, step_3
@@ -176,8 +177,7 @@ describe("Rigorous Clear & Subsystem Integration Suite", () => {
 
     // Branch chat history
     const branchEvents = await ChatHistoryManager.branchHistory(projectPath, defaultBranch, "exp-feature", step3Id);
-    expect(branchEvents.length).toBe(2);
-
+    expect(branchEvents.length).toBe(7);
     // Verify branch tree data structure
     const tree = await CheckpointManager.getBranchTree(projectPath);
     expect(tree.active_branch).toBe("exp-feature");
@@ -247,12 +247,10 @@ describe("Rigorous Clear & Subsystem Integration Suite", () => {
       content: [{ type: "text", text: "Created component.jsx" }],
       timestamp: Date.now(),
     });
-    await CheckpointManager.createCheckpoint(projectPath, "Create component.jsx", e8);
     const stepComponent = await CheckpointManager.createCheckpoint(projectPath, "Create component.jsx", e8);
     const compStepId = stepComponent?.step_id!;
-    await ChatHistoryManager.appendEvent(projectPath, { role: "user", content: "Create component.jsx", step_id: compStepId });
-    await ChatHistoryManager.appendEvent(projectPath, { role: "assistant", content: "Created component.jsx", step_id: compStepId });
-
+    await ChatHistoryManager.appendEvent(projectPath, { role: "user", content: "Create component.jsx", step_id: compStepId }, defaultBranch);
+    await ChatHistoryManager.appendEvent(projectPath, { role: "assistant", content: "Created component.jsx", step_id: compStepId }, defaultBranch);
     expect(fsSync.existsSync(path.join(projectPath, "component.jsx"))).toBe(true);
 
     // Rewind with rollbackCode: false (messages_only) back to step1Id

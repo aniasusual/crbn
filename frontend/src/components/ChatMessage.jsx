@@ -617,7 +617,7 @@ export default function ChatMessage({
   isActive,
   isSearchActive = false,
   isSearchMatch = false,
-  onOpenSubagent,
+  isOutOfContext = false,
   onSelectOption,
   onToolResponse,
   onRewindToStep,
@@ -641,13 +641,29 @@ export default function ChatMessage({
   const openDebug = () => setIsDebugOpen(true);
 
   const renderBubble = () => {
+    if (message.type === 'reset_boundary' || message.type === 'reset_divider') {
+      return (
+        <div className="chat-msg chat-msg--reset-divider" key={message.id || message.timestamp}>
+          <div className="chat-msg__reset-line" />
+          <div className="chat-msg__reset-pill">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+              <path d="M22 21H7" />
+              <path d="m5 11 9 9" />
+            </svg>
+            <span>Context Reset — New Conversation</span>
+          </div>
+          <div className="chat-msg__reset-line" />
+        </div>
+      );
+    }
     // User message
     if (message.role === 'user' || message.type === 'user') {
       const hasImages = Array.isArray(message.images) && message.images.length > 0;
       const hasFiles = Array.isArray(message.files) && message.files.length > 0;
 
       return (
-        <div className="chat-msg chat-msg--user">
+        <div className={`chat-msg chat-msg--user ${isOutOfContext ? 'chat-msg--out-of-context' : ''}`}>
           <div className="chat-msg__user-row">
             <div className="chat-msg__box chat-msg__box--user">
               {hasImages && (
@@ -724,7 +740,7 @@ export default function ChatMessage({
           ? (typeof message.arguments === 'string' ? message.arguments : JSON.stringify(message.arguments, null, 2))
           : '';
         return (
-          <div className="chat-msg chat-msg--tool_call">
+          <div className={`chat-msg chat-msg--tool_call ${isOutOfContext ? 'chat-msg--out-of-context' : ''}`}>
             <div className="chat-msg__assistant-row">
               <div className="chat-msg__assistant-icon">
                 <AgentIcon />
@@ -1100,7 +1116,7 @@ export default function ChatMessage({
     // Assistant response / token
     if (message.type === 'token' || message.role === 'assistant' || message.type === 'assistant') {
       return (
-        <div className="chat-msg chat-msg--assistant">
+        <div className={`chat-msg chat-msg--assistant ${isOutOfContext ? 'chat-msg--out-of-context' : ''}`}>
           <div className="chat-msg__assistant-row">
             <div className="chat-msg__assistant-icon">
               <AgentIcon />

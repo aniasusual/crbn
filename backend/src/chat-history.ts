@@ -28,6 +28,19 @@ export class ChatHistoryManager {
     const projectName = path.basename(projectPath);
     const now = new Date().toISOString();
 
+    const pending = this.pendingSaves.get(filePath);
+    if (pending) {
+      const data = pending.payload;
+      const branches = data.branches || {};
+      const targetBranch = branchName || data.active_branch || "main";
+      const branchEvents = branches[targetBranch] || data.ui_events || [];
+      return {
+        ...data,
+        active_branch: targetBranch,
+        ui_events: branchEvents,
+      };
+    }
+
     if (!fsSync.existsSync(filePath)) {
       const recovered = await this.recoverFromSession(projectPath);
       const payload: ChatStoragePayload = {
@@ -49,9 +62,26 @@ export class ChatHistoryManager {
 
     try {
       const raw = await fs.readFile(filePath, "utf-8");
-      const data = JSON.parse(raw);
+      let data = JSON.parse(raw);
       const branches: Record<string, Record<string, unknown>[]> = data.branches || {};
       let uiEvents = Array.isArray(data.ui_events) ? data.ui_events : [];
+
+      // Auto-compact oversized legacy transcripts (>5MB) by truncating ancient tool result blobs
+      if (raw.length > 5 * 1024 * 1024) {
+        let compacted = false;
+        for (const [bName, bEvents] of Object.entries(branches)) {
+          if (Array.isArray(bEvents)) {
+            branches[bName] = bEvents.map((ev) => this.sanitizeEventForStorage(ev));
+            compacted = true;
+          }
+        }
+        if (compacted) {
+          data.branches = branches;
+          data.ui_events = branches[data.active_branch || "main"] || uiEvents.map((ev) => this.sanitizeEventForStorage(ev));
+          uiEvents = data.ui_events;
+          fs.writeFile(filePath, JSON.stringify(data), "utf-8").catch(() => {});
+        }
+      }
       const targetBranch = branchName || data.active_branch || "main";
 
       // Ensure target branch has an array
@@ -66,16 +96,6 @@ export class ChatHistoryManager {
       }
 
       const branchEvents = branches[targetBranch] || uiEvents;
-      let visibleEvents = branchEvents;
-      if (!options?.raw) {
-        const lastBoundaryIdx = branchEvents.findLastIndex(
-          (ev: Record<string, unknown>) => ev.type === "reset_boundary"
-        );
-        if (lastBoundaryIdx >= 0) {
-          visibleEvents = branchEvents.slice(lastBoundaryIdx + 1);
-        }
-      }
-
       return {
         version: data.version ?? 3,
         project_name: data.project_name ?? projectName,
@@ -83,7 +103,7 @@ export class ChatHistoryManager {
         updated_at: data.updated_at ?? now,
         active_branch: targetBranch,
         branches,
-        ui_events: visibleEvents,
+        ui_events: branchEvents,
       };
     } catch {
       const recovered = await this.recoverFromSession(projectPath);
@@ -101,10 +121,42 @@ export class ChatHistoryManager {
     }
   }
 
+  private static writeDebounceTimers = new Map<string, Timer>();
+  private static pendingSaves = new Map<string, { payload: ChatStoragePayload; resolve: () => void }>();
+
+  static async flushPendingWrites(projectPath?: string): Promise<void> {
+    if (projectPath) {
+      const filePath = this.getChatFilePath(projectPath);
+      const timer = this.writeDebounceTimers.get(filePath);
+      if (timer) {
+        clearTimeout(timer);
+        this.writeDebounceTimers.delete(filePath);
+      }
+      const pending = this.pendingSaves.get(filePath);
+      if (pending) {
+        this.pendingSaves.delete(filePath);
+        await fs.writeFile(filePath, JSON.stringify(pending.payload), "utf-8").catch(() => {});
+        pending.resolve();
+      }
+    } else {
+      for (const [filePath, timer] of this.writeDebounceTimers.entries()) {
+        clearTimeout(timer);
+        const pending = this.pendingSaves.get(filePath);
+        if (pending) {
+          await fs.writeFile(filePath, JSON.stringify(pending.payload), "utf-8").catch(() => {});
+          pending.resolve();
+        }
+      }
+      this.writeDebounceTimers.clear();
+      this.pendingSaves.clear();
+    }
+  }
+
   static async saveHistory(
     projectPath: string,
     uiEvents: Record<string, unknown>[],
     branchName?: string,
+    options?: { immediate?: boolean },
   ): Promise<void> {
     const filePath = this.getChatFilePath(projectPath);
     const projectName = path.basename(projectPath);
@@ -131,10 +183,76 @@ export class ChatHistoryManager {
       updated_at: now,
       active_branch: activeBranch,
       branches: currentBranches,
-      ui_events: activeBranch === "main" ? uiEvents : (currentBranches["main"] || uiEvents),
+      ui_events: uiEvents,
     };
 
-    await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf-8");
+    if (options?.immediate) {
+      const timer = this.writeDebounceTimers.get(filePath);
+      if (timer) {
+        clearTimeout(timer);
+        this.writeDebounceTimers.delete(filePath);
+      }
+      this.pendingSaves.delete(filePath);
+      await fs.writeFile(filePath, JSON.stringify(payload), "utf-8");
+      return;
+    }
+
+    // Debounced write to coalesce rapid tool events without blocking the event loop
+    const { promise, resolve } = Promise.withResolvers<void>();
+    const existingTimer = this.writeDebounceTimers.get(filePath);
+    clearTimeout(existingTimer);
+
+    this.pendingSaves.set(filePath, { payload, resolve });
+
+    const newTimer = setTimeout(async () => {
+      this.writeDebounceTimers.delete(filePath);
+      const pending = this.pendingSaves.get(filePath);
+      if (pending) {
+        this.pendingSaves.delete(filePath);
+        try {
+          await fs.writeFile(filePath, JSON.stringify(pending.payload), "utf-8");
+        } catch {}
+        pending.resolve();
+      }
+    }, 250);
+
+    this.writeDebounceTimers.set(filePath, newTimer);
+    return promise;
+  }
+
+  static sanitizeEventForStorage(event: Record<string, unknown>): Record<string, unknown> {
+    const clone = { ...event };
+    const MAX_TOOL_TEXT_LEN = 4000;
+
+    if (clone.type === "tool_result") {
+      if (clone.result && typeof clone.result === "object") {
+        const res = clone.result as Record<string, unknown>;
+        if (Array.isArray(res.content)) {
+          clone.result = {
+            ...res,
+            content: res.content.map((item) => {
+              if (item && typeof item === "object") {
+                const textVal = "text" in item && typeof item.text === "string" ? item.text : null;
+                if (textVal && textVal.length > MAX_TOOL_TEXT_LEN) {
+                  return {
+                    ...item,
+                    text: textVal.slice(0, MAX_TOOL_TEXT_LEN) + "\n\n... [Output truncated for storage] ...",
+                  };
+                }
+                if ("type" in item && item.type === "image" && "data" in item) {
+                  return { type: "image", mimeType: item.mimeType, truncated: true };
+                }
+              }
+              return item;
+            }),
+          };
+        }
+      }
+      if (typeof clone.content === "string" && clone.content.length > MAX_TOOL_TEXT_LEN) {
+        clone.content = clone.content.slice(0, MAX_TOOL_TEXT_LEN) + "\n\n... [Output truncated for storage] ...";
+      }
+    }
+    return clone;
   }
 
   static async branchHistory(
@@ -159,8 +277,7 @@ export class ChatHistoryManager {
 
     const clonedEvents = sourceEvents.slice(0, cutoffIndex + 1);
     await this.saveHistory(projectPath, clonedEvents, newBranch);
-    const lastBoundaryIdx = clonedEvents.findLastIndex((ev) => ev.type === "reset_boundary");
-    return lastBoundaryIdx >= 0 ? clonedEvents.slice(lastBoundaryIdx + 1) : clonedEvents;
+    return clonedEvents;
   }
 
   static async appendEvent(
@@ -169,7 +286,8 @@ export class ChatHistoryManager {
     branchName?: string,
   ): Promise<void> {
     const history = await this.loadHistory(projectPath, branchName, { raw: true });
-    history.ui_events.push(event);
+    const sanitized = this.sanitizeEventForStorage(event);
+    history.ui_events.push(sanitized);
     await this.saveHistory(projectPath, history.ui_events, branchName || history.active_branch || "main");
   }
 
@@ -180,6 +298,8 @@ export class ChatHistoryManager {
       timestamp: new Date().toISOString(),
     };
     await this.appendEvent(projectPath, boundaryEvent, branchName);
+    const history = await this.loadHistory(projectPath, branchName, { raw: true });
+    await this.saveHistory(projectPath, history.ui_events, branchName, { immediate: true });
   }
 
   static async clearHistory(projectPath: string, branchName?: string): Promise<void> {
@@ -234,11 +354,16 @@ export class ChatHistoryManager {
       const branch = sm.getBranch();
       if (!branch || branch.length === 0) return [];
 
-      const lastResetIdx = branch.findLastIndex((e) => e.type === "reset_boundary");
-      const activeEntries = lastResetIdx >= 0 ? branch.slice(lastResetIdx + 1) : branch;
-
       const events: Record<string, unknown>[] = [];
-      for (const entry of activeEntries) {
+      for (const entry of branch) {
+        if (entry.type === "reset_boundary") {
+          events.push({
+            type: "reset_boundary",
+            id: entry.id,
+            timestamp: new Date(entry.timestamp || Date.now()).toISOString(),
+          });
+          continue;
+        }
         if (entry.type !== "message") continue;
         const m = entry.message;
         const msgTime = new Date(m.timestamp || Date.now()).toISOString();

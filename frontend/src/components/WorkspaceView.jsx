@@ -12,6 +12,7 @@ export default function WorkspaceView({
   agentStatus = null,
   onClearStatus,
   onClearContext,
+  onUndoClear,
   previewData,
   lastChangeTimestamp,
   onStopPreview,
@@ -120,6 +121,7 @@ export default function WorkspaceView({
             agentStatus={agentStatus}
             onClearStatus={onClearStatus}
             onClearContext={onClearContext}
+            onUndoClear={onUndoClear}
             pendingApproval={pendingApproval}
             onDenyCommand={onDenyCommand}
             models={models}

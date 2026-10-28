@@ -124,6 +124,8 @@ const isUserMessage = (msg) => {
   if (!msg) return false;
   if (msg.role === 'user' || msg.type === 'user') return true;
   if (
+    msg.type === 'reset_boundary' ||
+    msg.type === 'reset_divider' ||
     msg.role === 'assistant' ||
     msg.type === 'assistant' ||
     msg.type === 'token' ||
@@ -207,6 +209,7 @@ export default function ChatPanel({
   agentStatus = null,
   onClearStatus,
   onClearContext,
+  onUndoClear,
   pendingApproval,
   onApproveCommand,
   onDenyCommand,
@@ -244,11 +247,14 @@ export default function ChatPanel({
   queuedMessages = null,
   onRemoveQueuedMessage = null,
 }) {
+  const [isClearPopoverOpen, setIsClearPopoverOpen] = useState(false);
+  const [undoToast, setUndoToast] = useState(null);
+  const clearPopoverRef = useRef(null);
+  const undoToastTimerRef = useRef(null);
   const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
   const setInput = onInputChange || setLocalInput;
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
-
   const queuedItems = useMemo(() => {
     if (!queuedMessages) return [];
     const items = [];
@@ -514,6 +520,27 @@ export default function ChatPanel({
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [isAgentRunning, onStopAgent, isModelSelectorOpen, selectedSubagentMsg, isSearchOpen]);
 
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (clearPopoverRef.current && !clearPopoverRef.current.contains(e.target)) {
+        setIsClearPopoverOpen(false);
+      }
+    };
+    if (isClearPopoverOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isClearPopoverOpen]);
+
+  const handleExecuteClear = () => {
+    setIsClearPopoverOpen(false);
+    onClearContext?.();
+    setUndoToast({ visible: true });
+    clearTimeout(undoToastTimerRef.current);
+    undoToastTimerRef.current = setTimeout(() => {
+      setUndoToast(null);
+    }, 8000);
+  };
   const handleKeyDown = (e) => {
     if (e.key === 'Escape' && isAgentRunning && onStopAgent) {
       e.preventDefault();
@@ -545,21 +572,48 @@ export default function ChatPanel({
           <span className="chat-panel__project-title">{projectName || _projectName || 'Workspace'}</span>
         </div>
         <div className="chat-panel__header-right">
-          <button
-            type="button"
-            className="chat-panel__clear-btn"
-            onClick={onClearContext}
-            disabled={Boolean(isAgentRunning)}
-            title={
-              isAgentRunning
-                ? "Cannot clear context while agent is generating"
-                : "Clear conversation context in place — drops message history from model memory while keeping workspace files, checkpoints, and git branches intact."
-            }
-            aria-label="Clear conversation context"
-          >
-            <ClearIcon size={12} />
-            <span>Clear</span>
-          </button>
+          <div className="chat-panel__clear-wrap" ref={clearPopoverRef}>
+            <button
+              type="button"
+              className={`chat-panel__clear-btn ${isClearPopoverOpen ? 'chat-panel__clear-btn--active' : ''}`}
+              onClick={() => setIsClearPopoverOpen((prev) => !prev)}
+              disabled={Boolean(isAgentRunning)}
+              title={
+                isAgentRunning
+                  ? "Cannot clear context while agent is generating"
+                  : "Clear conversation context in place — drops message history from model memory while keeping workspace files, checkpoints, and git branches intact."
+              }
+              aria-label="Clear conversation context"
+              aria-expanded={isClearPopoverOpen}
+            >
+              <ClearIcon size={12} />
+              <span>Clear</span>
+            </button>
+            {isClearPopoverOpen && (
+              <div className="chat-panel__clear-popover">
+                <div className="chat-panel__clear-popover-title">Reset Conversation Context?</div>
+                <div className="chat-panel__clear-popover-desc">
+                  AI memory will be dropped. Your workspace files, git commits, and checkpoints remain safe.
+                </div>
+                <div className="chat-panel__clear-popover-actions">
+                  <button
+                    type="button"
+                    className="chat-panel__clear-popover-cancel"
+                    onClick={() => setIsClearPopoverOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="chat-panel__clear-popover-confirm"
+                    onClick={handleExecuteClear}
+                  >
+                    Clear Context
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             className={`chat-panel__search-toggle-btn ${isSearchOpen ? 'chat-panel__search-toggle-btn--active' : ''}`}
@@ -669,34 +723,42 @@ export default function ChatPanel({
         ref={scrollContainerRef}
         onScroll={handleScroll}
       >
-        {messages?.map((msg, i) => {
-          const isUser = isUserMessage(msg);
-          return (
-            <div
-              key={i}
-              id={`chat-msg-${i}`}
-              className={`chat-panel__msg-wrapper ${isUser ? 'chat-panel__msg-wrapper--user' : ''} ${currentMatch?.messageIndex === i ? 'chat-panel__msg-wrapper--active-match' : ''}`}
-            >
-            <ChatMessage
-              message={msg}
-              isActive={isAgentRunning && i === messages.length - 1}
-              isSearchActive={currentMatch?.messageIndex === i}
-              isSearchMatch={matchingIndices.has(i)}
-              onOpenSubagent={handleOpenSubagent}
-              onToolResponse={onToolResponse}
-              onSelectOption={(answer, qId) => {
-                if (onToolResponse) {
-                  onToolResponse(qId || msg.id, answer);
-                } else if (onSendMessage) {
-                  onSendMessage(answer);
-                }
-              }}
-              onRewindToStep={onRewindToStep}
-              onBranchFromStep={(stepId, name) => onBranchFromStep?.(stepId, name, activeBranch)}
-            />
-            </div>
+        {(() => {
+          const lastBoundaryIndex = (messages || []).findLastIndex(
+            (m) => m.type === 'reset_boundary' || m.type === 'reset_divider'
           );
-        })}
+          return messages?.map((msg, i) => {
+            const isDivider = msg.type === 'reset_boundary' || msg.type === 'reset_divider';
+            const isUser = !isDivider && isUserMessage(msg);
+            const isOutOfContext = lastBoundaryIndex >= 0 && i < lastBoundaryIndex;
+            return (
+              <div
+                key={msg.id || i}
+                id={`chat-msg-${i}`}
+                className={`chat-panel__msg-wrapper ${isDivider ? 'chat-panel__msg-wrapper--divider' : isUser ? 'chat-panel__msg-wrapper--user' : ''} ${currentMatch?.messageIndex === i ? 'chat-panel__msg-wrapper--active-match' : ''}`}
+              >
+                <ChatMessage
+                  message={msg}
+                  isActive={isAgentRunning && i === messages.length - 1}
+                  isOutOfContext={isOutOfContext}
+                  isSearchActive={currentMatch?.messageIndex === i}
+                  isSearchMatch={matchingIndices.has(i)}
+                  onOpenSubagent={handleOpenSubagent}
+                  onToolResponse={onToolResponse}
+                  onSelectOption={(answer, qId) => {
+                    if (onToolResponse) {
+                      onToolResponse(qId || msg.id, answer);
+                    } else if (onSendMessage) {
+                      onSendMessage(answer);
+                    }
+                  }}
+                  onRewindToStep={onRewindToStep}
+                  onBranchFromStep={(stepId, name) => onBranchFromStep?.(stepId, name, activeBranch)}
+                />
+              </div>
+            );
+          });
+        })()}
         {/* Loader in chat area when agent is working and response has not started streaming yet */}
         {showLoader && (
           <div className="chat-msg chat-msg--assistant chat-msg--loading-stream">
@@ -833,6 +895,43 @@ export default function ChatPanel({
           )}
         </div>
       )} */}
+      {undoToast && (
+        <div className="chat-panel__undo-toast">
+          <span>Context reset. Previous messages dropped from model memory.</span>
+          <button
+            type="button"
+            className="chat-panel__undo-toast-btn"
+            onClick={() => {
+              setUndoToast(null);
+              clearTimeout(undoToastTimerRef.current);
+              onUndoClear?.();
+            }}
+          >
+            Undo
+          </button>
+        </div>
+      )}
+      {contextTelemetry && contextTelemetry.usage_pct >= 70 && (
+        <div className={`chat-panel__context-alert chat-panel__context-alert--${contextTelemetry.usage_pct >= 85 ? 'critical' : 'warning'}`}>
+          <div className="chat-panel__context-alert-content">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>
+              Context window is <strong>{contextTelemetry.usage_pct}% full</strong>. Clear context soon to keep responses fast.
+            </span>
+          </div>
+          <button
+            type="button"
+            className="chat-panel__context-alert-btn"
+            onClick={() => setIsClearPopoverOpen(true)}
+          >
+            Clear Context
+          </button>
+        </div>
+      )}
       <form
         className="chat-panel__input-area"
         onSubmit={handleSubmit}

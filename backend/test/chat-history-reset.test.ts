@@ -26,11 +26,12 @@ describe("ChatHistoryManager with reset_boundary", () => {
     // 2. Record reset boundary
     await ChatHistoryManager.recordResetBoundary(tempDir, "main");
 
-    // 3. Load history should now be empty for visible UI events
+    // 3. Load history preserves the previous turns and the reset_boundary divider
     const histAfterReset = await ChatHistoryManager.loadHistory(tempDir);
-    expect(histAfterReset.ui_events.length).toBe(0);
+    expect(histAfterReset.ui_events.length).toBe(3);
+    expect(histAfterReset.ui_events[2].type).toBe("reset_boundary");
 
-    // 4. Raw history still contains all 3 entries (2 turns + reset_boundary)
+    // 4. Raw history also contains all 3 entries (2 turns + reset_boundary)
     const rawHist = await ChatHistoryManager.loadHistory(tempDir, "main", { raw: true });
     expect(rawHist.ui_events.length).toBe(3);
     expect(rawHist.ui_events[2].type).toBe("reset_boundary");
@@ -38,8 +39,8 @@ describe("ChatHistoryManager with reset_boundary", () => {
     // 5. Append new post-reset turn
     await ChatHistoryManager.appendEvent(tempDir, { role: "user", content: "post reset turn 2", step_id: "step_2" });
     const histPostReset = await ChatHistoryManager.loadHistory(tempDir);
-    expect(histPostReset.ui_events.length).toBe(1);
-    expect(histPostReset.ui_events[0].content).toBe("post reset turn 2");
+    expect(histPostReset.ui_events.length).toBe(4);
+    expect(histPostReset.ui_events[3].content).toBe("post reset turn 2");
   });
 
   it("restores pre-clear events when pruning history back to an earlier step", async () => {
