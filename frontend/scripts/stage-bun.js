@@ -140,8 +140,9 @@ function downloadAndExtractBun(targetKey, targetDir) {
   try {
     execSync(`curl -fsSL "${downloadUrl}" -o "${tmpZip}"`, { stdio: 'inherit' });
     if (process.platform === 'win32') {
-      execSync(`tar -xf "${tmpZip}" -C "${targetDir}"`, { stdio: 'inherit' });
-      const nested = path.join(targetDir, 'bun-windows-x64', 'bun.exe');
+      const posixZip = tmpZip.replace(/\\/g, '/');
+      const posixTarget = targetDir.replace(/\\/g, '/');
+      execSync(`tar -xf "${posixZip}" -C "${posixTarget}"`, { stdio: 'inherit' });
       if (fs.existsSync(nested) && !fs.existsSync(destinationPath)) {
         fs.copyFileSync(nested, destinationPath);
       }
@@ -259,14 +260,14 @@ function ensureBunShims(targetDir) {
   }
 }
 
-function stageBun() {
+async function stageBun() {
   ensureIcons();
 
   const platformArg = process.argv.find((a) => a.startsWith('--platform='))?.split('=')[1];
   const targetArg = process.argv.find((a) => a.startsWith('--target='))?.split('=')[1];
   const effectivePlatform = platformArg || (targetArg ? targetArg.split('-')[0] : process.platform);
 
-  ensureNativeModules({ platform: effectivePlatform, all: effectivePlatform === 'all' });
+  await ensureNativeModules({ platform: effectivePlatform, all: effectivePlatform === 'all' });
 
   const targetDir = path.join(__dirname, '../resources/bin');
   fs.mkdirSync(targetDir, { recursive: true });
@@ -316,4 +317,4 @@ function stageBun() {
   console.log('[Stage] Staging complete for release.');
 }
 
-stageBun();
+await stageBun();
