@@ -3,6 +3,35 @@ import { AnnotatedText } from '@/components/ui/annotated-text';
 import { API_BASE_URL } from '../config';
 import './TabBar.css';
 
+const DownloadIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const SpinnerIcon = () => (
+  <svg className="tab-bar__update-spin-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+    <path d="M12 2a10 10 0 0 1 10 10" />
+  </svg>
+);
+
+const AlertIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+);
+
 export default function TabBar({
   tabs = [],
   activeTabId,
@@ -15,8 +44,8 @@ export default function TabBar({
 }) {
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateStatus, setUpdateStatus] = useState('idle'); // 'idle' | 'updating' | 'ready' | 'error'
+  const [updateStage, setUpdateStage] = useState('');
   const [updateError, setUpdateError] = useState('');
-
   useEffect(() => {
     let isMounted = true;
     const checkUpdates = async () => {
@@ -50,16 +79,40 @@ export default function TabBar({
     }
 
     setUpdateStatus('updating');
+    setUpdateStage('Starting update...');
     setUpdateError('');
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/system/update/apply`, { method: 'POST' });
       const data = await res.json();
-      if (data.success) {
-        setUpdateStatus('ready');
-      } else {
+      if (!data.success && !data.status) {
         setUpdateStatus('error');
         setUpdateError(data.error || data.message || 'Update failed');
+        return;
       }
+
+      // Poll status until ready or error
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`${API_BASE_URL}/api/system/update/status`);
+          if (!statusRes.ok) return;
+          const status = await statusRes.json();
+          if (status.state === 'downloading') {
+            setUpdateStage(`Downloading ${status.progress || 0}%`);
+          } else if (status.state === 'extracting') {
+            setUpdateStage('Extracting...');
+          } else if (status.state === 'installing') {
+            setUpdateStage('Installing...');
+          } else if (status.state === 'ready') {
+            clearInterval(pollInterval);
+            setUpdateStatus('ready');
+          } else if (status.state === 'error') {
+            clearInterval(pollInterval);
+            setUpdateStatus('error');
+            setUpdateError(status.error || 'Update failed');
+          }
+        } catch {}
+      }, 500);
     } catch (err) {
       setUpdateStatus('error');
       setUpdateError(err.message || 'Network error');
@@ -192,31 +245,33 @@ export default function TabBar({
         <div className="tab-bar__right">
           <button
             type="button"
-            className={`tab-bar__update-btn ${updateStatus === 'ready' ? 'tab-bar__update-btn--success' : ''}`}
+            className={`tab-bar__update-btn tab-bar__update-btn--${updateStatus}`}
             onClick={handleApplyUpdate}
             title={updateError || (updateStatus === 'ready' ? 'Restart to apply update' : `Update to v${updateInfo.latestVersion}`)}
+            aria-label={`Software Update ${updateInfo.latestVersion}`}
           >
             {updateStatus === 'idle' && (
               <>
-                <span>⚡</span>
+                <span className="tab-bar__update-dot" />
+                <DownloadIcon />
                 <span>Update to v{updateInfo.latestVersion}</span>
               </>
             )}
             {updateStatus === 'updating' && (
               <>
-                <span className="tab-bar__spin">⏳</span>
-                <span>Updating...</span>
+                <SpinnerIcon />
+                <span>{updateStage || 'Updating...'}</span>
               </>
             )}
             {updateStatus === 'ready' && (
               <>
-                <span>✓</span>
+                <CheckIcon />
                 <span>Restart to apply</span>
               </>
             )}
             {updateStatus === 'error' && (
               <>
-                <span>⚠</span>
+                <AlertIcon />
                 <span>Update failed (retry)</span>
               </>
             )}

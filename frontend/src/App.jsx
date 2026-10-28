@@ -640,10 +640,19 @@ export default function App() {
             });
             return;
           }
-          if (data.type === 'assistant_error' && data.message) {
+          if (data.type === 'assistant_error' || data.type === 'error') {
+            const rawError = data.message ?? data.content ?? data.error ?? 'An unexpected error occurred';
+            const errorMsg =
+              typeof rawError === 'object' && rawError !== null
+                ? rawError
+                : {
+                    role: 'assistant',
+                    content: `⚠️ **Error**: ${rawError}`,
+                    timestamp,
+                  };
             updateTab(tabId, (t) => ({
               agentStatus: 'error',
-              messages: [...t.messages, data.message],
+              messages: [...t.messages, errorMsg],
             }));
             return;
           }

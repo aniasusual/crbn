@@ -76,6 +76,13 @@ modelsService.oauthManager.onSessionUpdate((session) => {
   }
 });
 
+updateService.onStatusUpdate((status) => {
+  const payload = { type: "update_status", status };
+  for (const send of activeSockets) {
+    send(payload);
+  }
+});
+
 const _server = Bun.serve<WsData>({
   port: PORT,
   hostname: HOST,
@@ -174,10 +181,15 @@ const _server = Bun.serve<WsData>({
       }
     }
 
+    // System: In-App Update Status
+    if (url.pathname === "/api/system/update/status" && req.method === "GET") {
+      return Response.json(updateService.getStatus(), { headers: CORS_HEADERS });
+    }
+
     // System: In-App Update Apply
     if (url.pathname === "/api/system/update/apply" && req.method === "POST") {
       try {
-        const applyResult = await updateService.applyUpdate();
+        const applyResult = await updateService.startUpdate();
         return Response.json(applyResult, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -667,6 +679,67 @@ const _server = Bun.serve<WsData>({
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },
           { status: 404, headers: CORS_HEADERS },
+        );
+      }
+    }
+    // Attachments: Binary File Upload (Direct Streaming to Disk)
+    if (
+      (url.pathname.match(/^\/api\/projects\/[^/]+\/attachments\/upload$/) ||
+       url.pathname === "/api/attachments/upload") &&
+      req.method === "POST"
+    ) {
+      try {
+        const formData = await req.formData();
+        const file = formData.get("file");
+        if (!file || !(file instanceof Blob)) {
+          return Response.json({ detail: "File is required in form-data ('file')" }, { status: 400, headers: CORS_HEADERS });
+        }
+
+        const fileName = (file as File).name || `upload_${Date.now()}`;
+        const cleanName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const safeName = `${Date.now()}_${cleanName}`;
+
+        let targetDir: string;
+        let projectPath: string | null = null;
+        let isRelative = false;
+
+        const urlParts = url.pathname.split("/");
+        const routeProjectName = url.pathname.startsWith("/api/projects/") ? decodeURIComponent(urlParts[3]) : null;
+        const targetProjectName = routeProjectName || url.searchParams.get("project") || (formData.get("project") as string) || null;
+
+        if (targetProjectName) {
+          const project = await projectManager.getProject(targetProjectName).catch(() => null);
+          if (project) {
+            projectPath = project.path;
+            targetDir = path.join(project.path, ".crbn", "attachments");
+            isRelative = true;
+          } else {
+            targetDir = path.join(os.tmpdir(), "crbn-attachments");
+          }
+        } else {
+          targetDir = path.join(os.tmpdir(), "crbn-attachments");
+        }
+
+        fs.mkdirSync(targetDir, { recursive: true });
+        const destPath = path.join(targetDir, safeName);
+        await Bun.write(destPath, file);
+
+        const relPath = isRelative && projectPath ? path.relative(projectPath, destPath) : destPath;
+        return Response.json(
+          {
+            success: true,
+            name: fileName,
+            path: relPath,
+            absolutePath: destPath,
+            size: file.size,
+            mimeType: file.type || "application/octet-stream",
+          },
+          { headers: CORS_HEADERS }
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
         );
       }
     }
@@ -1446,8 +1519,8 @@ const _server = Bun.serve<WsData>({
 
     return new Response("Not Found", { status: 404, headers: CORS_HEADERS });
   },
-
   websocket: {
+    maxPayloadLength: 256 * 1024 * 1024,
     open(ws) {
       console.log("[WebSocket] Client connected");
       ws.data.messageQueue = Promise.resolve();
@@ -1652,26 +1725,27 @@ const _server = Bun.serve<WsData>({
           }
         );
         const videos = rawVideos.filter(
-          (item): item is { name: string; data: string; mimeType?: string; size?: number; thumbnailUrl?: string } => {
+          (item): item is { name: string; data?: string; path?: string; mimeType?: string; size?: number; thumbnailUrl?: string } => {
             return (
               item !== null &&
               typeof item === "object" &&
               "name" in item &&
               typeof (item as Record<string, unknown>).name === "string" &&
-              "data" in item &&
-              typeof (item as Record<string, unknown>).data === "string"
+              (("data" in item && typeof (item as Record<string, unknown>).data === "string") ||
+               ("path" in item && typeof (item as Record<string, unknown>).path === "string"))
             );
           }
         );
         const files = rawFiles.filter(
-          (item): item is { name: string; content?: string; data?: string; mimeType?: string; size?: number } => {
+          (item): item is { name: string; content?: string; data?: string; path?: string; mimeType?: string; size?: number } => {
             return (
               item !== null &&
               typeof item === "object" &&
               "name" in item &&
               typeof (item as Record<string, unknown>).name === "string" &&
               (("content" in item && typeof (item as Record<string, unknown>).content === "string") ||
-               ("data" in item && typeof (item as Record<string, unknown>).data === "string"))
+               ("data" in item && typeof (item as Record<string, unknown>).data === "string") ||
+               ("path" in item && typeof (item as Record<string, unknown>).path === "string"))
             );
           }
         );
@@ -1916,31 +1990,33 @@ const _server = Bun.serve<WsData>({
           }
         );
         const videos = rawVideos.filter(
-          (item): item is { name: string; data: string; mimeType?: string; size?: number; thumbnailUrl?: string } => {
+          (item): item is { name: string; data?: string; path?: string; mimeType?: string; size?: number; thumbnailUrl?: string } => {
             return (
               item !== null &&
               typeof item === "object" &&
               "name" in item &&
               typeof (item as Record<string, unknown>).name === "string" &&
-              "data" in item &&
-              typeof (item as Record<string, unknown>).data === "string"
+              (("data" in item && typeof (item as Record<string, unknown>).data === "string") ||
+               ("path" in item && typeof (item as Record<string, unknown>).path === "string"))
             );
           }
         );
         const files = rawFiles.filter(
-          (item): item is { name: string; content?: string; data?: string; mimeType?: string; size?: number } => {
+          (item): item is { name: string; content?: string; data?: string; path?: string; mimeType?: string; size?: number } => {
             return (
               item !== null &&
               typeof item === "object" &&
               "name" in item &&
               typeof (item as Record<string, unknown>).name === "string" &&
               (("content" in item && typeof (item as Record<string, unknown>).content === "string") ||
-               ("data" in item && typeof (item as Record<string, unknown>).data === "string"))
+               ("data" in item && typeof (item as Record<string, unknown>).data === "string") ||
+               ("path" in item && typeof (item as Record<string, unknown>).path === "string"))
             );
           }
         );
 
         if (promptText || images.length > 0 || videos.length > 0 || files.length > 0) {
+          const modelName = data.model as string | undefined;
           if (modelName) {
             await bridge.setModel(modelName);
           }
@@ -1951,8 +2027,15 @@ const _server = Bun.serve<WsData>({
           });
         }
       } catch (err) {
-          ws.send(JSON.stringify({ type: "error", content: String(err) }));
-        }
+        console.error("[WebSocket] Error processing message:", err);
+        ws.send(
+          JSON.stringify({
+            type: "assistant_error",
+            error: "Prompt execution error",
+            message: err instanceof Error ? err.message : String(err),
+          }),
+        );
+      }
       };
 
       // Execute sequentially in FIFO order on this connection's queue

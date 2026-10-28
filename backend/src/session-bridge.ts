@@ -37,7 +37,8 @@ export interface PromptImageAttachment {
 }
 export interface PromptVideoAttachment {
   name: string;
-  data: string; // base64 encoded video bytes
+  data?: string;
+  path?: string;
   mimeType?: string;
   size?: number;
   thumbnailUrl?: string;
@@ -47,6 +48,7 @@ export interface PromptFileAttachment {
   name: string;
   content?: string;
   data?: string;
+  path?: string;
   mimeType?: string;
   size?: number;
 }
@@ -790,7 +792,8 @@ export class SessionBridge {
       for (const vid of attachments.videos) {
         rawAttachments.push({
           name: vid.name || "video.mp4",
-          data: vid.data,
+          data: vid.data || "",
+          path: vid.path,
           size: vid.size,
           mimeType: vid.mimeType || "video/mp4",
           isVideo: true,
@@ -801,10 +804,11 @@ export class SessionBridge {
     if (attachments?.files) {
       for (const file of attachments.files) {
         const base64Data = file.data || (file.content ? Buffer.from(file.content, "utf-8").toString("base64") : "");
-        if (base64Data) {
+        if (base64Data || file.path) {
           rawAttachments.push({
             name: file.name,
-            data: base64Data,
+            data: base64Data || "",
+            path: file.path,
             size: file.size,
             mimeType: file.mimeType,
             isImage: file.mimeType?.startsWith("image/"),
@@ -1027,6 +1031,7 @@ export class SessionBridge {
       project: this.activeProjectPath,
       messages: this.activeTurns,
     });
+    const messageNoun = droppedCount === 1 ? "message" : "messages";
     this.send({
       type: "status",
       content: `Context reset — ${droppedCount} ${messageNoun} dropped; session continues.`,
