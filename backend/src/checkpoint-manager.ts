@@ -13,6 +13,7 @@ export interface CheckpointStep {
   prompt: string;
   timestamp: string;
   entry_id?: string | null;
+  has_context_reset?: boolean;
 }
 
 export interface ProjectBranch {
@@ -210,6 +211,20 @@ export class CheckpointManager {
     const commitHash = hashRes.stdout;
     if (!commitHash) return null;
 
+    let hasContextReset = false;
+    try {
+      const history = await ChatHistoryManager.loadHistory(projectPath, undefined, { raw: true });
+      const lastReset = history.ui_events.findLast((ev) => ev.type === "reset_boundary");
+      if (lastReset && typeof lastReset.timestamp === "string") {
+        const lastStepTime = currentSteps[currentSteps.length - 1]?.timestamp;
+        const resetTime = new Date(lastReset.timestamp).getTime();
+        const stepTime = lastStepTime ? new Date(lastStepTime).getTime() : 0;
+        if (resetTime > stepTime) {
+          hasContextReset = true;
+        }
+      }
+    } catch {}
+
     const newStep: CheckpointStep = {
       step_id: stepId,
       step_number: nextStepNumber,
@@ -217,11 +232,11 @@ export class CheckpointManager {
       prompt: promptSummary,
       timestamp: now,
       entry_id: entryId ?? null,
+      has_context_reset: hasContextReset,
     };
 
     currentSteps.push(newStep);
     await this.saveCheckpoints(projectPath, currentSteps);
-
     console.log(`[CheckpointManager] Created checkpoint ${stepId} (commit ${commitHash.slice(0, 8)}) for ${path.basename(projectPath)}`);
     return newStep;
   }

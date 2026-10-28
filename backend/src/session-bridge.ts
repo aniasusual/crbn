@@ -88,6 +88,9 @@ export class SessionBridge {
   getActiveProjectPath(): string | null {
     return this.activeProjectPath;
   }
+  getActiveTurns(): Record<string, unknown>[] {
+    return this.activeTurns;
+  }
   getCurrentMode(): "build" | "plan" {
     return this.currentMode;
   }
@@ -962,13 +965,13 @@ export class SessionBridge {
       try {
         const result = await this.session.resetSessionContext();
         if (!result) {
-          this.send({
-            type: "status",
-            content: "Context reset skipped: agent or tool execution was in flight.",
-          });
-          return;
+          console.warn("[SessionBridge] resetSessionContext returned undefined; forcing agent reset and boundary append");
+          droppedCount = this.session.agent.state.messages.length;
+          this.session.agent.reset();
+          this.session.sessionManager.appendResetBoundary();
+        } else {
+          droppedCount = result.droppedCount;
         }
-        droppedCount = result.droppedCount;
       } catch (err) {
         console.warn("[SessionBridge] Failed to reset AgentSession context:", err);
       }
@@ -979,7 +982,12 @@ export class SessionBridge {
     }
     this.pendingUiRequests.clear();
 
-    this.activeTurns = [];
+    const boundaryEvent: Record<string, unknown> = {
+      type: "reset_boundary",
+      id: `reset_${Date.now()}`,
+      timestamp: new Date().toISOString(),
+    };
+    this.activeTurns.push(boundaryEvent);
     this.activeToolCalls.clear();
     this.pendingFollowUps = [];
     this.dispatchedPrompts.clear();
@@ -990,13 +998,13 @@ export class SessionBridge {
       type: "session_cleared",
       droppedCount,
       timestamp: new Date().toISOString(),
+      boundaryId: boundaryEvent.id,
     });
     this.send({
       type: "chat_history_loaded",
       project: this.activeProjectPath,
-      messages: [],
+      messages: this.activeTurns,
     });
-    const messageNoun = droppedCount === 1 ? "message" : "messages";
     this.send({
       type: "status",
       content: `Context reset — ${droppedCount} ${messageNoun} dropped; session continues.`,
@@ -1004,6 +1012,26 @@ export class SessionBridge {
     this.emitContextTelemetry();
   }
 
+  async undoClear(): Promise<void> {
+    if (!this.activeProjectPath) return;
+    const history = await ChatHistoryManager.loadHistory(this.activeProjectPath, this.activeBranchName, { raw: true });
+    const lastBoundaryIdx = history.ui_events.findLastIndex((ev) => ev.type === "reset_boundary");
+    if (lastBoundaryIdx >= 0) {
+      history.ui_events.splice(lastBoundaryIdx, 1);
+      await ChatHistoryManager.saveHistory(this.activeProjectPath, history.ui_events, this.activeBranchName, { immediate: true });
+      this.activeTurns = [...history.ui_events];
+      this.send({
+        type: "chat_history_loaded",
+        project: this.activeProjectPath,
+        messages: this.activeTurns,
+      });
+      this.send({
+        type: "status",
+        content: "Context reset undone. Prior messages restored to AI memory.",
+      });
+      this.emitContextTelemetry();
+    }
+  }
   async rewindToStep(
     stepId: string,
     mode: "code_and_messages" | "messages_only" = "code_and_messages",
@@ -1713,18 +1741,24 @@ export class SessionBridge {
       }
     }
   }
-  private emitContextTelemetry(): void {
+  public emitContextTelemetry(): void {
     if (!this.session) return;
     const usage = this.session.getContextUsage();
     const breakdown = this.session.getContextBreakdown() as Record<string, unknown> | undefined;
     const contextWindow = usage?.contextWindow ?? this.session.model?.contextWindow ?? 1_000_000;
-    const totalTokens = usage?.tokens ?? 0;
-    const usagePct = usage?.percent !== undefined ? Math.round(usage.percent * 10) / 10 : Math.round((totalTokens / contextWindow) * 100);
+
+    const lastBoundaryIdx = this.activeTurns.findLastIndex((t) => t.type === "reset_boundary");
+    const activeTurnsAfterBoundary = lastBoundaryIdx >= 0 ? this.activeTurns.slice(lastBoundaryIdx + 1) : this.activeTurns;
+    const isContextEmpty = activeTurnsAfterBoundary.length === 0;
+    const providerPromptTokens = isContextEmpty ? 0 : Number(breakdown?.messagesTokens ?? 0);
+    const totalTokens = isContextEmpty ? 0 : (usage?.tokens ?? 0);
+    const usagePct = isContextEmpty
+      ? 0
+      : (usage?.percent !== undefined ? Math.round(usage.percent * 10) / 10 : Math.round((totalTokens / contextWindow) * 100));
 
     const staticTokens = Number(breakdown?.systemPromptTokens ?? 0);
     const schemaTokens = Number(breakdown?.systemToolsTokens ?? 0);
     const virtualRamTokens = Number(breakdown?.skillsTokens ?? 0);
-    const providerPromptTokens = Number(breakdown?.messagesTokens ?? 0);
 
     this.send({
       type: "context_telemetry",

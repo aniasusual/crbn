@@ -767,6 +767,23 @@ export class DevServerManager {
     return await this.startDevServer(projectPath, preferredPort, preferredBackendPort);
   }
 
+  async sweepOrphanedPorts(): Promise<void> {
+    const commonPorts = [3000, 3001, 3002, 3003, 3004, 3005, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008];
+    const activePortSet = new Set<number>();
+    for (const entry of this.activeServers.values()) {
+      activePortSet.add(entry.info.port);
+      if (entry.info.backend_port) activePortSet.add(entry.info.backend_port);
+    }
+    for (const port of commonPorts) {
+      if (!activePortSet.has(port)) {
+        const available = await this.isPortAvailable(port);
+        if (!available) {
+          await this.forceFreePort(port);
+        }
+      }
+    }
+  }
+
   async stopAll(): Promise<void> {
     const promises = Array.from(this.activeServers.keys()).map((p) => this.stopDevServer(p));
     await Promise.all(promises);

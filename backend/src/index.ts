@@ -43,6 +43,7 @@ detectGit().then((status) => {
 }).catch(() => {});
 
 const devServerManager = new DevServerManager();
+devServerManager.sweepOrphanedPorts().catch(() => {});
 const projectManager = new ProjectManager({ devServerManager });
 const modelsService = new ModelsService();
 const githubService = new GithubService(projectManager);
@@ -1741,10 +1742,10 @@ const _server = Bun.serve<WsData>({
               JSON.stringify({
                 type: "chat_history_loaded",
                 project: project.name,
-                messages: history.ui_events,
+                messages: bridge.getActiveTurns(),
               }),
             );
-
+            bridge.emitContextTelemetry();
             // Re-sync checkpoints on connect/refresh
             CheckpointManager.getCheckpoints(project.path).then(steps => {
               try {
@@ -1797,6 +1798,14 @@ const _server = Bun.serve<WsData>({
           return;
         }
 
+        if (action === "undo_clear") {
+          try {
+            await bridge.undoClear();
+          } catch (err) {
+            console.error("[WebSocket] Failed to undo clear:", err);
+          }
+          return;
+        }
         if (action === "set_model") {
           const model = data.model as string | undefined;
           if (model) {

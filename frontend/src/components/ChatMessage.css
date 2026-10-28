@@ -1375,3 +1375,60 @@ omp-tool-view .tv-diff,
 .chat-msg__rewind-cancel-btn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* Context Reset Divider & Out-of-Context Dimming */
+.chat-msg--reset-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0;
+  width: 100%;
+  user-select: none;
+}
+
+.chat-msg__reset-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
+}
+
+.chat-msg__reset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.6875rem;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+}
+
+.chat-msg--out-of-context {
+  opacity: 0.48;
+  filter: grayscale(0.25);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chat-msg--out-of-context:hover {
+  opacity: 0.94;
+  filter: none;
+}
+
+.chat-msg__out-of-context-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.625rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.45);
+  margin-left: 6px;
+  letter-spacing: -0.01em;
+  user-select: none;
+}

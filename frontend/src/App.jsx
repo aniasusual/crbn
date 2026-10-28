@@ -202,19 +202,30 @@ export default function App() {
             }));
           }
           if (data.type === 'session_cleared') {
-            updateTab(tabId, (t) => ({
-              agentStatus: null,
-              messages: [],
-              queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
-              inputText: '',
-              contextTelemetry: t.contextTelemetry ? {
-                ...t.contextTelemetry,
-                total_tokens: 0,
-                provider_prompt_tokens: 0,
-                usage_pct: 0,
-                status: 'normal',
-              } : t.contextTelemetry,
-            }));
+            updateTab(tabId, (t) => {
+              const msgs = t.messages || [];
+              const hasDivider = msgs.length > 0 && (msgs[msgs.length - 1].type === 'reset_boundary' || msgs[msgs.length - 1].type === 'reset_divider');
+              const divider = {
+                id: `reset_boundary_${Date.now()}`,
+                type: 'reset_boundary',
+                role: 'system',
+                content: 'Context Reset — New Conversation',
+                timestamp: new Date().toISOString(),
+              };
+              return {
+                agentStatus: null,
+                messages: hasDivider ? msgs : [...msgs, divider],
+                queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
+                inputText: '',
+                contextTelemetry: t.contextTelemetry ? {
+                  ...t.contextTelemetry,
+                  total_tokens: 0,
+                  provider_prompt_tokens: 0,
+                  usage_pct: 0,
+                  status: 'normal',
+                } : t.contextTelemetry,
+              };
+            });
             return;
           }
 
@@ -490,17 +501,19 @@ export default function App() {
                     : m.collapsed,
               }));
 
-              // Preserve in-flight prompt only on initial load, NEVER on rewind
-              const inFlight = data.is_rewind
-                ? []
-                : (t.messages || []).filter(
-                    (activeMsg) =>
-                      !mappedLoaded.some(
-                        (histMsg) =>
-                          (histMsg.id && activeMsg.id && histMsg.id === activeMsg.id) ||
-                          (histMsg.role === activeMsg.role && histMsg.content === activeMsg.content)
-                      )
-                  );
+              // Only preserve a user prompt if it was sent while generating and not yet recorded
+              const inFlight =
+                !data.is_rewind && t.agentStatus === 'generating'
+                  ? (t.messages || []).filter(
+                      (activeMsg) =>
+                        activeMsg.role === 'user' &&
+                        !mappedLoaded.some(
+                          (histMsg) =>
+                            (histMsg.id && activeMsg.id && histMsg.id === activeMsg.id) ||
+                            (histMsg.role === activeMsg.role && histMsg.content === activeMsg.content)
+                        )
+                    )
+                  : [];
 
               return {
                 agentStatus:
@@ -509,7 +522,7 @@ export default function App() {
                     : lastWasAsk
                     ? 'awaiting_human'
                     : null,
-                messages: data.is_rewind ? mappedLoaded : [...mappedLoaded, ...inFlight],
+                messages: inFlight.length > 0 ? [...mappedLoaded, ...inFlight] : mappedLoaded,
               };
             });
             return;
@@ -953,11 +966,50 @@ export default function App() {
   // Active Tab Action Handlers
   const handleClearContext = useCallback(() => {
     if (!activeTabId) return;
+    updateTab(activeTabId, (t) => {
+      const msgs = t.messages || [];
+      const hasDivider = msgs.length > 0 && (msgs[msgs.length - 1].type === 'reset_boundary' || msgs[msgs.length - 1].type === 'reset_divider');
+      const divider = {
+        id: `reset_boundary_${Date.now()}`,
+        type: 'reset_boundary',
+        role: 'system',
+        content: 'Context Reset — New Conversation',
+        timestamp: new Date().toISOString(),
+      };
+      return {
+        agentStatus: null,
+        messages: hasDivider ? msgs : [...msgs, divider],
+        queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
+        inputText: '',
+        contextTelemetry: t.contextTelemetry ? {
+          ...t.contextTelemetry,
+          total_tokens: 0,
+          provider_prompt_tokens: 0,
+          usage_pct: 0,
+          status: 'normal',
+        } : t.contextTelemetry,
+      };
+    });
     const ws = socketsRef.current.get(activeTabId);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'clear' }));
     }
-  }, [activeTabId]);
+  }, [activeTabId, updateTab]);
+
+  const handleUndoClear = useCallback(() => {
+    if (!activeTabId) return;
+    updateTab(activeTabId, (t) => {
+      const msgs = t.messages || [];
+      const lastIdx = msgs.findLastIndex((m) => m.type === 'reset_boundary' || m.type === 'reset_divider');
+      if (lastIdx === -1) return {};
+      const restored = msgs.filter((_, i) => i !== lastIdx);
+      return { messages: restored };
+    });
+    const ws = socketsRef.current.get(activeTabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ action: 'undo_clear' }));
+    }
+  }, [activeTabId, updateTab]);
 
   const handleSendMessage = useCallback(
     (prompt, attachments) => {
@@ -1353,6 +1405,7 @@ export default function App() {
           agentStatus={activeTab.agentStatus}
           onClearStatus={() => updateTab(activeTab.id, { agentStatus: null })}
           onClearContext={handleClearContext}
+          onUndoClear={handleUndoClear}
           previewData={activeTab.previewData}
           onStopPreview={handleStopPreview}
           onGoBack={() => setCurrentView('welcome')}

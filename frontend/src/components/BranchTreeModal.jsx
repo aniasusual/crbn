@@ -194,6 +194,7 @@ export default function BranchTreeModal({
       color: mainColor,
       commitHash: step.commit_hash?.slice(0, 7) || 'HEAD',
       prompt: step.prompt || 'Project state',
+      hasContextReset: Boolean(step.has_context_reset),
       isHead: isHeadOfMain,
       isActiveBranch: isCurrentActiveHead,
       col: 0,
@@ -530,6 +531,12 @@ export default function BranchTreeModal({
                         </span>
                         <span className="branch-tree__node-hash">{node.commitHash}</span>
                       </div>
+
+                      {node.hasContextReset && (
+                        <div className="branch-tree__node-reset-tag" title="Conversation context was cleared before this step">
+                          <span>⟲ Context Cleared</span>
+                        </div>
+                      )}
 
                       {/* Node Prompt Summary */}
                       <div className="branch-tree__node-prompt" title={node.prompt}>
