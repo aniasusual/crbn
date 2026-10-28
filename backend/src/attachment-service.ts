@@ -13,6 +13,8 @@ export interface RawAttachment {
   size?: number;
   mimeType?: string;
   isImage?: boolean;
+  isVideo?: boolean;
+  thumbnailUrl?: string;
   data: string; // Base64 encoded file bytes
 }
 
@@ -98,6 +100,27 @@ export class AttachmentService {
         continue;
       }
 
+      const isVid =
+        Boolean(att.isVideo) ||
+        (att.mimeType && att.mimeType.startsWith("video/")) ||
+        [".mp4", ".webm", ".mov", ".mkv", ".avi", ".m4v"].includes(rawExt);
+
+      // Case 1b: Video attachment -> save to workspace and attach thumbnail frame to vision model
+      if (isVid) {
+        const sizeDesc = formatBytes(buffer.length);
+        if (att.thumbnailUrl && att.thumbnailUrl.startsWith("data:image/")) {
+          const commaIdx = att.thumbnailUrl.indexOf(",");
+          if (commaIdx >= 0) {
+            images.push({
+              type: "image",
+              data: att.thumbnailUrl.slice(commaIdx + 1),
+              mimeType: "image/jpeg",
+            });
+          }
+        }
+        promptAdditions += `<file name="${relPath}" type="video" size="${sizeDesc}">Attached video (${att.name}) saved to workspace at ${relPath}. Use read("${relPath}") to inspect or ffprobe/ffmpeg to extract frames/transcripts.</file>\n\n`;
+        continue;
+      }
       // Case 2: Document convertible via pi-harness markit (PDF, DOCX, XLSX, PPTX, EPUB)
       if (CONVERTIBLE_EXTENSIONS.has(rawExt)) {
         try {

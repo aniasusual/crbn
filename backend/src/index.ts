@@ -1640,14 +1640,27 @@ const _server = Bun.serve<WsData>({
       }
       if (
         action === "queue_message" ||
-        ((action === "prompt" || !action) && (data.prompt || data.images || data.files) && bridge.isRunning)
+        ((action === "prompt" || !action) && (data.prompt || data.images || data.videos || data.files) && bridge.isRunning)
       ) {
         const promptText = (data.prompt as string)?.trim() || "";
         const rawImages = Array.isArray(data.images) ? (data.images as unknown[]) : [];
+        const rawVideos = Array.isArray(data.videos) ? (data.videos as unknown[]) : [];
         const rawFiles = Array.isArray(data.files) ? (data.files as unknown[]) : [];
         const images = rawImages.filter(
           (item): item is { data: string; mimeType: string } => {
             return item !== null && typeof item === "object" && "data" in item && "mimeType" in item;
+          }
+        );
+        const videos = rawVideos.filter(
+          (item): item is { name: string; data: string; mimeType?: string; size?: number; thumbnailUrl?: string } => {
+            return (
+              item !== null &&
+              typeof item === "object" &&
+              "name" in item &&
+              typeof (item as Record<string, unknown>).name === "string" &&
+              "data" in item &&
+              typeof (item as Record<string, unknown>).data === "string"
+            );
           }
         );
         const files = rawFiles.filter(
@@ -1664,6 +1677,7 @@ const _server = Bun.serve<WsData>({
         );
         bridge.prompt(promptText, {
           images: images.length > 0 ? images : undefined,
+          videos: videos.length > 0 ? videos : undefined,
           files: files.length > 0 ? files : undefined,
         }).catch(err => {
           console.error("[WebSocket] Error queueing prompt:", err);
@@ -1886,6 +1900,7 @@ const _server = Bun.serve<WsData>({
         // Direct prompt invocation with optional media/files
         const promptText = (data.prompt as string)?.trim() || "";
         const rawImages = Array.isArray(data.images) ? (data.images as unknown[]) : [];
+        const rawVideos = Array.isArray(data.videos) ? (data.videos as unknown[]) : [];
         const rawFiles = Array.isArray(data.files) ? (data.files as unknown[]) : [];
 
         const images = rawImages.filter(
@@ -1900,7 +1915,18 @@ const _server = Bun.serve<WsData>({
             );
           }
         );
-
+        const videos = rawVideos.filter(
+          (item): item is { name: string; data: string; mimeType?: string; size?: number; thumbnailUrl?: string } => {
+            return (
+              item !== null &&
+              typeof item === "object" &&
+              "name" in item &&
+              typeof (item as Record<string, unknown>).name === "string" &&
+              "data" in item &&
+              typeof (item as Record<string, unknown>).data === "string"
+            );
+          }
+        );
         const files = rawFiles.filter(
           (item): item is { name: string; content?: string; data?: string; mimeType?: string; size?: number } => {
             return (
@@ -1914,18 +1940,17 @@ const _server = Bun.serve<WsData>({
           }
         );
 
-        if (promptText || images.length > 0 || files.length > 0) {
-          const modelName = data.model as string | undefined;
+        if (promptText || images.length > 0 || videos.length > 0 || files.length > 0) {
           if (modelName) {
             await bridge.setModel(modelName);
           }
           await bridge.prompt(promptText, {
             images: images.length > 0 ? images : undefined,
+            videos: videos.length > 0 ? videos : undefined,
             files: files.length > 0 ? files : undefined,
           });
         }
-        } catch (err) {
-          console.error("[WebSocket] Error processing message:", err);
+      } catch (err) {
           ws.send(JSON.stringify({ type: "error", content: String(err) }));
         }
       };

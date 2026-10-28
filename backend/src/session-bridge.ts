@@ -35,6 +35,13 @@ export interface PromptImageAttachment {
   data: string; // base64 encoded string
   mimeType: string;
 }
+export interface PromptVideoAttachment {
+  name: string;
+  data: string; // base64 encoded video bytes
+  mimeType?: string;
+  size?: number;
+  thumbnailUrl?: string;
+}
 
 export interface PromptFileAttachment {
   name: string;
@@ -46,6 +53,7 @@ export interface PromptFileAttachment {
 
 export interface PromptAttachments {
   images?: PromptImageAttachment[];
+  videos?: PromptVideoAttachment[];
   files?: PromptFileAttachment[];
 }
 export class SessionBridge {
@@ -778,6 +786,18 @@ export class SessionBridge {
         });
       }
     }
+    if (attachments?.videos) {
+      for (const vid of attachments.videos) {
+        rawAttachments.push({
+          name: vid.name || "video.mp4",
+          data: vid.data,
+          size: vid.size,
+          mimeType: vid.mimeType || "video/mp4",
+          isVideo: true,
+          thumbnailUrl: vid.thumbnailUrl,
+        });
+      }
+    }
     if (attachments?.files) {
       for (const file of attachments.files) {
         const base64Data = file.data || (file.content ? Buffer.from(file.content, "utf-8").toString("base64") : "");
@@ -828,10 +848,12 @@ export class SessionBridge {
     if (attachments?.images && attachments.images.length > 0) {
       userMsg.images = attachments.images;
     }
+    if (attachments?.videos && attachments.videos.length > 0) {
+      userMsg.videos = attachments.videos;
+    }
     if (attachments?.files && attachments.files.length > 0) {
       userMsg.files = attachments.files;
     }
-
     this.activeTurns.push(userMsg);
     if (this.activeProjectPath) {
       await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName);

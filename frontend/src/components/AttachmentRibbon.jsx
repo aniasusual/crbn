@@ -31,6 +31,37 @@ export default function AttachmentRibbon({ attachments = [], onRemove }) {
                 </svg>
               </button>
             </div>
+          ) : att.type === 'video' ? (
+            <div className="attachment-ribbon__thumb-wrap attachment-ribbon__thumb-wrap--video">
+              {att.thumbnailUrl ? (
+                <img src={att.thumbnailUrl} alt={att.name} className="attachment-ribbon__thumb" />
+              ) : (
+                <div className="attachment-ribbon__video-placeholder">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                  </svg>
+                </div>
+              )}
+              <div className="attachment-ribbon__video-tag">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>VID</span>
+              </div>
+              <button
+                type="button"
+                className="attachment-ribbon__remove-btn"
+                onClick={() => onRemove(att.id)}
+                title={`Remove ${att.name}`}
+                aria-label={`Remove ${att.name}`}
+              >
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
           ) : (
             <div className="attachment-ribbon__file-chip">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="attachment-ribbon__file-icon">

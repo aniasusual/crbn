@@ -35,6 +35,35 @@
   display: block;
 }
 
+.attachment-ribbon__thumb-wrap--video {
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+.attachment-ribbon__video-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.9);
+  color: #60a5fa;
+}
+
+.attachment-ribbon__video-tag {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-size: 0.5rem;
+  font-weight: 700;
+  color: #60a5fa;
+  letter-spacing: 0.02em;
+}
 .attachment-ribbon__remove-btn {
   position: absolute;
   top: 2px;

@@ -153,7 +153,7 @@ export default function App() {
         } catch {}
       }
 
-      if (initialPrompt || (initialAttachments && (initialAttachments.images?.length > 0 || initialAttachments.files?.length > 0))) {
+      if (initialPrompt || (initialAttachments && (initialAttachments.images?.length > 0 || initialAttachments.videos?.length > 0 || initialAttachments.files?.length > 0))) {
         pendingPromptsRef.current.set(tabId, { prompt: initialPrompt || '', attachments: initialAttachments });
       }
 
@@ -443,6 +443,7 @@ export default function App() {
                           role: 'user',
                           content: promptText,
                           images: attachments?.images,
+                          videos: attachments?.videos,
                           files: attachments?.files,
                           timestamp: new Date().toISOString(),
                         },
@@ -454,6 +455,7 @@ export default function App() {
                   action: 'prompt',
                   prompt: promptText,
                   images: attachments?.images,
+                  videos: attachments?.videos,
                   files: attachments?.files,
                   model: modelName,
                 })
@@ -1025,6 +1027,7 @@ export default function App() {
         return;
       }
       const images = attachments?.images ?? [];
+      const videos = attachments?.videos ?? [];
       const files = attachments?.files ?? [];
 
       const isAlreadyGenerating = tab.agentStatus === 'generating';
@@ -1038,6 +1041,7 @@ export default function App() {
               role: 'user',
               content: prompt,
               images: images.length > 0 ? images : undefined,
+              videos: videos.length > 0 ? videos : undefined,
               files: files.length > 0 ? files : undefined,
               timestamp: new Date().toISOString(),
             },
@@ -1056,6 +1060,7 @@ export default function App() {
         action: isAlreadyGenerating ? 'queue_message' : 'prompt',
         prompt,
         images: images.length > 0 ? images : undefined,
+        videos: videos.length > 0 ? videos : undefined,
         files: files.length > 0 ? files : undefined,
         model: tab.model,
       });

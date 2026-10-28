@@ -500,6 +500,15 @@ export default function WelcomeView({
       const images = attachments
         .filter((a) => a.type === 'image')
         .map((a) => ({ data: a.data || a.base64, mimeType: a.mimeType, name: a.name }));
+      const videos = attachments
+        .filter((a) => a.type === 'video')
+        .map((a) => ({
+          name: a.name,
+          data: a.data || a.base64,
+          mimeType: a.mimeType,
+          size: a.size,
+          thumbnailUrl: a.thumbnailUrl,
+        }));
       const files = attachments
         .filter((a) => a.type === 'file')
         .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
@@ -507,7 +516,7 @@ export default function WelcomeView({
         onConnectAndBuild(
           selectedRepo,
           prompt.trim(),
-          { images, files },
+          { images, videos, files },
           selectedBranch,
           welcomeMode,
           { fork: isThirdPartyRepo && shouldForkThirdParty }
@@ -549,10 +558,19 @@ export default function WelcomeView({
     const images = attachments
       .filter((a) => a.type === 'image')
       .map((a) => ({ data: a.data || a.base64, mimeType: a.mimeType, name: a.name }));
+    const videos = attachments
+      .filter((a) => a.type === 'video')
+      .map((a) => ({
+        name: a.name,
+        data: a.data || a.base64,
+        mimeType: a.mimeType,
+        size: a.size,
+        thumbnailUrl: a.thumbnailUrl,
+      }));
     const files = attachments
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
-    onSubmit(prompt, projectName.trim(), { images, files }, welcomeMode);
+    onSubmit(prompt, projectName.trim(), { images, videos, files }, welcomeMode);
     clearAttachments();
   };
 
@@ -700,7 +718,7 @@ export default function WelcomeView({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+                accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   if (e.target.files) addFiles(Array.from(e.target.files));

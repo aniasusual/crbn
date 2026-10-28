@@ -465,10 +465,18 @@ export default function ChatPanel({
     const images = attachments
       .filter((a) => a.type === 'image')
       .map((a) => ({ data: a.data || a.base64, mimeType: a.mimeType, name: a.name }));
+    const videos = attachments
+      .filter((a) => a.type === 'video')
+      .map((a) => ({
+        name: a.name,
+        data: a.data || a.base64,
+        mimeType: a.mimeType,
+        size: a.size,
+        thumbnailUrl: a.thumbnailUrl,
+      }));
     const files = attachments
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, data: a.data, size: a.size, mimeType: a.mimeType }));
-
     if (typeof input === 'string' && input.trim() === '/clear') {
       setInput('');
       clearAttachments();
@@ -480,7 +488,7 @@ export default function ChatPanel({
       return;
     }
 
-    onSendMessage(input, { images, files });
+    onSendMessage(input, { images, videos, files });
     setInput('');
     clearAttachments();
     isUserScrolledRef.current = false;
@@ -944,7 +952,7 @@ export default function ChatPanel({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+          accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
           style={{ display: 'none' }}
           onChange={(e) => {
             if (e.target.files) addFiles(Array.from(e.target.files));
