@@ -29,8 +29,8 @@ import { ChatHistoryManager } from "./chat-history";
 import { CheckpointManager } from "./checkpoint-manager";
 import type { ModelsService } from "./models-service";
 import type { DevServerManager } from "./dev-server";
+import { telemetry } from "./telemetry-service";
 export type WebSocketSender = (message: Record<string, unknown>) => void;
-
 export interface PromptImageAttachment {
   data: string; // base64 encoded string
   mimeType: string;
@@ -747,10 +747,14 @@ export class SessionBridge {
   }
 
   async prompt(promptText: string, attachments?: PromptAttachments): Promise<void> {
+    const promptStartTime = Date.now();
+    telemetry.track("agent_prompt_started", {
+      has_attachments: Boolean(attachments && (attachments.images?.length || attachments.files?.length)),
+      model: this.activeModel?.name || this.activeModel?.id || "default",
+    });
     if (this.initPromise) {
       await this.initPromise.catch(() => {});
     }
-
     // Ensure the latest preview server URL is synchronized before dispatching prompt
     if (this.activeProjectPath && this.devServerManager) {
       const activeDevServer = this.devServerManager.getServerInfo(this.activeProjectPath);
@@ -930,6 +934,12 @@ export class SessionBridge {
       }
     } finally {
       this.isGenerating = false;
+      telemetry.track("agent_turn_completed", {
+        duration_ms: Date.now() - promptStartTime,
+        had_error: this.turnHadError,
+        was_stopped: this.wasStoppedByUser,
+        model: this.activeModel?.name || this.activeModel?.id || "default",
+      });
     }
   }
 
@@ -959,6 +969,9 @@ export class SessionBridge {
     if (this.session) {
       this.wasStoppedByUser = true;
       this.isGenerating = false;
+      telemetry.track("agent_stopped_by_user", {
+        model: this.activeModel?.name || this.activeModel?.id || "default",
+      });
       this.send({
         type: "status",
         content: "Stopped: Agent execution stopped by user.",
@@ -1806,6 +1819,12 @@ export class SessionBridge {
         rolled_up: false,
       },
       timestamp: new Date().toISOString(),
+    });
+    telemetry.track("context_telemetry", {
+      total_tokens: totalTokens,
+      context_window: contextWindow,
+      usage_pct: usagePct,
+      status: usagePct >= 80 ? "critical" : usagePct >= 70 ? "warning" : "normal",
     });
   }
 }

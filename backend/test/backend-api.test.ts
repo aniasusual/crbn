@@ -56,7 +56,7 @@ describe("Backend HTTP API", () => {
     if (!healthy) {
       throw new Error(`Test backend did not become healthy within 10 seconds on port ${testPort}`);
     }
-  });
+  }, 30_000);
 
   afterAll(() => {
     if (serverProc) {
