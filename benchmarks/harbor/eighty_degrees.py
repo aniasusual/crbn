@@ -14,8 +14,8 @@ class EightyDegrees(BaseAgent):
 
     def __init__(self, *args, bundle_path, source_commit, reasoning_effort, **kwargs):
         super().__init__(*args, reasoning_effort=reasoning_effort, **kwargs)
-        if reasoning_effort not in ("medium", "high"):
-            raise ValueError("Explicit medium/high reasoning required")
+        if reasoning_effort != "medium":
+            raise ValueError("This frozen adapter requires medium reasoning")
         self.bundle = Path(bundle_path).resolve()
         self.commit = source_commit
         self.effort = reasoning_effort
@@ -65,10 +65,14 @@ class EightyDegrees(BaseAgent):
         context.n_input_tokens = tokens["input"] + tokens["cacheRead"] + tokens["cacheWrite"]
         context.n_cache_tokens = tokens["cacheRead"]
         context.n_output_tokens = tokens["output"]
-        context.cost_usd = None  # subscription tokens are not a per-task dollar invoice
+        context.cost_usd = None
         identity_path = self.logs_dir / "identity.json"
         context.metadata = {
             "identity": json.loads(identity_path.read_text()) if identity_path.exists() else None,
+            "outcome": json.loads((self.logs_dir / "outcome.json").read_text()) if (self.logs_dir / "outcome.json").exists() else None,
+            "uncached_input_tokens": tokens.get("input"),
+            "cached_input_tokens": tokens.get("cacheRead"),
+            "cache_write_tokens": tokens.get("cacheWrite"),
             "reasoning_tokens": tokens.get("reasoning"),
             "cost_basis": "subscription; actual per-task USD unavailable",
         }
