@@ -36,15 +36,24 @@ const NATIVE_MODULE_CONFIGS = [
   },
 ];
 
-function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
+async function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
   const url = `https://registry.npmjs.org/@oh-my-pi/pi-natives-${moduleConfig.pkg}/-/pi-natives-${moduleConfig.pkg}-${moduleConfig.version}.tgz`;
-  const tmpTgz = path.join(os.tmpdir(), `pi-native-${moduleConfig.pkg}-${Date.now()}.tgz`);
+  const extractDir = path.dirname(targetFile);
+  fs.mkdirSync(extractDir, { recursive: true });
+  const tmpTgz = path.join(extractDir, `pi-native-${moduleConfig.pkg}-${Date.now()}.tgz`);
   console.log(`[Natives] Downloading prebuilt native addon ${moduleConfig.file} from npm registry (${moduleConfig.version})...`);
   try {
-    execSync(`curl -fsSL "${url}" -o "${tmpTgz}"`, { stdio: 'inherit' });
-    const extractDir = path.dirname(targetFile);
-    fs.mkdirSync(extractDir, { recursive: true });
-    execSync(`tar -xzf "${tmpTgz}" -C "${extractDir}"`, { stdio: 'inherit' });
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    const buffer = Buffer.from(await res.arrayBuffer());
+    fs.writeFileSync(tmpTgz, buffer);
+
+    const posixExtractDir = extractDir.replace(/\\/g, '/');
+    const posixTmpTgz = tmpTgz.replace(/\\/g, '/');
+    execSync(`tar -xzf "${posixTmpTgz}" -C "${posixExtractDir}"`, { stdio: 'inherit' });
+
     const extractedFile = path.join(extractDir, 'package', moduleConfig.file);
     if (fs.existsSync(extractedFile)) {
       fs.copyFileSync(extractedFile, targetFile);
@@ -57,16 +66,19 @@ function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
         fs.copyFileSync(targetFile, sourceFile);
       } catch {}
     }
+    if (!fs.existsSync(targetFile)) {
+      throw new Error(`Target file was not staged: ${targetFile}`);
+    }
     console.log(`[Natives] Staged native addon at ${targetFile} and ${sourceFile}`);
     return true;
   } catch (err) {
     try { fs.unlinkSync(tmpTgz); } catch {}
-    console.warn(`[Natives] Warning: Failed to download native addon ${moduleConfig.file}: ${err.message}`);
-    return false;
+    console.error(`[Natives] Error: Failed to download native addon ${moduleConfig.file}: ${err.message}`);
+    throw err;
   }
 }
 
-export function ensureNativeModules(options = {}) {
+export async function ensureNativeModules(options = {}) {
   const nativeDir = path.resolve(__dirname, '../../backend/native');
   const sourceDir = path.resolve(__dirname, '../../pi-harness/packages/natives/native');
 
@@ -115,12 +127,12 @@ export function ensureNativeModules(options = {}) {
 
     // Neither exists: auto-download if matching target platform/architecture
     if (shouldFetch) {
-      downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile);
+      await downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile);
     }
   }
 }
 
 // Auto-run if executed directly
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(__filename)) {
-  ensureNativeModules();
+  await ensureNativeModules();
 }
