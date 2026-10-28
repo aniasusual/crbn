@@ -114,6 +114,37 @@
   border-color: rgba(255, 255, 255, 0.35);
 }
 
+.chat-msg__user-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.chat-msg__user-video-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-msg__user-video-player {
+  width: 100%;
+  max-width: 320px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #000000;
+  outline: none;
+}
+
+.chat-msg__user-video-name {
+  font-size: 0.6875rem;
+  color: rgba(255, 255, 255, 0.6);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .chat-msg__user-files {
   display: flex;
   flex-wrap: wrap;

@@ -75,6 +75,66 @@ function readFileAsBase64(file) {
     reader.readAsDataURL(file);
   });
 }
+function captureVideoThumbnail(file) {
+  return new Promise((resolve) => {
+    let resolved = false;
+    let url = '';
+    try {
+      url = URL.createObjectURL(file);
+    } catch {
+      resolve(null);
+      return;
+    }
+    const video = document.createElement('video');
+    video.src = url;
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = 'anonymous';
+
+    const cleanup = () => {
+      if (resolved) return;
+      resolved = true;
+      try {
+        URL.revokeObjectURL(url);
+        video.remove();
+      } catch {}
+    };
+
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(0.5, (video.duration || 1) / 2);
+    };
+
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(video.videoWidth || 640, 640);
+        const scale = canvas.width / (video.videoWidth || 640);
+        canvas.height = Math.round((video.videoHeight || 360) * scale);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const thumbnailUrl = canvas.toDataURL('image/jpeg', 0.85);
+          cleanup();
+          resolve(thumbnailUrl);
+          return;
+        }
+      } catch {}
+      cleanup();
+      resolve(null);
+    };
+
+    video.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    // Fallback safety timeout if video metadata never seeks
+    setTimeout(() => {
+      cleanup();
+      resolve(null);
+    }, 2500);
+  });
+}
 
 export function useMediaAttachments() {
   const [attachments, setAttachments] = useState([]);
@@ -87,6 +147,7 @@ export function useMediaAttachments() {
     for (const file of filesList) {
       const id = `att_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       const isImage = file.type.startsWith('image/');
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi|m4v)$/i.test(file.name);
 
       if (isImage) {
         const processed = await downscaleImage(file);
@@ -105,6 +166,25 @@ export function useMediaAttachments() {
             },
           ]);
         }
+      } else if (isVideo) {
+        const [thumbnailUrl, base64Data] = await Promise.all([
+          captureVideoThumbnail(file),
+          readFileAsBase64(file),
+        ]);
+        setAttachments((prev) => [
+          ...prev,
+          {
+            id,
+            name: file.name,
+            size: file.size,
+            type: 'video',
+            mimeType: file.type || 'video/mp4',
+            thumbnailUrl: thumbnailUrl || undefined,
+            dataUrl: thumbnailUrl || undefined,
+            base64: base64Data,
+            data: base64Data,
+          },
+        ]);
       } else {
         const base64Data = await readFileAsBase64(file);
         setAttachments((prev) => [

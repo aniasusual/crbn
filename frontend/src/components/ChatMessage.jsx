@@ -660,8 +660,8 @@ export default function ChatMessage({
     // User message
     if (message.role === 'user' || message.type === 'user') {
       const hasImages = Array.isArray(message.images) && message.images.length > 0;
+      const hasVideos = Array.isArray(message.videos) && message.videos.length > 0;
       const hasFiles = Array.isArray(message.files) && message.files.length > 0;
-
       return (
         <div className={`chat-msg chat-msg--user ${isOutOfContext ? 'chat-msg--out-of-context' : ''}`}>
           <div className="chat-msg__user-row">
@@ -683,6 +683,37 @@ export default function ChatMessage({
                         }}
                         title="Click to view full image"
                       />
+                    );
+                  })}
+                </div>
+              )}
+
+              {hasVideos && (
+                <div className="chat-msg__user-videos">
+                  {message.videos.map((vid, idx) => {
+                    const src =
+                      vid.dataUrl ||
+                      (vid.data ? `data:${vid.mimeType || 'video/mp4'};base64,${vid.data}` : '');
+                    return (
+                      <div key={idx} className="chat-msg__user-video-wrap">
+                        {src ? (
+                          <video
+                            src={src}
+                            controls
+                            className="chat-msg__user-video-player"
+                            poster={vid.thumbnailUrl}
+                          />
+                        ) : (
+                          <div className="chat-msg__user-file-chip" title={vid.name}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+                              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+                            </svg>
+                            <span>{vid.name}</span>
+                          </div>
+                        )}
+                        <span className="chat-msg__user-video-name">{vid.name}</span>
+                      </div>
                     );
                   })}
                 </div>
