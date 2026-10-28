@@ -54,10 +54,10 @@ try {
   telemetry.track("app_launched", {
     port: PORT,
     cpu_threads: os.cpus().length,
-    ram_gb: hwProfile.ram_gb,
-    gpu_brand: hwProfile.gpu_brand,
-    vram_gb: hwProfile.vram_gb,
-    is_apple_silicon: process.platform === "darwin" && process.arch === "arm64",
+    ram_gb: hwProfile.ram_gb || Math.round(os.totalmem() / (1024 * 1024 * 1024)),
+    gpu_brand: hwProfile.gpu_brand || "Standard GPU",
+    vram_gb: hwProfile.vram_gb || 0,
+    is_apple_silicon: Boolean(process.platform === "darwin" && process.arch === "arm64"),
   });
   telemetry.flush().catch(() => {});
 } catch {}
