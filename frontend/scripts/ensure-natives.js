@@ -40,7 +40,8 @@ async function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFi
   const url = `https://registry.npmjs.org/@oh-my-pi/pi-natives-${moduleConfig.pkg}/-/pi-natives-${moduleConfig.pkg}-${moduleConfig.version}.tgz`;
   const extractDir = path.dirname(targetFile);
   fs.mkdirSync(extractDir, { recursive: true });
-  const tmpTgz = path.join(extractDir, `pi-native-${moduleConfig.pkg}-${Date.now()}.tgz`);
+  const archiveName = `pi-native-${moduleConfig.pkg}-${Date.now()}.tgz`;
+  const tmpTgz = path.join(extractDir, archiveName);
   console.log(`[Natives] Downloading prebuilt native addon ${moduleConfig.file} from npm registry (${moduleConfig.version})...`);
   try {
     const res = await fetch(url);
@@ -50,9 +51,7 @@ async function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFi
     const buffer = Buffer.from(await res.arrayBuffer());
     fs.writeFileSync(tmpTgz, buffer);
 
-    const posixExtractDir = extractDir.replace(/\\/g, '/');
-    const posixTmpTgz = tmpTgz.replace(/\\/g, '/');
-    execSync(`tar -xzf "${posixTmpTgz}" -C "${posixExtractDir}"`, { stdio: 'inherit' });
+    execSync(`tar -xzf "${archiveName}"`, { cwd: extractDir, stdio: 'inherit' });
 
     const extractedFile = path.join(extractDir, 'package', moduleConfig.file);
     if (fs.existsSync(extractedFile)) {
