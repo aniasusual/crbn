@@ -53,11 +53,11 @@ try {
   const hwProfile = detectHardware();
   telemetry.track("app_launched", {
     port: PORT,
-    cpu_threads: hwProfile.cpuThreads,
-    ram_gb: hwProfile.ramGb,
-    gpu_renderer: hwProfile.gpuRenderer,
-    gpu_vram_gb: hwProfile.gpuVramGb,
-    is_apple_silicon: hwProfile.isAppleSilicon,
+    cpu_threads: os.cpus().length,
+    ram_gb: hwProfile.ram_gb,
+    gpu_brand: hwProfile.gpu_brand,
+    vram_gb: hwProfile.vram_gb,
+    is_apple_silicon: process.platform === "darwin" && process.arch === "arm64",
   });
   telemetry.flush().catch(() => {});
 } catch {}
