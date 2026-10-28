@@ -55,12 +55,12 @@ jobs:
           bun install --cwd pi-harness
           bun install --cwd backend
           bun install --cwd backend/templates/node_react
-      - name: Install Frontend Dependencies
+      - name: Install Frontend Dependencies & Stage Binaries
         shell: bash
         run: |
           cd frontend
           npm install
-
+          npm run stage:bun
       - name: Run Backend Subsystem & Integration Tests
         shell: bash
         run: |
