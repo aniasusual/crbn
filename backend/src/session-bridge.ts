@@ -1016,6 +1016,9 @@ export class SessionBridge {
       }
     }
 
+    if (this.currentPreviewUrl) {
+      this.handlePreviewReady(this.currentPreviewUrl);
+    }
     for (const [, req] of this.pendingUiRequests.entries()) {
       req.reject(new Error("Context reset by user."));
     }
