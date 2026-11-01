@@ -83,7 +83,7 @@ describe("TemplateService & Template Architecture", () => {
     expect(fsSync.existsSync(path.join(projectDir, "app/_layout.tsx"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectDir, "app/index.tsx"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectDir, "server/index.js"))).toBe(true);
-    // Verify node_modules and .git were NOT copied
+    expect(fsSync.existsSync(path.join(projectDir, "assets/imagelogo.png"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectDir, "node_modules"))).toBe(false);
     expect(fsSync.existsSync(path.join(projectDir, ".git"))).toBe(false);
   });

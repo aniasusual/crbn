@@ -28,8 +28,10 @@ const DEVICE_MODES = ['desktop', 'tablet', 'mobile'];
 const BASE_PRESETS = [
   { id: 'desktop', label: 'Desktop', width: 1280, height: 800, canRotate: false },
   { id: 'tablet', label: 'Tablet', width: 768, height: 1024, canRotate: true },
-  { id: 'mobile', label: 'iPhone 16 Pro', width: 393, height: 852, canRotate: true },
+  { id: 'mobile', label: 'Mobile', width: 375, height: 667, canRotate: true },
 ];
+
+const IPHONE_PRESET = { id: 'mobile', label: 'iPhone 16 Pro', width: 393, height: 852, canRotate: true };
 
 export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp, template }) {
   const isMobileApp = template === 'mobile_expo' || template?.includes('mobile');
@@ -51,24 +53,17 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
   });
 
   const [viewportMode, setViewportMode] = useState(() => {
-    if (isMobileApp) return 'mobile';
-    try {
-      const saved = localStorage.getItem('80degrees_viewport_mode');
-      if (saved && DEVICE_MODES.includes(saved)) {
-        return saved;
-      }
-      return 'desktop';
-    } catch {
-      return 'desktop';
-    }
+    return isMobileApp ? 'mobile' : 'desktop';
   });
 
-  // Auto-default to mobile device chassis for mobile applications
+  // Auto-default to the appropriate viewport mode for the active template
   useEffect(() => {
     if (isMobileApp) {
       setViewportMode('mobile');
+    } else {
+      setViewportMode('desktop');
     }
-  }, [isMobileApp]);
+  }, [isMobileApp, projectName]);
 
   // Track canvas size for smooth device fitting
   useEffect(() => {
@@ -245,7 +240,9 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
   // Dimensions & scale calculation (clean fitting without auto-fit toggle)
   const currentConfig = useMemo(() => {
-    const raw = BASE_PRESETS.find((p) => p.id === viewportMode) || BASE_PRESETS[0];
+    const raw = isMobileApp
+      ? IPHONE_PRESET
+      : BASE_PRESETS.find((p) => p.id === viewportMode) || BASE_PRESETS[0];
 
     let w = raw.width;
     let h = raw.height;
@@ -257,8 +254,8 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
     let scale = 1;
     if (canvasSize.width > 0 && canvasSize.height > 0) {
-      const availW = Math.max(100, canvasSize.width - 56);
-      const availH = Math.max(100, canvasSize.height - 110);
+      const availW = Math.max(100, canvasSize.width - (isMobileApp ? 64 : 56));
+      const availH = Math.max(100, canvasSize.height - (isMobileApp ? 120 : 110));
       const scaleW = availW / w;
       const scaleH = availH / h;
       scale = Math.min(1, scaleW, scaleH);
@@ -272,7 +269,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       dims: `${w} × ${h}`,
       scale,
     };
-  }, [viewportMode, isLandscape, canvasSize]);
+  }, [isMobileApp, viewportMode, isLandscape, canvasSize]);
 
   // Magnetic Dock Action Items: Single View Toggle, Single Device Toggle, Reload, Open
   const dockItems = useMemo(() => {
@@ -453,7 +450,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
               <div className="preview-sooth__stage">
                 <div
                   className={`preview-sooth__chassis ${
-                    isMobileApp || viewportMode === 'mobile' ? 'preview-sooth__chassis--iphone' : ''
+                    isMobileApp ? 'preview-sooth__chassis--iphone' : ''
                   }`}
                   style={{
                     width: `${currentConfig.width}px`,
@@ -462,7 +459,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                     transformOrigin: 'top center',
                   }}
                 >
-                  {(isMobileApp || viewportMode === 'mobile') && (
+                  {isMobileApp && (
                     <>
                       {/* Physical Side Buttons */}
                       <div className="preview-sooth__iphone-btn-action" aria-hidden="true" />
