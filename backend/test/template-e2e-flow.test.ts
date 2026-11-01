@@ -39,6 +39,8 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
         BACKEND_PORT: String(testPort),
         PROJECTS_ROOT: tempProjectsRoot,
         HOST: "127.0.0.1",
+        DISABLE_PORT_SWEEP: "true",
+        NODE_ENV: "test",
       },
       stdout: "inherit",
       stderr: "inherit",

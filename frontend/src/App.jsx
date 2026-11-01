@@ -895,6 +895,7 @@ export default function App() {
               if (!line.trim()) continue;
               try {
                 const event = JSON.parse(line);
+                if (event.type === 'ping') continue;
                 if (event.type === 'progress') {
                   let percent = 25;
                   if (event.phase === 'scaffolding') percent = 25;
@@ -1500,6 +1501,7 @@ export default function App() {
           onStopPreview={handleStopPreview}
           onGoBack={() => setCurrentView('welcome')}
           projectName={activeTab.projectName}
+          template={activeTab.project?.template}
           pendingApproval={activeTab.pendingApproval}
           onApproveCommand={handleApproveCommand}
           onDenyCommand={handleDenyCommand}

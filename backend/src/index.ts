@@ -681,6 +681,7 @@ const _server = Bun.serve<WsData>({
         }
 
         // Stream real-time progress events as NDJSON
+        // Stream real-time progress events as NDJSON
         const stream = new ReadableStream({
           async start(controller) {
             const encoder = new TextEncoder();
@@ -689,6 +690,11 @@ const _server = Bun.serve<WsData>({
                 controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
               } catch {}
             };
+
+            // Send periodic keepalive pings so the HTTP connection never times out during long installs
+            const pingTimer = setInterval(() => {
+              emit({ type: "ping" });
+            }, 3000);
 
             try {
               const project = await projectManager.createProject(
@@ -703,6 +709,7 @@ const _server = Bun.serve<WsData>({
             } catch (err) {
               emit({ type: "error", detail: err instanceof Error ? err.message : String(err) });
             } finally {
+              clearInterval(pingTimer);
               controller.close();
             }
           },
