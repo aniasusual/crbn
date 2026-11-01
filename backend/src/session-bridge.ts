@@ -1737,21 +1737,38 @@ export class SessionBridge {
         `- Fullstack capability: If you create backend API endpoints (e.g., in server/index.js), the platform automatically detects, launches, and proxies them through '/api/*'.`,
       );
     }
+    let templateAiRules: string[] = [];
+    try {
+      const tplPath = path.join(this.projectPath, "template.json");
+      if (fs.existsSync(tplPath)) {
+        const parsed = JSON.parse(fs.readFileSync(tplPath, "utf-8"));
+        if (Array.isArray(parsed.aiRules)) {
+          templateAiRules = parsed.aiRules;
+        }
+      }
+    } catch {}
+
     lines.push(
-      `- DO NOT attempt to run dev servers in bash (never execute npm run dev, bun dev, vite, or node server); dev servers are fully managed by the workspace.`,
-      `- DO NOT alter port settings in vite.config.js or package.json.`,
+      `- DO NOT attempt to run dev servers in bash; dev servers are fully managed by the workspace.`,
+      `- DO NOT alter port settings in server configurations or package.json.`,
       ``,
       `## CRITICAL NETWORK & PORT RULES (MANDATORY):`,
       `1. FRONTEND API CALLS: ALWAYS use relative paths starting with '/api' (e.g. fetch('/api/items') or axios.get('/api/users')).`,
       `   - NEVER hardcode absolute backend URLs (e.g. NEVER write fetch('http://localhost:5001/api/...'), fetch('http://127.0.0.1:...'), or any fixed port).`,
-      `   - The Vite dev server automatically proxies all '/api/*' requests to the active backend port. Hardcoded URLs break when the project is reopened on dynamic ports.`,
-      `2. BACKEND SERVER LISTEN PORT: When creating or editing backend servers (Express, Fastify, Node http, etc.):`,
+      `2. BACKEND SERVER LISTEN PORT: When creating or editing backend servers:`,
       `   - ALWAYS read the port dynamically from environment variables: const PORT = process.env.BACKEND_PORT || process.env.PORT || 5001;`,
       `   - ALWAYS listen on that variable: app.listen(PORT, '0.0.0.0', ...);`,
-      `   - NEVER hardcode a static port number in app.listen(). The workspace dynamically assigns free ports to prevent port conflicts.`,
-      `3. DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.`,
-      `4. BRAND ATTRIBUTION (MANDATORY): The project template contains a mandatory "Made on 80degrees" badge chip (#made-on-80degrees) in index.html. DO NOT remove, hide, alter, or cover this badge when editing index.html or application styles.`
+      `   - NEVER hardcode a static port number in app.listen().`
     );
+
+    if (templateAiRules.length > 0) {
+      lines.push(...templateAiRules.map((r, i) => `${i + 3}. ${r}`));
+    } else {
+      lines.push(
+        `3. DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.`,
+        `4. BRAND ATTRIBUTION (MANDATORY): The project template contains a mandatory "Made on 80degrees" badge chip (#made-on-80degrees) in index.html. DO NOT remove, hide, alter, or cover this badge when editing index.html or application styles.`
+      );
+    }
     return lines.join("\n");
   }
 
