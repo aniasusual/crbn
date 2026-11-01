@@ -103,7 +103,8 @@ export default function WelcomeView({
       category: 'mobile',
       description: 'Cross-platform iOS and Android with Expo and React Native',
       icon: 'smartphone',
-      comingSoon: true,
+      placeholder: "Describe mobile screens, navigation flow, or app features to build...",
+      tags: ['mobile', 'expo', 'react-native'],
     },
     {
       id: 'unreal_engine',

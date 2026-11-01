@@ -1,0 +1,41 @@
+{
+  "id": "mobile_expo",
+  "name": "Mobile App",
+  "version": "1.0.0",
+  "category": "mobile",
+  "description": "Cross-platform mobile application with Expo, React Native, and Expo Router",
+  "icon": "smartphone",
+  "placeholder": "Describe mobile screens, navigation flow, or app features to build...",
+  "tags": ["mobile", "expo", "react-native", "ios", "android"],
+  "setup": {
+    "engine": "bun",
+    "command": ["bun", "install"],
+    "timeoutMs": 180000
+  },
+  "devServer": {
+    "type": "mobile",
+    "frontend": {
+      "command": ["bun", "run", "dev:web"],
+      "portEnv": "PORT",
+      "defaultPort": 8081
+    },
+    "backend": {
+      "entryFile": "server/index.js",
+      "command": ["bun", "run", "server/index.js"],
+      "portEnv": "PORT",
+      "defaultPort": 5001
+    },
+    "preview": {
+      "type": "mobile",
+      "defaultViewport": "mobile",
+      "brandBadge": false
+    }
+  },
+  "aiRules": [
+    "You are building a cross-platform mobile application using Expo Router and React Native.",
+    "Use React Native primitives (<View>, <Text>, <TouchableOpacity>, <ScrollView>, etc.) and Expo Router in the app/ directory.",
+    "FULLSTACK CAPABILITY: A managed Express backend runs in server/index.js. In mobile screens, connect to API endpoints using process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:5001/api'.",
+    "DATABASE & PERSISTENCE: You can use SQLite (import { Database } from 'bun:sqlite'), PostgreSQL/MySQL with Prisma or Drizzle, MongoDB (mongoose), or cloud databases (Supabase, Firebase, Neon). Store secrets in .env.",
+    "Do not run dev servers in bash; the dev servers are managed automatically."
+  ]
+}

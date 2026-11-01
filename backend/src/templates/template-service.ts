@@ -21,16 +21,6 @@ const EXCLUDED_ENTRIES: Record<string, true> = {
 // Registered placeholders for upcoming templates to present in the horizontal chips UI
 const UPCOMING_TEMPLATES: TemplateSummary[] = [
   {
-    id: "mobile_expo",
-    name: "Mobile App",
-    category: "mobile",
-    description: "Cross-platform iOS and Android app with Expo and React Native",
-    icon: "smartphone",
-    placeholder: "Describe mobile screens, navigation flow, or app features to build...",
-    tags: ["mobile", "expo", "react-native", "ios", "android"],
-    comingSoon: true,
-  },
-  {
     id: "unreal_engine",
     name: "Unreal Engine",
     category: "engine",
@@ -247,10 +237,49 @@ export class TemplateService {
     const proc = Bun.spawn(args, {
       cwd: projectDir,
       env: getAugmentedEnv(),
-      stdout: "inherit",
-      stderr: "inherit",
+      stdout: "pipe",
+      stderr: "pipe",
     });
 
+    (async () => {
+      try {
+        const reader = proc.stdout.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            const clean = line.trim();
+            if (clean) onProgress?.(clean);
+          }
+        }
+      } catch {}
+    })();
+
+    (async () => {
+      try {
+        const reader = proc.stderr.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            const clean = line.trim();
+            if (clean && !clean.includes("warning")) {
+              console.warn(`[TemplateService] [install stderr]:`, clean);
+            }
+          }
+        }
+      } catch {}
+    })();
     const timeoutMs = template.setup.timeoutMs || 180000;
     const { promise: timeoutPromise, reject } = Promise.withResolvers<never>();
     const timer = setTimeout(() => {

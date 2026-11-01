@@ -1721,40 +1721,55 @@ export class SessionBridge {
   }
 
   private buildPreviewSystemPrompt(previewUrl: string, backendPort?: number | null): string {
-    const lines = [
-      `# Managed Development Server & Live Preview Environment`,
-      `- A managed Vite dev server is ALREADY active for this project at ${previewUrl}.`,
-      `- Automatic Hot Module Replacement (HMR) is active: writing or editing files in src/ immediately updates the live preview iframe.`,
-    ];
-    if (backendPort) {
-      lines.push(
-        `- A managed API backend server is ALREADY active for this project at http://127.0.0.1:${backendPort}.`,
-        `- Frontend requests to '/api/*' are automatically proxied by Vite to http://127.0.0.1:${backendPort}.`,
-        `- Backend code in server/index.js (or server/) automatically reloads when modified.`,
-      );
-    } else {
-      lines.push(
-        `- Fullstack capability: If you create backend API endpoints (e.g., in server/index.js), the platform automatically detects, launches, and proxies them through '/api/*'.`,
-      );
-    }
+    let templateName = "Web App";
+    let isMobile = false;
     let templateAiRules: string[] = [];
     try {
       const tplPath = path.join(this.projectPath, "template.json");
       if (fs.existsSync(tplPath)) {
         const parsed = JSON.parse(fs.readFileSync(tplPath, "utf-8"));
+        if (parsed.name) templateName = parsed.name;
+        if (parsed.category === "mobile" || parsed.id === "mobile_expo") isMobile = true;
         if (Array.isArray(parsed.aiRules)) {
           templateAiRules = parsed.aiRules;
         }
       }
     } catch {}
 
+    const portMatch = /:(\d+)/.exec(previewUrl);
+    const frontendPort = portMatch ? portMatch[1] : "3000";
+
+    const lines = [
+      `# Managed Development Server & Live Preview Environment`,
+      `- ACTIVE PORTS & RUNTIME STATUS:`,
+      `  * Frontend (${templateName}): Running at ${previewUrl} (PORT ${frontendPort}).`,
+      `  * Backend API Server: ${backendPort ? `Running at http://127.0.0.1:${backendPort} (PORT ${backendPort}).` : "Not running (starts automatically on PORT 5001 if server/index.js exists)."}`,
+      `- LIVE RELOAD IS ACTIVE: Writing or editing code files automatically updates the running application in-memory on these exact ports without restarting the dev server.`,
+    ];
+    if (backendPort) {
+      if (isMobile) {
+        lines.push(
+          `- In mobile screens, connect to the backend API using process.env.EXPO_PUBLIC_API_URL (which points to http://127.0.0.1:${backendPort}/api).`,
+          `- Backend code in server/index.js automatically reloads when modified.`,
+        );
+      } else {
+        lines.push(
+          `- Frontend requests to '/api/*' are automatically proxied by Vite to http://127.0.0.1:${backendPort}.`,
+          `- Backend code in server/index.js (or server/) automatically reloads when modified.`,
+        );
+      }
+    } else {
+      lines.push(
+        `- Fullstack capability: If you create backend API endpoints (e.g., in server/index.js), the platform automatically detects, launches, and assigns dynamic ports.`,
+      );
+    }
     lines.push(
       `- DO NOT attempt to run dev servers in bash; dev servers are fully managed by the workspace.`,
       `- DO NOT alter port settings in server configurations or package.json.`,
       ``,
       `## CRITICAL NETWORK & PORT RULES (MANDATORY):`,
-      `1. FRONTEND API CALLS: ALWAYS use relative paths starting with '/api' (e.g. fetch('/api/items') or axios.get('/api/users')).`,
-      `   - NEVER hardcode absolute backend URLs (e.g. NEVER write fetch('http://localhost:5001/api/...'), fetch('http://127.0.0.1:...'), or any fixed port).`,
+      `1. FRONTEND API CALLS: For web, use relative paths starting with '/api' (e.g. fetch('/api/items')). For React Native mobile screens, use process.env.EXPO_PUBLIC_API_URL (e.g. fetch(\`\${process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:5001/api'}/items\`)).`,
+      `   - NEVER hardcode a static port number in URLs. The backend port is dynamically assigned.`,
       `2. BACKEND SERVER LISTEN PORT: When creating or editing backend servers:`,
       `   - ALWAYS read the port dynamically from environment variables: const PORT = process.env.BACKEND_PORT || process.env.PORT || 5001;`,
       `   - ALWAYS listen on that variable: app.listen(PORT, '0.0.0.0', ...);`,

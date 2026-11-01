@@ -230,27 +230,48 @@ export class DevServerManager {
   }
 
   async isPortAvailable(port: number): Promise<boolean> {
-    const listening = await this.isPortListening(port);
-    return !listening;
-  }
-
-  async isPortListening(port: number): Promise<boolean> {
+    if (await this.isPortListening(port)) return false;
     try {
-      await Bun.connect({
-        hostname: "127.0.0.1",
+      const s1 = Bun.listen({
         port,
-        socket: {
-          data() {},
-          open(s) {
-            s.end();
-          },
-          error() {},
-        },
+        hostname: "127.0.0.1",
+        socket: { data() {} },
       });
-      return true;
+      s1.stop(true);
     } catch {
       return false;
     }
+    try {
+      const s2 = Bun.listen({
+        port,
+        hostname: "0.0.0.0",
+        socket: { data() {} },
+      });
+      s2.stop(true);
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
+  async isPortListening(port: number): Promise<boolean> {
+    for (const host of ["127.0.0.1", "localhost", "::1"]) {
+      try {
+        await Bun.connect({
+          hostname: host,
+          port,
+          socket: {
+            data() {},
+            open(s) {
+              s.end();
+            },
+            error() {},
+          },
+        });
+        return true;
+      } catch {}
+    }
+    return false;
   }
 
   async findAvailablePort(startPort: number = 3000, maxPort: number = 3050): Promise<number> {
@@ -390,10 +411,16 @@ export class DevServerManager {
       PATH: augmentedPath,
       PORT: String(targetPort),
       VITE_PORT: String(targetPort),
+      EXPO_PORT: String(targetPort),
+      EXPO_NO_TELEMETRY: "1",
+      BROWSER: "none",
     };
     if (backendPort) {
       frontendEnv.BACKEND_PORT = String(backendPort);
       frontendEnv.VITE_BACKEND_PORT = String(backendPort);
+      frontendEnv.EXPO_PUBLIC_BACKEND_PORT = String(backendPort);
+      frontendEnv.EXPO_PUBLIC_BACKEND_URL = `http://127.0.0.1:${backendPort}`;
+      frontendEnv.EXPO_PUBLIC_API_URL = `http://127.0.0.1:${backendPort}/api`;
     }
 
     // Launch frontend dev server: prefer project vite.js directly, template manifest, or run project dev script
@@ -404,13 +431,26 @@ export class DevServerManager {
     } else if (templateManifest?.devServer?.frontend?.command?.length) {
       const raw = templateManifest.devServer.frontend.command;
       const bin = raw[0] === "bun" ? process.execPath : raw[0];
-      frontendCmd = [bin, ...raw.slice(1), "--port", String(targetPort), "--strictPort"];
+      const isVite = templateManifest.devServer.type === "web";
+      if (raw.includes("run")) {
+        frontendCmd = isVite
+          ? [bin, ...raw.slice(1), "--", "--port", String(targetPort), "--strictPort"]
+          : [bin, ...raw.slice(1), "--", "--port", String(targetPort)];
+      } else {
+        frontendCmd = isVite
+          ? [bin, ...raw.slice(1), "--port", String(targetPort), "--strictPort"]
+          : [bin, ...raw.slice(1), "--port", String(targetPort)];
+      }
     } else {
-      frontendCmd = [process.execPath, "run", frontendScript!, "--", "--port", String(targetPort), "--strictPort"];
+      const isVite = Boolean(frontendScript && (frontendScript === "dev" || frontendScript === "dev:frontend"));
+      frontendCmd = isVite
+        ? [process.execPath, "run", frontendScript!, "--", "--port", String(targetPort), "--strictPort"]
+        : [process.execPath, "run", frontendScript!, "--", "--port", String(targetPort)];
     }
     const frontendProc = Bun.spawn(frontendCmd, {
       cwd: resolvedPath,
       env: frontendEnv,
+      stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
       detached: process.platform !== "win32",
@@ -545,9 +585,12 @@ export class DevServerManager {
 
     // Actively wait until port is listening or detected via stdout
     const startTime = Date.now();
-    const maxWaitMs = 10000;
+    const maxWaitMs = 25000;
     while (Date.now() - startTime < maxWaitMs && !emittedReady) {
-      if (!this.activeServers.has(resolvedPath)) break;
+      if (!this.activeServers.has(resolvedPath)) {
+        console.warn(`[DevServerManager] Dev server process exited before becoming ready for ${resolvedPath}`);
+        return null;
+      }
       if (await this.isPortListening(info.port)) {
         emitReady(info.port);
         break;
@@ -555,6 +598,10 @@ export class DevServerManager {
       await Bun.sleep(150);
     }
 
+    if (!emittedReady) {
+      console.warn(`[DevServerManager] Dev server timed out waiting for port listener on ${info.port}`);
+      return null;
+    }
     return info;
   }
 
@@ -780,6 +827,9 @@ export class DevServerManager {
   }
 
   async sweepOrphanedPorts(): Promise<void> {
+    if (process.env.DISABLE_PORT_SWEEP === "true") {
+      return;
+    }
     const commonPorts = [3000, 3001, 3002, 3003, 3004, 3005, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008];
     const activePortSet = new Set<number>();
     for (const entry of this.activeServers.values()) {
