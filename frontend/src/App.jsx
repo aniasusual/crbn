@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import WelcomeView from './components/WelcomeView';
 import WorkspaceView from './components/WorkspaceView';
 import TabBar from './components/TabBar';
+import WorkspacePreparationView from './components/WorkspacePreparationView';
 import { normalizeSubagentName, isSubagentTool } from './components/subagentUtils';
 import { API_BASE_URL, WS_BASE_URL } from './config';
 import './index.css';
@@ -35,6 +36,7 @@ export default function App() {
   });
 
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [creationProgress, setCreationProgress] = useState(null);
   const [hardwareInfo, setHardwareInfo] = useState(null);
   const [models, setModels] = useState([]);
   const [providers, setProviders] = useState([]);
@@ -847,28 +849,99 @@ export default function App() {
     [tabs, globalDefaultModel, connectTabSocket]
   );
 
-  // Handle Creating a New Project from Welcome Screen
+  // Handle Creating a New Project from Welcome Screen with Real-Time Preparation Progress
   const handleCreateProject = useCallback(
-    async (prompt, projectName, attachments, initialMode = 'build') => {
+    async (prompt, projectName, attachments, initialMode = 'build', templateId = 'node_react') => {
       try {
         setIsTransitioning(true);
-        const response = await fetch(`${API_BASE_URL}/api/projects`, {
+        setCreationProgress({
+          phase: 'scaffolding',
+          message: 'Scaffolding project template...',
+          percent: 20,
+          projectName,
+        });
+
+        const response = await fetch(`${API_BASE_URL}/api/projects?stream=true`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: projectName,
-            template: 'node_react',
+            template: templateId || 'node_react',
             model: globalDefaultModel,
           }),
         });
-        const data = await response.json();
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail || 'Failed to create project');
+        }
+
+        const reader = response.body?.getReader();
+        let projectData = null;
+
+        if (reader) {
+          const decoder = new TextDecoder();
+          let buffer = '';
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              try {
+                const event = JSON.parse(line);
+                if (event.type === 'progress') {
+                  let percent = 25;
+                  if (event.phase === 'scaffolding') percent = 25;
+                  else if (event.phase === 'git') percent = 45;
+                  else if (event.phase === 'dependencies') percent = 70;
+                  else if (event.phase === 'preview') percent = 90;
+                  else if (event.phase === 'ready') percent = 100;
+
+                  setCreationProgress({
+                    phase: event.phase,
+                    message: event.message,
+                    percent,
+                  });
+                } else if (event.type === 'complete') {
+                  projectData = event.project;
+                  setCreationProgress({
+                    phase: 'ready',
+                    message: 'Workspace live! Launching studio...',
+                    percent: 100,
+                  });
+                } else if (event.type === 'error') {
+                  throw new Error(event.detail || 'Creation failed');
+                }
+              } catch (parseErr) {
+                console.warn('Failed to parse progress event:', parseErr);
+              }
+            }
+          }
+        } else {
+          projectData = await response.json();
+        }
+
+        if (!projectData) {
+          throw new Error('Project preparation completed without result payload');
+        }
+
+        // Brief delay so the user sees 100% completion before smooth transition
+        await new Promise((r) => setTimeout(r, 450));
         setWelcomePrompt('');
-        handleOpenProject(data, prompt, attachments, initialMode);
+        handleOpenProject(projectData, prompt, attachments, initialMode);
         setIsTransitioning(false);
+        setCreationProgress(null);
       } catch (err) {
         console.error('Failed to create project:', err);
-        alert('Failed to create project.');
+        alert(`Failed to create project: ${err.message || err}`);
         setIsTransitioning(false);
+        setCreationProgress(null);
       }
     },
     [globalDefaultModel, handleOpenProject]
@@ -1386,7 +1459,7 @@ export default function App() {
         onNewTab={() => setCurrentView('welcome')}
       />
 
-      {currentView === 'welcome' && (
+      {currentView === 'welcome' && !creationProgress && (
         <WelcomeView
           onSubmit={handleCreateProject}
           onConnectAndBuild={handleConnectAndBuild}
@@ -1408,9 +1481,12 @@ export default function App() {
         />
       )}
 
-      {currentView === 'workspace' && activeTab && (
+      {creationProgress && (
+        <WorkspacePreparationView progress={creationProgress} />
+      )}
+
+      {currentView === 'workspace' && activeTab && !creationProgress && (
         <WorkspaceView
-          key={activeTab.id}
           messages={activeTab.messages}
           onSendMessage={handleSendMessage}
           onToolResponse={handleToolResponse}

@@ -56,7 +56,6 @@ const FolderIcon = ({ size = 13 }) => (
   </svg>
 );
 
-
 export default function WelcomeView({
   onSubmit,
   onConnectAndBuild,
@@ -89,6 +88,61 @@ export default function WelcomeView({
   const [isPluginsModalOpen, setIsPluginsModalOpen] = useState(false);
   const [pluginsCount, setPluginsCount] = useState(0);
   const [welcomeMode, setWelcomeMode] = useState('build');
+  const [templates, setTemplates] = useState([
+    {
+      id: 'node_react',
+      name: 'Web App',
+      category: 'web',
+      description: 'Full-stack React with Vite frontend and lightweight Node.js backend',
+      icon: 'globe',
+      tags: ['react', 'vite'],
+    },
+    {
+      id: 'mobile_expo',
+      name: 'Mobile App',
+      category: 'mobile',
+      description: 'Cross-platform iOS and Android with Expo and React Native',
+      icon: 'smartphone',
+      comingSoon: true,
+    },
+    {
+      id: 'unreal_engine',
+      name: 'Unreal Engine',
+      category: 'engine',
+      description: 'Unreal Engine 5 project skeleton with C++ and Blueprints',
+      icon: 'joystick',
+      comingSoon: true,
+    },
+    {
+      id: 'python_workflow',
+      name: 'AI Workflow',
+      category: 'workflow',
+      description: 'AI pipelines with Python and FastAPI',
+      icon: 'workflow',
+      comingSoon: true,
+    },
+  ]);
+  const [selectedTemplate, setSelectedTemplate] = useState('node_react');
+  const [templateNotice, setTemplateNotice] = useState(null);
+
+  const fetchTemplates = useCallback(() => {
+    fetch(`${API_BASE_URL}/api/templates`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.templates) && data.templates.length > 0) {
+          setTemplates(data.templates);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  const selectedTemplateObj = useMemo(() => {
+    return templates.find((t) => t.id === selectedTemplate) || templates[0];
+  }, [templates, selectedTemplate]);
 
   const [justConnectedProvider, setJustConnectedProvider] = useState(null);
 
@@ -154,6 +208,29 @@ export default function WelcomeView({
   );
   const isThirdPartyRepo = Boolean(selectedRepo && !isCurrentUserRepo);
   const isCustomRepoQuery = Boolean(repoSearch.trim().includes('/') || repoSearch.trim().includes('github.com'));
+
+  const composerPlaceholder = useMemo(() => {
+    if (selectedRepo) {
+      return `What would you like to build or change in ${selectedRepo.name}? Describe changes, features, or fixes...`;
+    }
+    if (welcomeMode === 'plan') {
+      return "Describe what you'd like to plan (working tree will be read-only)...";
+    }
+    if (selectedTemplateObj?.placeholder) {
+      return selectedTemplateObj.placeholder;
+    }
+    switch (selectedTemplate) {
+      case 'mobile_expo':
+        return "Describe mobile screens, navigation flow, or app features to build...";
+      case 'unreal_engine':
+        return "Describe game mechanics, actors, or level logic in Unreal Engine...";
+      case 'python_workflow':
+        return "Describe an AI automation workflow, API endpoints, or data pipeline...";
+      case 'node_react':
+      default:
+        return "Describe a web application, dashboard, or tool you'd like to build...";
+    }
+  }, [selectedRepo, welcomeMode, selectedTemplateObj, selectedTemplate]);
 
   const handleOpenFolder = async () => {
     try {
@@ -570,12 +647,12 @@ export default function WelcomeView({
     const files = attachments
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
-    onSubmit(prompt, projectName.trim(), { images, videos, files }, welcomeMode);
+    onSubmit(prompt, projectName.trim(), { images, videos, files }, welcomeMode, selectedTemplate);
     clearAttachments();
   };
 
 
-  const exiting = isExiting || isTransitioning;
+  const exiting = isExiting;
 
   return (
     <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''} ${isNaming ? 'degrees-welcome--naming' : ''}`}>
@@ -724,6 +801,44 @@ export default function WelcomeView({
                   if (e.target.files) addFiles(Array.from(e.target.files));
                 }}
               />
+              {/* Segmented Template Selector (when not building on an existing GitHub repo) */}
+              {!selectedRepo && (
+                <div className="degrees-template-segments-bar">
+                  <div className="degrees-template-segments" role="radiogroup" aria-label="Template">
+                    {templates.map((tpl) => {
+                      const isSelected = selectedTemplate === tpl.id;
+                      return (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          className={`degrees-template-seg-btn ${
+                            isSelected ? 'degrees-template-seg-btn--active' : ''
+                          } ${tpl.comingSoon ? 'degrees-template-seg-btn--disabled' : ''}`}
+                          onClick={() => {
+                            if (tpl.comingSoon) {
+                              setTemplateNotice(`${tpl.name} coming soon`);
+                              setTimeout(() => setTemplateNotice(null), 2500);
+                              return;
+                            }
+                            setSelectedTemplate(tpl.id);
+                          }}
+                          role="radio"
+                          aria-checked={isSelected}
+                          title={tpl.description}
+                        >
+                          <span className="degrees-template-seg-name">{tpl.name}</span>
+                          {tpl.comingSoon && (
+                            <span className="degrees-template-seg-tag">Soon</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {templateNotice && (
+                    <span className="degrees-template-notice-pill">{templateNotice}</span>
+                  )}
+                </div>
+              )}
 
               <div
                 className={`degrees-composer ${
@@ -816,13 +931,7 @@ export default function WelcomeView({
                 <textarea
                   id={textareaId}
                   className="degrees-composer__textarea"
-                  placeholder={
-                    selectedRepo
-                      ? `What would you like to build or change in ${selectedRepo.name}? Describe changes, features, or fixes...`
-                      : welcomeMode === 'plan'
-                      ? "Describe what you'd like to plan (working tree will be read-only)..."
-                      : "Describe an application, interface, or creative tool you'd like to build..."
-                  }
+                  placeholder={composerPlaceholder}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
@@ -1235,62 +1344,66 @@ export default function WelcomeView({
                 className="degrees-logo-img degrees-logo-img--small"
               />
             </div>
-
-            <h1 className="degrees-welcome__title">
-              Name your <span className="degrees-welcome__title-serif">workspace</span>
-            </h1>
-            <p className="degrees-welcome__subtitle">
-              Choose a directory name for your project in <code>~/.80degrees/projects</code>.
-            </p>
-
-            <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>
-              <div className="degrees-naming-console">
-                <div className="degrees-naming-field">
-                  <span className="degrees-naming-icon">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                  </span>
-                  <input
-                    type="text"
-                    className="degrees-naming-input"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    disabled={isGeneratingName}
-                    placeholder="e.g. creative-studio"
-                    autoFocus
-                    spellCheck={false}
-                  />
-                  {isGeneratingName && (
-                    <span className="degrees-naming-loading">Generating suggestion...</span>
-                  )}
-                </div>
-
-                <div className="degrees-naming-actions">
-                  <button
-                    type="button"
-                    className="degrees-btn-secondary"
-                    onClick={() => setIsNaming(false)}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    className="degrees-cta-btn"
-                    disabled={isGeneratingName || !projectName.trim()}
-                  >
-                    <span>Create Workspace</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                  </button>
-                </div>
+              <h1 className="degrees-welcome__title">
+                Name your <span className="degrees-welcome__title-serif">workspace</span>
+              </h1>
+              <p className="degrees-welcome__subtitle">
+                Choose a directory name for your project in <code>~/.80degrees/projects</code>.
+              </p>
+              <div className="degrees-naming-template-row">
+                <span className="degrees-naming-template-label">Template</span>
+                <span className="degrees-naming-template-name">{selectedTemplateObj?.name || 'Web App'}</span>
               </div>
-            </form>
+
+              <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>
+                <div className="degrees-naming-console">
+                  <div className="degrees-naming-field">
+                    <span className="degrees-naming-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="degrees-naming-input"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      disabled={isGeneratingName}
+                      placeholder="e.g. creative-studio"
+                      autoFocus
+                      spellCheck={false}
+                    />
+                    {isGeneratingName && (
+                      <span className="degrees-naming-loading">Generating suggestion...</span>
+                    )}
+                  </div>
+
+                  <div className="degrees-naming-actions">
+                    <button
+                      type="button"
+                      className="degrees-btn-secondary"
+                      onClick={() => setIsNaming(false)}
+                      disabled={isTransitioning}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="degrees-cta-btn"
+                      disabled={isGeneratingName || !projectName.trim() || isTransitioning}
+                    >
+                      <span>Create Workspace</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
-          </div>
-        )}
+      )}
 
       {/* Model Selector Modal */}
       <ModelSelector

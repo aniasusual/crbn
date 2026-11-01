@@ -1,0 +1,37 @@
+{
+  "id": "node_react",
+  "name": "Web App",
+  "version": "1.0.0",
+  "category": "web",
+  "description": "Full-stack React with Vite frontend and lightweight Node.js backend",
+  "icon": "globe",
+  "placeholder": "Describe a web application, dashboard, or tool you'd like to build...",
+  "tags": ["react", "vite", "nodejs", "tailwind"],
+  "setup": {
+    "engine": "bun",
+    "command": ["bun", "install"],
+    "timeoutMs": 180000
+  },
+  "devServer": {
+    "type": "web",
+    "frontend": {
+      "command": ["bun", "run", "dev:frontend"],
+      "portEnv": "PORT",
+      "defaultPort": 3000
+    },
+    "backend": {
+      "entryFile": "server/index.js",
+      "command": ["bun", "run", "server/index.js"],
+      "portEnv": "PORT",
+      "defaultPort": 5001
+    },
+    "preview": {
+      "type": "iframe",
+      "brandBadge": true
+    }
+  },
+  "aiRules": [
+    "DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.",
+    "BRAND ATTRIBUTION (MANDATORY): The project template contains a mandatory 'Made on 80degrees' badge chip (#made-on-80degrees) in index.html. DO NOT remove, hide, alter, or cover this badge when editing index.html or application styles."
+  ]
+}
