@@ -1059,47 +1059,68 @@ export default function PluginsModal({
                   <div className="plugins-form">
                 {/* 1. Direct Install Form */}
                 <div className="plugins-form-card">
-                  <h4 className="plugins-form-title">Direct Install Spec</h4>
+                  <h4 className="plugins-form-title">Direct Install Plugin</h4>
                   <p className="plugins-form-desc">
-                    Install a plugin by marketplace ID (<code>name@marketplace</code>), npm package name (<code>@scope/pkg</code>), or git repository URL.
+                    Install any plugin by marketplace ID (<code>name@marketplace</code>), npm package name (<code>@scope/pkg</code>), or Git repository URL.
                   </p>
-                  <form onSubmit={handleCustomInstall}>
-                    <div className="plugins-form-row">
+                  <form onSubmit={handleCustomInstall} className="plugins-direct-install-form">
+                    <div className="plugins-direct-input-wrap">
                       <input
                         type="text"
                         className="plugins-form-input"
-                        placeholder="e.g. code-review@claude-plugins-official or @scope/pkg"
+                        placeholder="e.g. code-review@claude-plugins-official or https://github.com/..."
                         value={customSpec}
                         onChange={(e) => setCustomSpec(e.target.value)}
                         required
                       />
-                      <select
-                        className="plugins-form-select"
-                        value={customType}
-                        onChange={(e) => setCustomType(e.target.value)}
-                      >
-                        <option value="marketplace">Marketplace</option>
-                        <option value="npm">npm package</option>
-                        <option value="git">Git URL</option>
-                        <option value="link">Local Link (Dev)</option>
-                      </select>
-                      <select
-                        className="plugins-form-select"
-                        value={customScope}
-                        onChange={(e) => setCustomScope(e.target.value)}
-                      >
-                        <option value="project">Project Scope</option>
-                        <option value="user">User / Global Scope</option>
-                      </select>
+                    </div>
+                    
+                    <div className="plugins-direct-controls-row">
+                      <div className="plugins-direct-selects">
+                        <select
+                          className="plugins-form-select"
+                          value={customType}
+                          onChange={(e) => setCustomType(e.target.value)}
+                        >
+                          <option value="marketplace">Marketplace Catalog</option>
+                          <option value="npm">npm package</option>
+                          <option value="git">Git Repository URL</option>
+                          <option value="link">Local Dev Link</option>
+                        </select>
+                        <select
+                          className="plugins-form-select"
+                          value={customScope}
+                          onChange={(e) => setCustomScope(e.target.value)}
+                        >
+                          <option value="project">Project Scope (Local)</option>
+                          <option value="user">Global Scope (All Projects)</option>
+                        </select>
+                      </div>
                       <button
                         type="submit"
                         className="plugins-dialog-btn plugins-dialog-btn--primary"
                         disabled={actionLoading.custom || !customSpec.trim()}
                       >
-                        {actionLoading.custom ? 'Installing...' : 'Install'}
+                        {actionLoading.custom ? 'Installing...' : 'Install Plugin'}
                       </button>
                     </div>
                   </form>
+                  <div className="plugins-mkt-suggestions">
+                    <span className="plugins-mkt-suggestions-label">Quick select:</span>
+                    {['code-review', 'supabase', 'sentry', 'adobe-for-creativity', 'prisma'].map((pkg) => (
+                      <button
+                        key={pkg}
+                        type="button"
+                        className="plugins-mkt-suggestion-chip"
+                        onClick={() => {
+                          setCustomSpec(`${pkg}@claude-plugins-official`);
+                          setCustomType('marketplace');
+                        }}
+                      >
+                        {pkg}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* 2. Add Marketplace Catalog Source */}
@@ -1127,6 +1148,30 @@ export default function PluginsModal({
                       </button>
                     </div>
                   </form>
+                  <div className="plugins-mkt-suggestions">
+                    <span className="plugins-mkt-suggestions-label">Popular catalogs:</span>
+                    <button
+                      type="button"
+                      className="plugins-mkt-suggestion-chip"
+                      onClick={() => setNewMarketplaceSource('anthropics/claude-plugins-official')}
+                    >
+                      Claude Plugins Official
+                    </button>
+                    <button
+                      type="button"
+                      className="plugins-mkt-suggestion-chip"
+                      onClick={() => setNewMarketplaceSource('modelcontextprotocol/servers')}
+                    >
+                      MCP Official Directory
+                    </button>
+                    <button
+                      type="button"
+                      className="plugins-mkt-suggestion-chip"
+                      onClick={() => setNewMarketplaceSource('wong2/awesome-mcp-servers')}
+                    >
+                      Community MCP Servers
+                    </button>
+                  </div>
                 </div>
 
                 {/* 3. Configured Marketplaces List */}

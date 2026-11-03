@@ -184,6 +184,28 @@ export class ProjectManager {
     } catch (e) {
       console.warn(`[ProjectManager] Git initialization warning: ${e}`);
     }
+    // 2b. Auto-provision standard 3D Game MCP servers (Poly Pizza) directly into user's app
+    if (template === "game_3d" || manifest.category === "game") {
+      try {
+        const ompDir = path.join(projectDir, ".omp");
+        fsSync.mkdirSync(ompDir, { recursive: true });
+        const mcpJsonPath = path.join(ompDir, "mcp.json");
+        if (!fsSync.existsSync(mcpJsonPath)) {
+          const defaultMcpConfig = {
+            mcpServers: {
+              "poly-pizza": {
+                command: "npx",
+                args: ["-y", "poly-pizza-mcp"],
+                enabled: true,
+              },
+            },
+          };
+          fsSync.writeFileSync(mcpJsonPath, JSON.stringify(defaultMcpConfig, null, 2) + "\n", "utf-8");
+        }
+      } catch (err) {
+        console.warn("[ProjectManager] Failed to auto-provision game MCP config:", err);
+      }
+    }
 
     // 3. Install dependencies strictly inside the project directory (no shared cache)
     onProgress?.({

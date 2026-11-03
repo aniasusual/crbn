@@ -215,7 +215,12 @@ export class ModelsService {
       process.env.GEMINI_API_KEY = trimmedKey;
       process.env.GOOGLE_API_KEY = trimmedKey;
     }
-
+    if (provider === "meshy") {
+      process.env.MESHY_API_KEY = trimmedKey;
+    }
+    if (provider === "elevenlabs") {
+      process.env.ELEVENLABS_API_KEY = trimmedKey;
+    }
     // 4. Trigger provider-level online refresh and hydrate in model registry
     try {
       await registry.refreshProvider(provider, "online");
@@ -255,6 +260,8 @@ export class ModelsService {
     const envVarsToClean = [
       entry?.envVars?.[0],
       getEnvApiKeyName(provider),
+      provider === "meshy" ? "MESHY_API_KEY" : undefined,
+      provider === "elevenlabs" ? "ELEVENLABS_API_KEY" : undefined,
       `${provider.toUpperCase().replace(/-/g, "_")}_API_KEY`,
       provider === "google" ? "GEMINI_API_KEY" : undefined,
       provider === "google" ? "GOOGLE_API_KEY" : undefined,
@@ -305,27 +312,33 @@ export class ModelsService {
     const registryProviders = Array.from(new Set(registryModels.map((m) => m.provider)));
     const oauthProviders = this.oauthManager.getOAuthProviders();
     const allProviderIds = Array.from(
-      new Set([...jsonProviders, ...registryProviders, ...oauthProviders.map((p) => p.id), ...Object.keys(ymlProviders)])
+      new Set([...jsonProviders, ...registryProviders, ...oauthProviders.map((p) => p.id), ...Object.keys(ymlProviders), "meshy", "elevenlabs"])
     ).filter(Boolean);
-
     const authStorage = await this.getAuthStorage();
     const seenModelCanonicalIds = new Set<string>();
 
     for (const pid of allProviderIds) {
       const pEntry = entries[pid] ?? providerEntry(pid);
-      const label =
+      let label =
         pid === "omniroute"
           ? "OmniRoute"
+          : pid === "meshy"
+          ? "Meshy (3D Mesh AI)"
+          : pid === "elevenlabs"
+          ? "ElevenLabs (Sound Effects)"
           : pEntry?.discovery?.label || pid.charAt(0).toUpperCase() + pid.slice(1);
-      const envVar =
+      let envVar =
         pid === "omniroute"
           ? "OMNIROUTE_API_KEY"
+          : pid === "meshy"
+          ? "MESHY_API_KEY"
+          : pid === "elevenlabs"
+          ? "ELEVENLABS_API_KEY"
           : pEntry?.envVars?.[0] ||
             getEnvApiKeyName(pid) ||
             (pid !== "ollama" && pid !== "local" && pid !== "web"
               ? `${pid.toUpperCase().replace(/-/g, "_")}_API_KEY`
               : null);
-
       const oauthMatch = oauthProviders.find(
         (p) => p.id === pid || p.storeCredentialsAs === pid
       );

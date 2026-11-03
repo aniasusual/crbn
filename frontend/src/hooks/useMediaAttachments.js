@@ -218,11 +218,14 @@ export function useMediaAttachments(projectName = '') {
           },
         ]);
       } else {
+        const is3D = /\.(glb|gltf|fbx|obj)$/i.test(file.name);
+        const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(file.name);
+        const fileType = is3D ? 'model' : isAudio ? 'audio' : 'file';
         let savedPath = null;
         let base64Data = '';
 
-        // For files >= 2MB, stream upload directly to avoid base64 ballooning
-        if (file.size >= 2 * 1024 * 1024) {
+        // For 3D models, audio, or files >= 2MB, stream upload directly to avoid base64 ballooning
+        if (is3D || isAudio || file.size >= 2 * 1024 * 1024) {
           const uploadResult = await uploadAttachmentBinary(file, activeProject);
           savedPath = uploadResult?.path || null;
         }
@@ -237,8 +240,8 @@ export function useMediaAttachments(projectName = '') {
             id,
             name: file.name,
             size: file.size,
-            type: 'file',
-            mimeType: file.type || 'application/octet-stream',
+            type: fileType,
+            mimeType: file.type || (is3D ? 'model/gltf-binary' : isAudio ? 'audio/mpeg' : 'application/octet-stream'),
             path: savedPath || undefined,
             savedPath: savedPath || undefined,
             data: base64Data || undefined,

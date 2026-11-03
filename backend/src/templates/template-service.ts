@@ -21,6 +21,16 @@ const EXCLUDED_ENTRIES: Record<string, true> = {
 // Registered placeholders for upcoming templates to present in the horizontal chips UI
 const UPCOMING_TEMPLATES: TemplateSummary[] = [
   {
+    id: "game_godot",
+    name: "Godot Engine",
+    category: "game",
+    description: "Godot 4 WebAssembly export for indie 2D & 3D games",
+    icon: "joystick",
+    placeholder: "Describe game mechanics, physics, and scenes for Godot 4...",
+    tags: ["game", "godot", "wasm", "gdscript"],
+    comingSoon: true,
+  },
+  {
     id: "unreal_engine",
     name: "Unreal Engine",
     category: "engine",
