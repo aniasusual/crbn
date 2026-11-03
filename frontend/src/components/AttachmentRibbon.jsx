@@ -63,11 +63,27 @@ export default function AttachmentRibbon({ attachments = [], onRemove }) {
               </button>
             </div>
           ) : (
-            <div className="attachment-ribbon__file-chip">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="attachment-ribbon__file-icon">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-              </svg>
+            <div className={`attachment-ribbon__file-chip ${
+              att.type === 'model' || /\.(glb|gltf|fbx|obj)$/i.test(att.name) ? 'attachment-ribbon__file-chip--model' :
+              att.type === 'audio' || /\.(mp3|wav|ogg|m4a)$/i.test(att.name) ? 'attachment-ribbon__file-chip--audio' : ''
+            }`}>
+              {att.type === 'model' || /\.(glb|gltf|fbx|obj)$/i.test(att.name) ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="attachment-ribbon__file-icon">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+              ) : att.type === 'audio' || /\.(mp3|wav|ogg|m4a)$/i.test(att.name) ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="attachment-ribbon__file-icon">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="attachment-ribbon__file-icon">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+              )}
               <span className="attachment-ribbon__file-name" title={att.name}>
                 {att.name}
               </span>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './McpConnectModal.css';
@@ -7,6 +7,7 @@ const MCP_PRESETS = [
   {
     id: 'filesystem',
     name: 'Filesystem',
+    category: 'tools',
     description: 'Read and write local files and directories safely.',
     requiresKey: false,
     defaultName: 'filesystem',
@@ -18,6 +19,7 @@ const MCP_PRESETS = [
   {
     id: 'fetch',
     name: 'Web Fetch',
+    category: 'tools',
     description: 'Fetch and parse HTML and JSON web content directly.',
     requiresKey: false,
     defaultName: 'fetch',
@@ -27,8 +29,33 @@ const MCP_PRESETS = [
     env: {},
   },
   {
+    id: 'puppeteer',
+    name: 'Puppeteer Browser',
+    category: 'browser',
+    description: 'Automate headless Chrome to inspect, interact with, click, and screenshot live web apps & games.',
+    requiresKey: false,
+    defaultName: 'puppeteer',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-puppeteer'],
+    env: {},
+  },
+  {
+    id: 'sequential-thinking',
+    name: 'Sequential Thinking',
+    category: 'tools',
+    description: 'Multi-step cognitive reasoning tool for physics formulas, game math, and complex architecture.',
+    requiresKey: false,
+    defaultName: 'sequential-thinking',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-sequential-thinking'],
+    env: {},
+  },
+  {
     id: 'sqlite',
     name: 'SQLite Database',
+    category: 'database',
     description: 'Execute queries and inspect local SQLite database tables.',
     requiresKey: false,
     defaultName: 'sqlite',
@@ -38,8 +65,21 @@ const MCP_PRESETS = [
     env: {},
   },
   {
+    id: 'postgres',
+    name: 'PostgreSQL Database',
+    category: 'database',
+    description: 'Inspect schemas, tables, and query PostgreSQL or Supabase databases.',
+    requiresKey: false,
+    defaultName: 'postgres',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', '@modelcontextprotocol/server-postgres', 'postgresql://localhost/mydb'],
+    env: {},
+  },
+  {
     id: 'memory',
     name: 'Knowledge Graph',
+    category: 'tools',
     description: 'Persistent knowledge graph memory across agent sessions.',
     requiresKey: false,
     defaultName: 'memory',
@@ -49,8 +89,71 @@ const MCP_PRESETS = [
     env: {},
   },
   {
+    id: 'git',
+    name: 'Git Inspection',
+    category: 'tools',
+    description: 'Read git repository log, staged diffs, branches, and commit status.',
+    requiresKey: false,
+    defaultName: 'git',
+    transport: 'stdio',
+    command: 'uvx',
+    args: ['mcp-server-git', '--repository', '.'],
+    env: {},
+  },
+  {
+    id: 'poly-pizza',
+    name: 'Poly Pizza 3D Models',
+    category: '3d',
+    description: 'Search and import from over 10,000+ free CC0 low-poly 3D models directly in your game.',
+    requiresKey: false,
+    defaultName: 'poly-pizza',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', 'poly-pizza-mcp'],
+    env: {},
+  },
+  {
+    id: 'sketchfab',
+    name: 'Sketchfab 3D Models',
+    category: '3d',
+    description: 'Search and fetch from millions of 3D models and environments on Sketchfab.',
+    requiresKey: true,
+    keyHint: 'Requires SKETCHFAB_API_TOKEN',
+    defaultName: 'sketchfab',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', 'sketchfab-mcp'],
+    env: { SKETCHFAB_API_TOKEN: '' },
+  },
+  {
+    id: 'blender',
+    name: 'Blender 3D Automation',
+    category: '3d',
+    description: 'Automate local Blender instance via Python to process, decimate, and convert 3D meshes.',
+    requiresKey: false,
+    defaultName: 'blender',
+    transport: 'stdio',
+    command: 'uvx',
+    args: ['blender-mcp'],
+    env: {},
+  },
+  {
+    id: 'elevenlabs',
+    name: 'ElevenLabs Audio & SFX',
+    category: 'audio',
+    description: 'Generate dynamic sound effects, speech, and game voice lines.',
+    requiresKey: true,
+    keyHint: 'Requires ELEVENLABS_API_KEY',
+    defaultName: 'elevenlabs',
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', 'elevenlabs-mcp'],
+    env: { ELEVENLABS_API_KEY: '' },
+  },
+  {
     id: 'github',
     name: 'GitHub',
+    category: 'tools',
     description: 'Search repositories, manage PRs, inspect commits and issues.',
     requiresKey: true,
     keyHint: 'Requires GITHUB_PERSONAL_ACCESS_TOKEN',
@@ -63,6 +166,7 @@ const MCP_PRESETS = [
   {
     id: 'brave-search',
     name: 'Brave Web Search',
+    category: 'tools',
     description: 'Real-time web search and content summarization API.',
     requiresKey: true,
     keyHint: 'Requires BRAVE_API_KEY',
@@ -103,6 +207,78 @@ export default function McpConnectModal({
   const [url, setUrl] = useState('');
   const [headersStr, setHeadersStr] = useState('');
   const [rawJson, setRawJson] = useState('');
+  const [presetSearch, setPresetSearch] = useState('');
+  const [presetCategory, setPresetCategory] = useState('all');
+  const [oneLineCommand, setOneLineCommand] = useState('');
+
+  const filteredPresets = useMemo(() => {
+    return MCP_PRESETS.filter((p) => {
+      const matchCat = presetCategory === 'all' || p.category === presetCategory;
+      const matchSearch =
+        !presetSearch.trim() ||
+        p.name.toLowerCase().includes(presetSearch.toLowerCase()) ||
+        p.description.toLowerCase().includes(presetSearch.toLowerCase()) ||
+        p.command.toLowerCase().includes(presetSearch.toLowerCase()) ||
+        p.args.some((a) => a.toLowerCase().includes(presetSearch.toLowerCase()));
+      return matchCat && matchSearch;
+    });
+  }, [presetCategory, presetSearch]);
+
+  const handleQuickAddCommand = async (e) => {
+    e.preventDefault();
+    const trimmed = oneLineCommand.trim();
+    if (!trimmed) return;
+
+    const parts = trimmed.split(/\s+/);
+    const cmd = parts[0];
+    const args = parts.slice(1);
+
+    let inferredName = '';
+    for (const arg of args) {
+      if (arg.startsWith('-')) continue;
+      const clean = arg
+        .replace(/^@[\w.-]+\//, '')
+        .replace(/^mcp-server-/, '')
+        .replace(/-mcp$/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+      if (clean) {
+        inferredName = clean;
+        break;
+      }
+    }
+    if (!inferredName) inferredName = cmd;
+    const finalName = inferredName.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+
+    setIsSaving(true);
+    setErrorMsg(null);
+    try {
+      const serverConfig = {
+        type: 'stdio',
+        command: cmd,
+        args,
+        env: {},
+      };
+      const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(effectiveProject)}/mcp/servers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: finalName, config: serverConfig }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Failed to save server');
+      }
+      setOneLineCommand('');
+      setSuccessMsg(`Server '${finalName}' added successfully`);
+      setTimeout(() => setSuccessMsg(null), 3000);
+      setActiveTab('servers');
+      await fetchServers();
+      onReloadMcp?.();
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Fetch servers from backend
   const fetchServers = useCallback(async () => {
@@ -584,6 +760,30 @@ export default function McpConnectModal({
           {/* Tab 2: Add New Server */}
           {activeTab === 'add' && (
             <div className="mcp-dialog-content">
+              {/* Quick Command Box */}
+              <div className="mcp-quick-command-card">
+                <div className="mcp-quick-command-header">
+                  <span className="mcp-quick-command-title">Fast Add: One-Line Terminal Command</span>
+                  <span className="mcp-quick-command-hint">Paste any npx or uvx command to connect with 1 click</span>
+                </div>
+                <form onSubmit={handleQuickAddCommand} className="mcp-quick-command-form">
+                  <input
+                    type="text"
+                    className="mcp-quick-command-input"
+                    placeholder="e.g. npx -y @modelcontextprotocol/server-postgres postgresql://localhost/mydb"
+                    value={oneLineCommand}
+                    onChange={(e) => setOneLineCommand(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="mcp-dialog-btn mcp-dialog-btn--primary"
+                    disabled={isSaving || !oneLineCommand.trim()}
+                  >
+                    {isSaving ? 'Adding...' : 'Connect Server'}
+                  </button>
+                </form>
+              </div>
+
               {/* Add Mode Selector */}
               <div className="mcp-mode-selector">
                 <button
@@ -591,50 +791,74 @@ export default function McpConnectModal({
                   className={`mcp-mode-btn ${addMode === 'presets' ? 'mcp-mode-btn--active' : ''}`}
                   onClick={() => setAddMode('presets')}
                 >
-                  Popular Presets
+                  Browse Presets ({filteredPresets.length})
                 </button>
                 <button
                   type="button"
                   className={`mcp-mode-btn ${addMode === 'form' ? 'mcp-mode-btn--active' : ''}`}
                   onClick={() => setAddMode('form')}
                 >
-                  Custom Form
+                  Custom Configuration
                 </button>
                 <button
                   type="button"
                   className={`mcp-mode-btn ${addMode === 'json' ? 'mcp-mode-btn--active' : ''}`}
                   onClick={() => setAddMode('json')}
                 >
-                  Paste JSON
+                  Paste JSON Config
                 </button>
               </div>
 
               {/* Mode 1: Presets */}
               {addMode === 'presets' && (
-                <div className="mcp-presets-grid">
-                  {MCP_PRESETS.map((p) => (
-                    <div key={p.id} className="mcp-preset-card">
-                      <div className="mcp-preset-info">
-                        <div className="mcp-preset-title-row">
-                          <span className="mcp-preset-title">{p.name}</span>
-                          <span className={`mcp-preset-key-tag ${p.requiresKey ? 'mcp-preset-key-tag--req' : 'mcp-preset-key-tag--free'}`}>
-                            {p.requiresKey ? 'Requires Key' : 'No Key Needed'}
-                          </span>
-                        </div>
-                        <div className="mcp-preset-desc">{p.description}</div>
-                        {p.keyHint && <div className="mcp-preset-key-hint">{p.keyHint}</div>}
-                        <code className="mcp-preset-cmd">{p.command} {p.args.join(' ')}</code>
-                      </div>
-                      <button
-                        type="button"
-                        className="mcp-dialog-btn mcp-dialog-btn--secondary"
-                        onClick={() => applyPreset(p)}
-                      >
-                        Use Preset
-                      </button>
+                <>
+                  <div className="mcp-presets-filter-bar">
+                    <input
+                      type="text"
+                      className="mcp-presets-search-input"
+                      placeholder="Search presets by name or tool..."
+                      value={presetSearch}
+                      onChange={(e) => setPresetSearch(e.target.value)}
+                    />
+                    <div className="mcp-presets-cat-pills">
+                      {['all', 'tools', 'database', 'browser', '3d', 'audio'].map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          className={`mcp-presets-cat-pill ${presetCategory === cat ? 'mcp-presets-cat-pill--active' : ''}`}
+                          onClick={() => setPresetCategory(cat)}
+                        >
+                          {cat.toUpperCase()}
+                        </button>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+
+                  <div className="mcp-presets-grid">
+                    {filteredPresets.map((p) => (
+                      <div key={p.id} className="mcp-preset-card">
+                        <div className="mcp-preset-info">
+                          <div className="mcp-preset-title-row">
+                            <span className="mcp-preset-title">{p.name}</span>
+                            <span className={`mcp-preset-key-tag ${p.requiresKey ? 'mcp-preset-key-tag--req' : 'mcp-preset-key-tag--free'}`}>
+                              {p.requiresKey ? 'Requires Key' : 'No Key Needed'}
+                            </span>
+                          </div>
+                          <div className="mcp-preset-desc">{p.description}</div>
+                          {p.keyHint && <div className="mcp-preset-key-hint">{p.keyHint}</div>}
+                          <code className="mcp-preset-cmd">{p.command} {p.args.join(' ')}</code>
+                        </div>
+                        <button
+                          type="button"
+                          className="mcp-dialog-btn mcp-dialog-btn--secondary"
+                          onClick={() => applyPreset(p)}
+                        >
+                          Use Preset
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
 
               {/* Mode 2: Custom Form */}

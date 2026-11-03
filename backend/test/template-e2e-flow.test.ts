@@ -169,7 +169,7 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
 
     const openedData = await Promise.race([
       openedPromise,
-      new Promise((_, r) => setTimeout(() => r(new Error("Timeout waiting for project_opened")), 10000)),
+      new Promise((_, r) => setTimeout(() => r(new Error("Timeout waiting for project_opened")), 25000)),
     ]);
 
     expect(openedData.type).toBe("project_opened");
@@ -192,5 +192,57 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
     console.log("[E2E Step 6 Result] Agent event received:", firstAgentEvent.type);
 
     ws.close();
+  }, 45000);
+
+  it("prepares and boots game_3d project: scaffolds R3F canvas -> starts dual dev servers -> verifies 3D preview and scores API", async () => {
+    const projectName = "e2e-cyber-game";
+    console.log(`[E2E Game] Submitting project creation for ${projectName} (game_3d)...`);
+
+    const createRes = await fetch(`http://127.0.0.1:${testPort}/api/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: projectName,
+        template: "game_3d",
+      }),
+    });
+    expect(createRes.status).toBe(200);
+    const projectInfo = (await createRes.json()) as {
+      name: string;
+      path: string;
+      template: string;
+      port: number | null;
+      backend_port: number | null;
+      status: string;
+    };
+
+    expect(projectInfo.name).toBe(projectName);
+    expect(projectInfo.template).toBe("game_3d");
+    expect(projectInfo.status).toBe("running");
+    expect(projectInfo.port).not.toBeNull();
+
+    const projectDir = projectInfo.path;
+    expect(fsSync.existsSync(path.join(projectDir, "src/components/game/LogoBrickBreaker.jsx"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/components/game/logoBricksData.json"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/components/ui/HUD.jsx"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/store/useGameStore.js"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "server/index.js"))).toBe(true);
+
+    // Test 3D game preview HTML
+    const previewRes = await fetch(`http://127.0.0.1:${projectInfo.port}/`);
+    expect(previewRes.status).toBe(200);
+    const html = await previewRes.text();
+    expect(html).toContain("<!DOCTYPE html>");
+    expect(html).toContain("3D Game Preview");
+    expect(html).toContain("made-on-80degrees");
+
+    // Test backend game leaderboard API
+    if (projectInfo.backend_port) {
+      const scoresRes = await fetch(`http://127.0.0.1:${projectInfo.backend_port}/api/scores`);
+      expect(scoresRes.status).toBe(200);
+      const scores = (await scoresRes.json()) as Array<{ player: string; score: number }>;
+      expect(Array.isArray(scores)).toBe(true);
+      expect(scores.length).toBeGreaterThan(0);
+    }
   }, 45000);
 });

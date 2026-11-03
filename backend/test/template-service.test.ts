@@ -40,7 +40,18 @@ describe("TemplateService & Template Architecture", () => {
     expect(mobile!.category).toBe("mobile");
     expect(Boolean(mobile!.comingSoon)).toBe(false);
 
+    // game_3d is discovered on disk as an active 3D game template
+    const game3d = templates.find((t) => t.id === "game_3d");
+    expect(game3d).toBeDefined();
+    expect(game3d!.name).toBe("3D Game");
+    expect(game3d!.category).toBe("game");
+    expect(Boolean(game3d!.comingSoon)).toBe(false);
+
     // Upcoming categories should also be listed for UI chips
+    const godot = templates.find((t) => t.id === "game_godot");
+    expect(godot).toBeDefined();
+    expect(godot!.comingSoon).toBe(true);
+
     const unreal = templates.find((t) => t.id === "unreal_engine");
     expect(unreal).toBeDefined();
     expect(unreal!.comingSoon).toBe(true);
@@ -84,6 +95,27 @@ describe("TemplateService & Template Architecture", () => {
     expect(fsSync.existsSync(path.join(projectDir, "app/index.tsx"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectDir, "server/index.js"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectDir, "assets/imagelogo.png"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "node_modules"))).toBe(false);
+    expect(fsSync.existsSync(path.join(projectDir, ".git"))).toBe(false);
+  });
+
+  it("scaffolds game_3d template into target project with R3F and Rapier physics structure", async () => {
+    const projectDir = path.join(tempDir, "scaffolded-game-app");
+    const manifest = await templateService.scaffoldProject("game_3d", projectDir);
+
+    expect(manifest.id).toBe("game_3d");
+    expect(manifest.category).toBe("game");
+    expect(manifest.devServer?.type).toBe("web");
+    expect(fsSync.existsSync(path.join(projectDir, "package.json"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "template.json"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "vite.config.js"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/App.jsx"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/components/game/LogoBrickBreaker.jsx"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/components/game/logoBricksData.json"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/components/ui/HUD.jsx"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "src/store/useGameStore.js"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, "server/index.js"))).toBe(true);
+    expect(fsSync.existsSync(path.join(projectDir, ".omp/mcp.json"))).toBe(true);
     expect(fsSync.existsSync(path.join(projectDir, "node_modules"))).toBe(false);
     expect(fsSync.existsSync(path.join(projectDir, ".git"))).toBe(false);
   });

@@ -56,6 +56,32 @@ const FolderIcon = ({ size = 13 }) => (
   </svg>
 );
 
+const CubeIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1="12" y1="22.08" x2="12" y2="12" />
+  </svg>
+);
+
+const GamepadIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <line x1="6" y1="12" x2="10" y2="12" />
+    <line x1="8" y1="10" x2="8" y2="14" />
+    <line x1="15" y1="13" x2="15.01" y2="13" />
+    <line x1="18" y1="11" x2="18.01" y2="11" />
+  </svg>
+);
+
+const LayersIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
+
 export default function WelcomeView({
   onSubmit,
   onConnectAndBuild,
@@ -107,12 +133,13 @@ export default function WelcomeView({
       tags: ['mobile', 'expo', 'react-native'],
     },
     {
-      id: 'unreal_engine',
-      name: 'Unreal Engine',
-      category: 'engine',
-      description: 'Unreal Engine 5 project skeleton with C++ and Blueprints',
+      id: 'game_3d',
+      name: 'Game',
+      category: 'game',
+      description: 'Interactive 3D Web game using React Three Fiber and Rapier physics',
       icon: 'joystick',
-      comingSoon: true,
+      placeholder: "Describe the 3D game you want to build (e.g. 3D obstacle course, ball maze, space shooter)...",
+      tags: ['game', 'threejs', 'rapier', '3d'],
     },
     {
       id: 'python_workflow',
@@ -131,7 +158,10 @@ export default function WelcomeView({
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && Array.isArray(data.templates) && data.templates.length > 0) {
-          setTemplates(data.templates);
+          const primary = data.templates.filter(
+            (t) => t.id !== 'game_godot' && t.id !== 'unreal_engine'
+          );
+          setTemplates(primary);
         }
       })
       .catch(() => {});
@@ -223,6 +253,8 @@ export default function WelcomeView({
     switch (selectedTemplate) {
       case 'mobile_expo':
         return "Describe mobile screens, navigation flow, or app features to build...";
+      case 'game_3d':
+        return "Describe the 3D game you want to build (e.g. 3D obstacle course, ball maze, space shooter)...";
       case 'unreal_engine':
         return "Describe game mechanics, actors, or level logic in Unreal Engine...";
       case 'python_workflow':
@@ -796,7 +828,7 @@ export default function WelcomeView({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+                accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css,.glb,.gltf,.fbx,.obj,.mp3,.wav,.ogg,.m4a,.hdr,.exr"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   if (e.target.files) addFiles(Array.from(e.target.files));
@@ -804,39 +836,84 @@ export default function WelcomeView({
               />
               {/* Segmented Template Selector (when not building on an existing GitHub repo) */}
               {!selectedRepo && (
-                <div className="degrees-template-segments-bar">
-                  <div className="degrees-template-segments" role="radiogroup" aria-label="Template">
-                    {templates.map((tpl) => {
-                      const isSelected = selectedTemplate === tpl.id;
-                      return (
-                        <button
-                          key={tpl.id}
-                          type="button"
-                          className={`degrees-template-seg-btn ${
-                            isSelected ? 'degrees-template-seg-btn--active' : ''
-                          } ${tpl.comingSoon ? 'degrees-template-seg-btn--disabled' : ''}`}
-                          onClick={() => {
-                            if (tpl.comingSoon) {
-                              setTemplateNotice(`${tpl.name} coming soon`);
-                              setTimeout(() => setTemplateNotice(null), 2500);
-                              return;
-                            }
-                            setSelectedTemplate(tpl.id);
-                          }}
-                          role="radio"
-                          aria-checked={isSelected}
-                          title={tpl.description}
-                        >
-                          <span className="degrees-template-seg-name">{tpl.name}</span>
-                          {tpl.comingSoon && (
-                            <span className="degrees-template-seg-tag">Soon</span>
-                          )}
-                        </button>
-                      );
-                    })}
+                <div className="degrees-template-selection-container">
+                  <div className="degrees-template-segments-bar">
+                    <div className="degrees-template-segments" role="radiogroup" aria-label="Template">
+                      {templates.map((tpl) => {
+                        const isSelected = selectedTemplate === tpl.id || (tpl.id === 'game_3d' && selectedTemplate?.startsWith('game_'));
+                        return (
+                          <button
+                            key={tpl.id}
+                            type="button"
+                            className={`degrees-template-seg-btn ${
+                              isSelected ? 'degrees-template-seg-btn--active' : ''
+                            } ${tpl.comingSoon ? 'degrees-template-seg-btn--disabled' : ''}`}
+                            onClick={() => {
+                              if (tpl.comingSoon) {
+                                setTemplateNotice(`${tpl.name} coming soon`);
+                                setTimeout(() => setTemplateNotice(null), 2500);
+                                return;
+                              }
+                              setSelectedTemplate(tpl.id);
+                            }}
+                            role="radio"
+                            aria-checked={isSelected}
+                            title={tpl.description}
+                          >
+                            <span className="degrees-template-seg-name">{tpl.name}</span>
+                            {tpl.comingSoon && (
+                              <span className="degrees-template-seg-tag">Soon</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {templateNotice && (
+                      <span className="degrees-template-notice-pill">{templateNotice}</span>
+                    )}
                   </div>
-                  {templateNotice && (
-                    <span className="degrees-template-notice-pill">{templateNotice}</span>
+
+                  {(selectedTemplate === 'game_3d' || selectedTemplate?.startsWith('game_')) && (
+                    <div className="degrees-template-subsegments-bar">
+                      <span className="degrees-template-subsegments-label">Engine:</span>
+                      <div className="degrees-template-subsegments" role="radiogroup" aria-label="Game Engine">
+                        <button
+                          type="button"
+                          className="degrees-template-subseg-btn degrees-template-subseg-btn--active"
+                          onClick={() => setSelectedTemplate('game_3d')}
+                          title="Interactive 3D Web game using React Three Fiber and Rapier physics"
+                        >
+                          <CubeIcon size={12} />
+                          <span className="degrees-template-subseg-name">3D Web (Instant)</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                          onClick={() => {
+                            setTemplateNotice('Godot 4 WebAssembly export coming soon');
+                            setTimeout(() => setTemplateNotice(null), 2500);
+                          }}
+                          title="Godot 4 WebAssembly export for indie 2D & 3D games"
+                        >
+                          <GamepadIcon size={12} />
+                          <span className="degrees-template-subseg-name">Godot Engine</span>
+                          <span className="degrees-template-subseg-tag">Soon</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                          onClick={() => {
+                            setTemplateNotice('Unreal Engine 5 cloud streaming coming soon');
+                            setTimeout(() => setTemplateNotice(null), 2500);
+                          }}
+                          title="Unreal Engine 5 project skeleton with C++ and Blueprints"
+                        >
+                          <LayersIcon size={12} />
+                          <span className="degrees-template-subseg-name">Unreal Engine</span>
+                          <span className="degrees-template-subseg-tag">Soon</span>
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}

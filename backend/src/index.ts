@@ -23,11 +23,9 @@ import { applyAugmentedPath } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
 import { UpdateService } from "./update-service";
 import { telemetry } from "./telemetry-service";
-
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
-
 applyAugmentedPath();
 
 // Automatically verify and provision prerequisites in the background on startup (e.g. factory-reset PCs)

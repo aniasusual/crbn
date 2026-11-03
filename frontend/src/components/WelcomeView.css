@@ -429,6 +429,100 @@
   font-style: italic;
 }
 
+/* Sub-segments for Game Engine Selection */
+.degrees-template-selection-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.degrees-template-subsegments-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  width: fit-content;
+  max-width: 100%;
+  animation: fadeInSubsegments 0.18s ease-out;
+}
+
+@keyframes fadeInSubsegments {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.degrees-template-subsegments-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.degrees-template-subsegments {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+}
+
+.degrees-template-subseg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 23px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  white-space: nowrap;
+  outline: none;
+}
+
+.degrees-template-subseg-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.degrees-template-subseg-btn--active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.degrees-template-subseg-btn--disabled {
+  opacity: 0.42;
+}
+
+.degrees-template-subseg-tag {
+  font-size: 8.5px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  line-height: 1;
+}
+
 /* Naming Screen Template Row */
 .degrees-naming-template-row {
   display: inline-flex;

@@ -444,7 +444,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                 src={previewData.url}
                 className="preview-sooth__frame preview-sooth__frame--fluid"
                 title="Live Application Preview"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
               />
 ) : (
               <div className="preview-sooth__stage">
@@ -483,7 +483,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                     src={previewData.url}
                     className="preview-sooth__frame preview-sooth__frame--contained"
                     title="Live Application Preview"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
                   />
                 </div>
               </div>
@@ -496,7 +496,9 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       <div className="preview-sooth__dock-bottom-center">
         {deployNotice && (
           <div className="preview-deploy-notice" role="status" aria-live="polite">
-            <span className="preview-deploy-notice__icon">🚀</span>
+            <span className="preview-deploy-notice__icon">
+              <DockIconDeploy className="w-3.5 h-3.5" />
+            </span>
             <span className="preview-deploy-notice__text">Deployments coming soon, stay tuned!</span>
             <button
               type="button"
