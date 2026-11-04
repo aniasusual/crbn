@@ -56,6 +56,31 @@ const FolderIcon = ({ size = 13 }) => (
   </svg>
 );
 
+const CubeIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+    <line x1="12" y1="22.08" x2="12" y2="12" />
+  </svg>
+);
+
+const GamepadIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <line x1="6" y1="12" x2="10" y2="12" />
+    <line x1="8" y1="10" x2="8" y2="14" />
+    <line x1="15" y1="13" x2="15.01" y2="13" />
+    <line x1="18" y1="11" x2="18.01" y2="11" />
+  </svg>
+);
+
+const LayersIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+    <polyline points="2 17 12 22 22 17" />
+    <polyline points="2 12 12 17 22 12" />
+  </svg>
+);
 
 export default function WelcomeView({
   onSubmit,
@@ -89,6 +114,66 @@ export default function WelcomeView({
   const [isPluginsModalOpen, setIsPluginsModalOpen] = useState(false);
   const [pluginsCount, setPluginsCount] = useState(0);
   const [welcomeMode, setWelcomeMode] = useState('build');
+  const [templates, setTemplates] = useState([
+    {
+      id: 'node_react',
+      name: 'Web App',
+      category: 'web',
+      description: 'Full-stack React with Vite frontend and lightweight Node.js backend',
+      icon: 'globe',
+      tags: ['react', 'vite'],
+    },
+    {
+      id: 'mobile_expo',
+      name: 'Mobile App',
+      category: 'mobile',
+      description: 'Cross-platform iOS and Android with Expo and React Native',
+      icon: 'smartphone',
+      placeholder: "Describe mobile screens, navigation flow, or app features to build...",
+      tags: ['mobile', 'expo', 'react-native'],
+    },
+    {
+      id: 'game_3d',
+      name: 'Game',
+      category: 'game',
+      description: 'Interactive 3D Web game using React Three Fiber and Rapier physics',
+      icon: 'joystick',
+      placeholder: "Describe the 3D game you want to build (e.g. 3D obstacle course, ball maze, space shooter)...",
+      tags: ['game', 'threejs', 'rapier', '3d'],
+    },
+    {
+      id: 'python_workflow',
+      name: 'AI Workflow',
+      category: 'workflow',
+      description: 'AI pipelines with Python and FastAPI',
+      icon: 'workflow',
+      comingSoon: true,
+    },
+  ]);
+  const [selectedTemplate, setSelectedTemplate] = useState('node_react');
+  const [templateNotice, setTemplateNotice] = useState(null);
+
+  const fetchTemplates = useCallback(() => {
+    fetch(`${API_BASE_URL}/api/templates`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && Array.isArray(data.templates) && data.templates.length > 0) {
+          const primary = data.templates.filter(
+            (t) => t.id !== 'game_godot' && t.id !== 'unreal_engine'
+          );
+          setTemplates(primary);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
+
+  const selectedTemplateObj = useMemo(() => {
+    return templates.find((t) => t.id === selectedTemplate) || templates[0];
+  }, [templates, selectedTemplate]);
 
   const [justConnectedProvider, setJustConnectedProvider] = useState(null);
 
@@ -154,6 +239,31 @@ export default function WelcomeView({
   );
   const isThirdPartyRepo = Boolean(selectedRepo && !isCurrentUserRepo);
   const isCustomRepoQuery = Boolean(repoSearch.trim().includes('/') || repoSearch.trim().includes('github.com'));
+
+  const composerPlaceholder = useMemo(() => {
+    if (selectedRepo) {
+      return `What would you like to build or change in ${selectedRepo.name}? Describe changes, features, or fixes...`;
+    }
+    if (welcomeMode === 'plan') {
+      return "Describe what you'd like to plan (working tree will be read-only)...";
+    }
+    if (selectedTemplateObj?.placeholder) {
+      return selectedTemplateObj.placeholder;
+    }
+    switch (selectedTemplate) {
+      case 'mobile_expo':
+        return "Describe mobile screens, navigation flow, or app features to build...";
+      case 'game_3d':
+        return "Describe the 3D game you want to build (e.g. 3D obstacle course, ball maze, space shooter)...";
+      case 'unreal_engine':
+        return "Describe game mechanics, actors, or level logic in Unreal Engine...";
+      case 'python_workflow':
+        return "Describe an AI automation workflow, API endpoints, or data pipeline...";
+      case 'node_react':
+      default:
+        return "Describe a web application, dashboard, or tool you'd like to build...";
+    }
+  }, [selectedRepo, welcomeMode, selectedTemplateObj, selectedTemplate]);
 
   const handleOpenFolder = async () => {
     try {
@@ -570,12 +680,12 @@ export default function WelcomeView({
     const files = attachments
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
-    onSubmit(prompt, projectName.trim(), { images, videos, files }, welcomeMode);
+    onSubmit(prompt, projectName.trim(), { images, videos, files }, welcomeMode, selectedTemplate);
     clearAttachments();
   };
 
 
-  const exiting = isExiting || isTransitioning;
+  const exiting = isExiting;
 
   return (
     <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''} ${isNaming ? 'degrees-welcome--naming' : ''}`}>
@@ -718,12 +828,95 @@ export default function WelcomeView({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+                accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css,.glb,.gltf,.fbx,.obj,.mp3,.wav,.ogg,.m4a,.hdr,.exr"
                 style={{ display: 'none' }}
                 onChange={(e) => {
                   if (e.target.files) addFiles(Array.from(e.target.files));
                 }}
               />
+              {/* Segmented Template Selector (when not building on an existing GitHub repo) */}
+              {!selectedRepo && (
+                <div className="degrees-template-selection-container">
+                  <div className="degrees-template-segments-bar">
+                    <div className="degrees-template-segments" role="radiogroup" aria-label="Template">
+                      {templates.map((tpl) => {
+                        const isSelected = selectedTemplate === tpl.id || (tpl.id === 'game_3d' && selectedTemplate?.startsWith('game_'));
+                        return (
+                          <button
+                            key={tpl.id}
+                            type="button"
+                            className={`degrees-template-seg-btn ${
+                              isSelected ? 'degrees-template-seg-btn--active' : ''
+                            } ${tpl.comingSoon ? 'degrees-template-seg-btn--disabled' : ''}`}
+                            onClick={() => {
+                              if (tpl.comingSoon) {
+                                setTemplateNotice(`${tpl.name} coming soon`);
+                                setTimeout(() => setTemplateNotice(null), 2500);
+                                return;
+                              }
+                              setSelectedTemplate(tpl.id);
+                            }}
+                            role="radio"
+                            aria-checked={isSelected}
+                            title={tpl.description}
+                          >
+                            <span className="degrees-template-seg-name">{tpl.name}</span>
+                            {tpl.comingSoon && (
+                              <span className="degrees-template-seg-tag">Soon</span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {templateNotice && (
+                      <span className="degrees-template-notice-pill">{templateNotice}</span>
+                    )}
+                  </div>
+
+                  {(selectedTemplate === 'game_3d' || selectedTemplate?.startsWith('game_')) && (
+                    <div className="degrees-template-subsegments-bar">
+                      <span className="degrees-template-subsegments-label">Engine:</span>
+                      <div className="degrees-template-subsegments" role="radiogroup" aria-label="Game Engine">
+                        <button
+                          type="button"
+                          className="degrees-template-subseg-btn degrees-template-subseg-btn--active"
+                          onClick={() => setSelectedTemplate('game_3d')}
+                          title="Interactive 3D Web game using React Three Fiber and Rapier physics"
+                        >
+                          <CubeIcon size={12} />
+                          <span className="degrees-template-subseg-name">3D Web (Instant)</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                          onClick={() => {
+                            setTemplateNotice('Godot 4 WebAssembly export coming soon');
+                            setTimeout(() => setTemplateNotice(null), 2500);
+                          }}
+                          title="Godot 4 WebAssembly export for indie 2D & 3D games"
+                        >
+                          <GamepadIcon size={12} />
+                          <span className="degrees-template-subseg-name">Godot Engine</span>
+                          <span className="degrees-template-subseg-tag">Soon</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                          onClick={() => {
+                            setTemplateNotice('Unreal Engine 5 cloud streaming coming soon');
+                            setTimeout(() => setTemplateNotice(null), 2500);
+                          }}
+                          title="Unreal Engine 5 project skeleton with C++ and Blueprints"
+                        >
+                          <LayersIcon size={12} />
+                          <span className="degrees-template-subseg-name">Unreal Engine</span>
+                          <span className="degrees-template-subseg-tag">Soon</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div
                 className={`degrees-composer ${
@@ -816,13 +1009,7 @@ export default function WelcomeView({
                 <textarea
                   id={textareaId}
                   className="degrees-composer__textarea"
-                  placeholder={
-                    selectedRepo
-                      ? `What would you like to build or change in ${selectedRepo.name}? Describe changes, features, or fixes...`
-                      : welcomeMode === 'plan'
-                      ? "Describe what you'd like to plan (working tree will be read-only)..."
-                      : "Describe an application, interface, or creative tool you'd like to build..."
-                  }
+                  placeholder={composerPlaceholder}
                   value={prompt}
                   onChange={(e) => setPrompt(e.target.value)}
                   onKeyDown={(e) => {
@@ -1235,62 +1422,66 @@ export default function WelcomeView({
                 className="degrees-logo-img degrees-logo-img--small"
               />
             </div>
-
-            <h1 className="degrees-welcome__title">
-              Name your <span className="degrees-welcome__title-serif">workspace</span>
-            </h1>
-            <p className="degrees-welcome__subtitle">
-              Choose a directory name for your project in <code>~/.80degrees/projects</code>.
-            </p>
-
-            <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>
-              <div className="degrees-naming-console">
-                <div className="degrees-naming-field">
-                  <span className="degrees-naming-icon">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                  </span>
-                  <input
-                    type="text"
-                    className="degrees-naming-input"
-                    value={projectName}
-                    onChange={(e) => setProjectName(e.target.value)}
-                    disabled={isGeneratingName}
-                    placeholder="e.g. creative-studio"
-                    autoFocus
-                    spellCheck={false}
-                  />
-                  {isGeneratingName && (
-                    <span className="degrees-naming-loading">Generating suggestion...</span>
-                  )}
-                </div>
-
-                <div className="degrees-naming-actions">
-                  <button
-                    type="button"
-                    className="degrees-btn-secondary"
-                    onClick={() => setIsNaming(false)}
-                  >
-                    Back
-                  </button>
-                  <button
-                    type="submit"
-                    className="degrees-cta-btn"
-                    disabled={isGeneratingName || !projectName.trim()}
-                  >
-                    <span>Create Workspace</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="5" y1="12" x2="19" y2="12"></line>
-                      <polyline points="12 5 19 12 12 19"></polyline>
-                    </svg>
-                  </button>
-                </div>
+              <h1 className="degrees-welcome__title">
+                Name your <span className="degrees-welcome__title-serif">workspace</span>
+              </h1>
+              <p className="degrees-welcome__subtitle">
+                Choose a directory name for your project in <code>~/.80degrees/projects</code>.
+              </p>
+              <div className="degrees-naming-template-row">
+                <span className="degrees-naming-template-label">Template</span>
+                <span className="degrees-naming-template-name">{selectedTemplateObj?.name || 'Web App'}</span>
               </div>
-            </form>
+
+              <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>
+                <div className="degrees-naming-console">
+                  <div className="degrees-naming-field">
+                    <span className="degrees-naming-icon">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                      </svg>
+                    </span>
+                    <input
+                      type="text"
+                      className="degrees-naming-input"
+                      value={projectName}
+                      onChange={(e) => setProjectName(e.target.value)}
+                      disabled={isGeneratingName}
+                      placeholder="e.g. creative-studio"
+                      autoFocus
+                      spellCheck={false}
+                    />
+                    {isGeneratingName && (
+                      <span className="degrees-naming-loading">Generating suggestion...</span>
+                    )}
+                  </div>
+
+                  <div className="degrees-naming-actions">
+                    <button
+                      type="button"
+                      className="degrees-btn-secondary"
+                      onClick={() => setIsNaming(false)}
+                      disabled={isTransitioning}
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="submit"
+                      className="degrees-cta-btn"
+                      disabled={isGeneratingName || !projectName.trim() || isTransitioning}
+                    >
+                      <span>Create Workspace</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
-          </div>
-        )}
+      )}
 
       {/* Model Selector Modal */}
       <ModelSelector

@@ -101,6 +101,24 @@
   max-width: 220px;
 }
 
+.attachment-ribbon__file-chip--model {
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+.attachment-ribbon__file-chip--model .attachment-ribbon__file-icon {
+  color: #38bdf8;
+}
+
+.attachment-ribbon__file-chip--audio {
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+.attachment-ribbon__file-chip--audio .attachment-ribbon__file-icon {
+  color: #fbbf24;
+}
+
 .attachment-ribbon__file-icon {
   color: rgba(255, 255, 255, 0.6);
   flex-shrink: 0;

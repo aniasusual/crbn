@@ -23,11 +23,9 @@ import { applyAugmentedPath } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
 import { UpdateService } from "./update-service";
 import { telemetry } from "./telemetry-service";
-
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
-
 applyAugmentedPath();
 
 // Automatically verify and provision prerequisites in the background on startup (e.g. factory-reset PCs)
@@ -653,16 +651,75 @@ const _server = Bun.serve<WsData>({
       }
     }
 
+    // Templates: List Available Templates
+    if (url.pathname === "/api/templates" && req.method === "GET") {
+      try {
+        const templates = await projectManager.templateService.listTemplates();
+        return Response.json({ templates }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
 
     // Projects: Create
     if (url.pathname === "/api/projects" && req.method === "POST") {
+      const isStream = url.searchParams.get("stream") === "true";
       try {
         const body = (await req.json()) as { name?: string; template?: string; model?: string };
         if (!body.name) {
           return Response.json({ detail: "Project name is required" }, { status: 400, headers: CORS_HEADERS });
         }
-        const project = await projectManager.createProject(body.name, body.template || "node_react", body.model);
-        return Response.json(project, { headers: CORS_HEADERS });
+
+        if (!isStream) {
+          const project = await projectManager.createProject(body.name, body.template || "node_react", body.model);
+          return Response.json(project, { headers: CORS_HEADERS });
+        }
+
+        // Stream real-time progress events as NDJSON
+        // Stream real-time progress events as NDJSON
+        const stream = new ReadableStream({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            const emit = (data: Record<string, unknown>) => {
+              try {
+                controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
+              } catch {}
+            };
+
+            // Send periodic keepalive pings so the HTTP connection never times out during long installs
+            const pingTimer = setInterval(() => {
+              emit({ type: "ping" });
+            }, 3000);
+
+            try {
+              const project = await projectManager.createProject(
+                body.name!,
+                body.template || "node_react",
+                body.model,
+                (progress) => {
+                  emit({ type: "progress", ...progress });
+                }
+              );
+              emit({ type: "complete", project });
+            } catch (err) {
+              emit({ type: "error", detail: err instanceof Error ? err.message : String(err) });
+            } finally {
+              clearInterval(pingTimer);
+              controller.close();
+            }
+          },
+        });
+
+        return new Response(stream, {
+          headers: {
+            ...CORS_HEADERS,
+            "Content-Type": "application/x-ndjson",
+            "Cache-Control": "no-cache",
+          },
+        });
       } catch (err) {
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },

@@ -12,6 +12,7 @@ import ContextGauge from './ContextGauge';
 import { getSubagentSessionData, isSubagentTool, normalizeSubagentName } from './subagentUtils';
 import AttachmentRibbon from './AttachmentRibbon';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
+import { API_BASE_URL } from '../config';
 import './ChatPanel.css';
 import PlanProposalCard from './PlanProposalCard';
 
@@ -1009,7 +1010,7 @@ export default function ChatPanel({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css"
+          accept="image/*,video/*,.mp4,.webm,.mov,.mkv,.avi,.m4v,.pdf,.txt,.md,.json,.csv,.js,.jsx,.ts,.tsx,.py,.html,.css,.glb,.gltf,.fbx,.obj,.mp3,.wav,.ogg,.m4a,.hdr,.exr"
           style={{ display: 'none' }}
           onChange={(e) => {
             if (e.target.files) addFiles(Array.from(e.target.files));
@@ -1245,6 +1246,7 @@ export default function ChatPanel({
                 )}
               </button>
 
+
               <ContextGauge telemetry={contextTelemetry} />
 
               <div className="chat-panel__mode-segmented" role="radiogroup" aria-label="Mode">
@@ -1385,6 +1387,7 @@ export default function ChatPanel({
         projectName={projectName || _projectName}
         onReloadPlugins={onReloadPlugins}
       />
+
     </div>
   );
 }

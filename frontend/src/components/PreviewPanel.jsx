@@ -31,7 +31,10 @@ const BASE_PRESETS = [
   { id: 'mobile', label: 'Mobile', width: 375, height: 667, canRotate: true },
 ];
 
-export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp }) {
+const IPHONE_PRESET = { id: 'mobile', label: 'iPhone 16 Pro', width: 393, height: 852, canRotate: true };
+
+export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp, template }) {
+  const isMobileApp = template === 'mobile_expo' || template?.includes('mobile');
   const [frameKey, setFrameKey] = useState(0);
   const [isServerReady, setIsServerReady] = useState(false);
   const [isBackendReady, setIsBackendReady] = useState(false);
@@ -50,16 +53,17 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
   });
 
   const [viewportMode, setViewportMode] = useState(() => {
-    try {
-      const saved = localStorage.getItem('80degrees_viewport_mode');
-      if (saved && DEVICE_MODES.includes(saved)) {
-        return saved;
-      }
-      return 'desktop';
-    } catch {
-      return 'desktop';
-    }
+    return isMobileApp ? 'mobile' : 'desktop';
   });
+
+  // Auto-default to the appropriate viewport mode for the active template
+  useEffect(() => {
+    if (isMobileApp) {
+      setViewportMode('mobile');
+    } else {
+      setViewportMode('desktop');
+    }
+  }, [isMobileApp, projectName]);
 
   // Track canvas size for smooth device fitting
   useEffect(() => {
@@ -236,7 +240,9 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
   // Dimensions & scale calculation (clean fitting without auto-fit toggle)
   const currentConfig = useMemo(() => {
-    const raw = BASE_PRESETS.find((p) => p.id === viewportMode) || BASE_PRESETS[0];
+    const raw = isMobileApp
+      ? IPHONE_PRESET
+      : BASE_PRESETS.find((p) => p.id === viewportMode) || BASE_PRESETS[0];
 
     let w = raw.width;
     let h = raw.height;
@@ -248,8 +254,8 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
     let scale = 1;
     if (canvasSize.width > 0 && canvasSize.height > 0) {
-      const availW = Math.max(100, canvasSize.width - 56);
-      const availH = Math.max(100, canvasSize.height - 110);
+      const availW = Math.max(100, canvasSize.width - (isMobileApp ? 64 : 56));
+      const availH = Math.max(100, canvasSize.height - (isMobileApp ? 120 : 110));
       const scaleW = availW / w;
       const scaleH = availH / h;
       scale = Math.min(1, scaleW, scaleH);
@@ -263,11 +269,11 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       dims: `${w} × ${h}`,
       scale,
     };
-  }, [viewportMode, isLandscape, canvasSize]);
+  }, [isMobileApp, viewportMode, isLandscape, canvasSize]);
 
   // Magnetic Dock Action Items: Single View Toggle, Single Device Toggle, Reload, Open
   const dockItems = useMemo(() => {
-    return [
+    const items = [
       {
         id: 'view-toggle',
         label: viewMode === 'preview' ? 'Live Preview' : 'Code Inspector',
@@ -277,7 +283,10 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         icon: viewMode === 'preview' ? <DockIconEye /> : <DockIconCode />,
         onClick: handleToggleViewMode,
       },
-      {
+    ];
+
+    if (!isMobileApp) {
+      items.push({
         id: 'device-toggle',
         label:
           viewportMode === 'tablet'
@@ -290,7 +299,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
             ? 'Desktop: Full Width (Click for Tablet)'
             : viewportMode === 'tablet'
             ? 'Tablet: 768×1024 (Click for Mobile)'
-            : 'Mobile: 375×667 (Click for Desktop Full)',
+            : 'Mobile: 393×852 (Click for Desktop Full)',
         icon:
           viewportMode === 'tablet' ? (
             <DockIconTablet />
@@ -300,7 +309,10 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
             <DockIconDesktop />
           ),
         onClick: handleCycleViewport,
-      },
+      });
+    }
+
+    items.push(
       {
         id: 'reload',
         label: 'Reload',
@@ -323,9 +335,12 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         icon: <DockIconDeploy />,
         onClick: handleDeployClick,
         isActive: deployNotice,
-      },
-    ];
+      }
+    );
+
+    return items;
   }, [
+    isMobileApp,
     viewMode,
     viewportMode,
     isReloading,
@@ -423,18 +438,20 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                   Connecting dev runtime on port <code>:{previewData.port}</code>
                 </div>
               </div>
-) : viewportMode === 'desktop' ? (
+) : !isMobileApp && viewportMode === 'desktop' ? (
               <iframe
                 key={frameKey}
                 src={previewData.url}
                 className="preview-sooth__frame preview-sooth__frame--fluid"
                 title="Live Application Preview"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
               />
 ) : (
               <div className="preview-sooth__stage">
                 <div
-                  className="preview-sooth__chassis"
+                  className={`preview-sooth__chassis ${
+                    isMobileApp ? 'preview-sooth__chassis--iphone' : ''
+                  }`}
                   style={{
                     width: `${currentConfig.width}px`,
                     height: `${currentConfig.height}px`,
@@ -442,12 +459,31 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                     transformOrigin: 'top center',
                   }}
                 >
+                  {isMobileApp && (
+                    <>
+                      {/* Physical Side Buttons */}
+                      <div className="preview-sooth__iphone-btn-action" aria-hidden="true" />
+                      <div className="preview-sooth__iphone-btn-vol-up" aria-hidden="true" />
+                      <div className="preview-sooth__iphone-btn-vol-down" aria-hidden="true" />
+                      <div className="preview-sooth__iphone-btn-power" aria-hidden="true" />
+
+                      {/* Top Bezel: Dynamic Island */}
+                      <div className="preview-sooth__iphone-island" aria-hidden="true">
+                        <div className="preview-sooth__iphone-camera-dot" />
+                        <div className="preview-sooth__iphone-sensor-dot" />
+                      </div>
+
+                      {/* Bottom Bezel: Home Indicator Bar */}
+                      <div className="preview-sooth__iphone-home-bar" aria-hidden="true" />
+                    </>
+                  )}
+
                   <iframe
                     key={frameKey}
                     src={previewData.url}
                     className="preview-sooth__frame preview-sooth__frame--contained"
                     title="Live Application Preview"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
                   />
                 </div>
               </div>
@@ -460,7 +496,9 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       <div className="preview-sooth__dock-bottom-center">
         {deployNotice && (
           <div className="preview-deploy-notice" role="status" aria-live="polite">
-            <span className="preview-deploy-notice__icon">🚀</span>
+            <span className="preview-deploy-notice__icon">
+              <DockIconDeploy className="w-3.5 h-3.5" />
+            </span>
             <span className="preview-deploy-notice__text">Deployments coming soon, stay tuned!</span>
             <button
               type="button"

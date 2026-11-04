@@ -330,6 +330,115 @@
   flex: 1;
 }
 
+/* iPhone 16 Pro Device Chassis */
+.preview-sooth__chassis--iphone {
+  background: #000000 !important;
+  border-radius: 54px !important;
+  padding: 10px !important;
+  box-shadow:
+    0 0 0 3.5px #26262b,
+    0 0 0 4.5px #121215,
+    0 32px 84px -12px rgba(0, 0, 0, 0.88),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.25) !important;
+  box-sizing: content-box !important;
+}
+
+.preview-sooth__chassis--iphone .preview-sooth__frame--contained {
+  border-radius: 44px;
+  overflow: hidden;
+  background: #000000;
+}
+
+/* Dynamic Island */
+.preview-sooth__iphone-island {
+  position: absolute;
+  top: 19px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 32px;
+  background: #000000;
+  border-radius: 20px;
+  z-index: 50;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.preview-sooth__iphone-camera-dot {
+  width: 10.5px;
+  height: 10.5px;
+  border-radius: 50%;
+  background: #09090d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 3px #181824;
+}
+
+.preview-sooth__iphone-sensor-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #0a0a0e;
+  border: 0.5px solid rgba(255, 255, 255, 0.05);
+}
+
+/* iOS Home Indicator Bar */
+.preview-sooth__iphone-home-bar {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 134px;
+  height: 4.5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.42);
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* Metallic Side Buttons */
+.preview-sooth__iphone-btn-action,
+.preview-sooth__iphone-btn-vol-up,
+.preview-sooth__iphone-btn-vol-down,
+.preview-sooth__iphone-btn-power {
+  position: absolute;
+  background: #2a2a30;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.preview-sooth__iphone-btn-action {
+  left: -7px;
+  top: 110px;
+  width: 3.5px;
+  height: 26px;
+}
+
+.preview-sooth__iphone-btn-vol-up {
+  left: -7px;
+  top: 155px;
+  width: 3.5px;
+  height: 48px;
+}
+
+.preview-sooth__iphone-btn-vol-down {
+  left: -7px;
+  top: 215px;
+  width: 3.5px;
+  height: 48px;
+}
+
+.preview-sooth__iphone-btn-power {
+  right: -7px;
+  top: 170px;
+  width: 3.5px;
+  height: 72px;
+}
 /* ==========================================================================
    Booting, Idle & Standby States
    ========================================================================== */

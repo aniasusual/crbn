@@ -18,6 +18,7 @@ export default function WorkspaceView({
   onStopPreview,
   _onGoBack,
   projectName,
+  template,
   _projectName,
   pendingApproval,
   onApproveCommand,
@@ -167,6 +168,7 @@ export default function WorkspaceView({
             previewData={previewData}
             onStopPreview={onStopPreview}
             lastChangeTimestamp={lastChangeTimestamp}
+            template={template}
           />
         </div>
       </div>
