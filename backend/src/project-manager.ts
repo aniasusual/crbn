@@ -6,7 +6,12 @@ import { SessionManager } from "../../pi-harness/packages/coding-agent/src/index
 import { CheckpointManager } from "./checkpoint-manager";
 import type { DevServerManager } from "./dev-server";
 import { getAugmentedEnv } from "./runtime-env";
+import { TemplateService } from "./templates/template-service";
 import { telemetry } from "./telemetry-service";
+export interface ProjectCreationProgress {
+  phase: "scaffolding" | "git" | "dependencies" | "preview" | "ready";
+  message: string;
+}
 
 export interface ProjectInfo {
   name: string;
@@ -95,32 +100,31 @@ export const CHAT_FILENAME = ".80degrees_chat.json";
 
 export class ProjectManager {
   readonly root: string;
-  readonly templatesDir: string;
-  readonly templateCacheDir: string;
+  readonly templateService: TemplateService;
   private devServerManager: DevServerManager | null = null;
 
   constructor(options?: {
     root?: string;
     templatesDir?: string;
-    templateCacheDir?: string;
+    templateService?: TemplateService;
     devServerManager?: DevServerManager;
   }) {
     this.devServerManager = options?.devServerManager ?? null;
     this.root = options?.root ?? process.env.PROJECTS_ROOT ?? path.join(os.homedir(), ".80degrees", "projects");
-    this.templatesDir =
-      options?.templatesDir ??
-      process.env.TEMPLATES_DIR ??
-      path.join(import.meta.dir, "..", "templates");
-    this.templateCacheDir =
-      options?.templateCacheDir ?? path.join(os.homedir(), ".80degrees", "template_cache");
+    this.templateService =
+      options?.templateService ??
+      new TemplateService({ templatesDir: options?.templatesDir });
 
     fsSync.mkdirSync(this.root, { recursive: true });
-    fsSync.mkdirSync(this.templateCacheDir, { recursive: true });
   }
+
+  get templatesDir(): string {
+    return this.templateService.templatesDir;
+  }
+
   setDevServerManager(manager: DevServerManager): void {
     this.devServerManager = manager;
   }
-
   private validateName(name: string): string {
     const cleaned = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-");
     if (!cleaned) throw new Error("Invalid project name");
@@ -152,78 +156,16 @@ export class ProjectManager {
   }
 
   async ensureTemplateCache(templateName: string = "node_react"): Promise<string> {
-    const cachedTplDir = path.join(this.templateCacheDir, templateName);
-    const cachedNodeModules = path.join(cachedTplDir, "node_modules");
-
-    const osPlatform = process.platform === "win32" ? "win32" : process.platform === "darwin" ? "darwin" : "linux";
-    const osArch = process.arch === "arm64" ? "arm64" : process.arch === "ia32" ? "ia32" : "x64";
-    const esbuildPlatformPkg = `@esbuild/${osPlatform}-${osArch}`;
-
-    // If cached node_modules exists, verify it is not a broken/read-only symlink pointing inside an .app bundle
-    // and verify that the native compiler package (@esbuild) matches the current host platform/architecture
-    if (fsSync.existsSync(cachedNodeModules)) {
-      try {
-        const stat = fsSync.lstatSync(cachedNodeModules);
-        if (stat.isSymbolicLink()) {
-          const linkTarget = fsSync.readlinkSync(cachedNodeModules);
-          if (linkTarget.includes(".app/") || linkTarget.includes("Resources/backend/templates")) {
-            console.log(`[ProjectManager] Removing read-only symlink in template cache: ${cachedNodeModules} -> ${linkTarget}`);
-            fsSync.unlinkSync(cachedNodeModules);
-          }
-        }
-      } catch {}
-
-      const esbuildPkgPath = path.join(cachedNodeModules, esbuildPlatformPkg);
-      if (fsSync.existsSync(cachedNodeModules) && fsSync.existsSync(esbuildPkgPath)) {
-        this.repairBinSymlinks(cachedNodeModules);
-        return cachedNodeModules;
-      }
-      console.log(`[ProjectManager] Template cache needs ${esbuildPlatformPkg} for ${process.platform}-${process.arch}, refreshing cache...`);
-      try {
-        fsSync.rmSync(cachedNodeModules, { recursive: true, force: true });
-      } catch {}
-    }
-
-    const templateSrc = path.join(this.templatesDir, templateName);
-    const srcNodeModules = path.join(templateSrc, "node_modules");
-    const srcHasMatchingEsbuild = fsSync.existsSync(path.join(srcNodeModules, esbuildPlatformPkg));
-
-    // If pre-installed template node_modules exists and matches current host architecture, copy to user-writable cache
-    if (fsSync.existsSync(srcNodeModules) && srcHasMatchingEsbuild) {
-      try {
-        console.log(`[ProjectManager] Initializing writable template cache from ${srcNodeModules}...`);
-        await fs.mkdir(cachedTplDir, { recursive: true });
-        await this.copyDirRecursive(srcNodeModules, cachedNodeModules);
-        this.repairBinSymlinks(cachedNodeModules);
-        return cachedNodeModules;
-      } catch (err) {
-        console.warn(`[ProjectManager] Warning: failed to copy template node_modules to cache: ${err}`);
-      }
-    }
-
-    const srcPackageJson = path.join(templateSrc, "package.json");
-    if (fsSync.existsSync(srcPackageJson)) {
-      await fs.mkdir(cachedTplDir, { recursive: true });
-      await fs.copyFile(srcPackageJson, path.join(cachedTplDir, "package.json"));
-      const srcLock = path.join(templateSrc, "bun.lock");
-      if (fsSync.existsSync(srcLock)) {
-        await fs.copyFile(srcLock, path.join(cachedTplDir, "bun.lock"));
-      }
-      console.log(`[ProjectManager] Installing template dependencies into cache (${cachedTplDir})...`);
-      const proc = Bun.spawn([process.execPath, "install"], {
-        cwd: cachedTplDir,
-        env: getAugmentedEnv(),
-        stdout: "inherit",
-        stderr: "inherit",
-      });
-      await proc.exited;
-      this.repairBinSymlinks(cachedNodeModules);
-    }
-
-    return cachedNodeModules;
+    const dir = this.templateService.resolveTemplateDir(templateName);
+    return dir ? path.join(dir, "node_modules") : "";
   }
 
-  async createProject(name: string, template: string = "node_react", model?: string): Promise<ProjectInfo> {
+  async createProject(
+    name: string,
+    template: string = "node_react",
+    model?: string,
+    onProgress?: (progress: ProjectCreationProgress) => void
+  ): Promise<ProjectInfo> {
     const validatedName = this.validateName(name);
     const projectDir = path.join(this.root, validatedName);
 
@@ -231,48 +173,75 @@ export class ProjectManager {
       throw new Error(`Project "${validatedName}" already exists.`);
     }
 
-    await fs.mkdir(projectDir, { recursive: true });
+    // 1. Scaffold template files into the project directory
+    onProgress?.({ phase: "scaffolding", message: `Scaffolding ${template} template skeleton...` });
+    const manifest = await this.templateService.scaffoldProject(template, projectDir);
 
-    // Copy template files
-    const templateSrc = path.join(this.templatesDir, template);
-    if (fsSync.existsSync(templateSrc)) {
-      await this.copyDirRecursive(templateSrc, projectDir, ["node_modules", ".git"]);
-    }
-
-    // Link node_modules from user-writable cache for instant zero-install startup without read-only EROFS errors
+    // 2. Initialize git repository baseline
+    onProgress?.({ phase: "git", message: "Initializing Git repository & baseline checkpoint..." });
     try {
-      const targetLink = path.join(projectDir, "node_modules");
-      const cachedNodeModules = await this.ensureTemplateCache(template);
-      if (!fsSync.existsSync(targetLink)) {
-        if (fsSync.existsSync(cachedNodeModules) && !fsSync.existsSync(targetLink)) {
-          await fs.symlink(cachedNodeModules, targetLink, "junction");
-        }
-      } else {
-        // If targetLink is a broken symlink, heal it
-        try {
-          const stat = fsSync.lstatSync(targetLink);
-          if (stat.isSymbolicLink()) {
-            const linkTarget = fsSync.readlinkSync(targetLink);
-            if (!fsSync.existsSync(linkTarget) || !fsSync.existsSync(targetLink)) {
-              fsSync.unlinkSync(targetLink);
-              await fs.symlink(cachedNodeModules, targetLink, "junction");
-            }
-          }
-        } catch {}
-      }
-    } catch (err) {
-      console.warn(`[ProjectManager] Warning: failed to symlink template node_modules: ${err}`);
+      await CheckpointManager.ensureGitRepo(projectDir);
+    } catch (e) {
+      console.warn(`[ProjectManager] Git initialization warning: ${e}`);
     }
+    // 2b. Auto-provision standard 3D Game MCP servers (Poly Pizza) directly into user's app
+    if (template === "game_3d" || manifest.category === "game") {
+      try {
+        const ompDir = path.join(projectDir, ".omp");
+        fsSync.mkdirSync(ompDir, { recursive: true });
+        const mcpJsonPath = path.join(ompDir, "mcp.json");
+        if (!fsSync.existsSync(mcpJsonPath)) {
+          const defaultMcpConfig = {
+            mcpServers: {
+              "poly-pizza": {
+                command: "npx",
+                args: ["-y", "poly-pizza-mcp"],
+                enabled: true,
+              },
+            },
+          };
+          fsSync.writeFileSync(mcpJsonPath, JSON.stringify(defaultMcpConfig, null, 2) + "\n", "utf-8");
+        }
+      } catch (err) {
+        console.warn("[ProjectManager] Failed to auto-provision game MCP config:", err);
+      }
+    }
+
+    // 3. Install dependencies strictly inside the project directory (no shared cache)
+    onProgress?.({
+      phase: "dependencies",
+      message: `Installing project dependencies (${manifest.setup?.command?.join(" ") || "bun install"})...`,
+    });
+    await this.templateService.installDependencies(manifest, projectDir, (msg) => {
+      onProgress?.({ phase: "dependencies", message: msg });
+    });
+
+    // 4. Start dev server and ready preview if manager is attached
+    let livePort: number | null = null;
+    let liveBackendPort: number | null = null;
+    let livePid: number | null = null;
+
+    if (this.devServerManager) {
+      onProgress?.({ phase: "preview", message: "Starting dev server & verifying live preview..." });
+      const serverInfo = await this.devServerManager.startServer(projectDir);
+      if (serverInfo) {
+        livePort = serverInfo.port;
+        liveBackendPort = serverInfo.backend_port;
+        livePid = serverInfo.pid;
+      }
+    }
+
+    onProgress?.({ phase: "ready", message: "Workspace ready! Handing off to AI agent..." });
     const now = new Date().toISOString();
     const project: ProjectInfo = {
       name: validatedName,
       path: projectDir,
       template,
       model: model || undefined,
-      status: "stopped",
-      port: null,
-      backend_port: null,
-      pid: null,
+      status: livePort ? "running" : "stopped",
+      port: livePort,
+      backend_port: liveBackendPort,
+      pid: livePid,
       created_at: now,
       last_opened: now,
     };

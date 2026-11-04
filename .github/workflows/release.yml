@@ -54,7 +54,6 @@ jobs:
         run: |
           bun install --cwd pi-harness
           bun install --cwd backend
-          bun install --cwd backend/templates/node_react
       - name: Install Frontend Dependencies & Stage Binaries
         shell: bash
         run: |

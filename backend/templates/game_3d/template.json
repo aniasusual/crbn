@@ -1,0 +1,41 @@
+{
+  "id": "game_3d",
+  "name": "3D Game",
+  "version": "1.0.0",
+  "category": "game",
+  "description": "Interactive 3D Web game using React Three Fiber and Rapier physics",
+  "icon": "joystick",
+  "placeholder": "Describe game mechanics, controls, obstacles, or win/lose rules...",
+  "tags": ["react", "threejs", "r3f", "rapier", "physics", "3d", "game"],
+  "setup": {
+    "engine": "bun",
+    "command": ["bun", "install"],
+    "timeoutMs": 180000
+  },
+  "devServer": {
+    "type": "web",
+    "frontend": {
+      "command": ["bun", "run", "dev:frontend"],
+      "portEnv": "PORT",
+      "defaultPort": 3000
+    },
+    "backend": {
+      "entryFile": "server/index.js",
+      "command": ["bun", "run", "server/index.js"],
+      "portEnv": "PORT",
+      "defaultPort": 5001
+    },
+    "preview": {
+      "type": "iframe",
+      "brandBadge": true
+    }
+  },
+  "aiRules": [
+    "STARTER PLACEHOLDER: The starter project contains a temporary standing-by brick-breaker preview. You MUST replace src/App.jsx and build the user's requested game mechanics, controls, models, and UI.",
+    "DEV SERVER LIFECYCLE: Do not run dev servers in bash or alter port settings in vite.config.js or package.json.",
+    "BRAND ATTRIBUTION (MANDATORY): The project template contains a mandatory 'Made on 80degrees' badge chip (#made-on-80degrees) in index.html. DO NOT remove, hide, alter, or cover this badge when editing index.html or application styles.",
+    "3D MODELS & CUSTOM SOURCES: React Three Fiber supports loading any 3D model (.glb/.gltf) via useGLTF(url) from @react-three/drei, whether from local files, external services (e.g. Meshy, Tripo3D, Sketchfab, Mixamo, custom S3/CDN URLs), or dynamic MCP search tools. For rigged animated characters, extract actions using useAnimations(animations, ref) and cross-fade states cleanly (e.g. actions[state]?.reset().fadeIn(0.2).play()). If no external model is supplied or found, craft clean stylized procedural geometry with Three.js materials.",
+    "AUTOMATIC 3D ASSET SEARCH: The 'poly-pizza' MCP server is pre-installed in this workspace. Use its search tools to discover free CC0 3D models and pass the returned .glb URL directly to useGLTF(url).",
+    "FIRST PERSON & CONTROLS: For FPS / shooter games, import PointerLockControls from '@react-three/drei' to provide mouse-look aiming. In useFrame, add subtle weapon sway and recoil kicks on fire. Trigger sound effects using native browser AudioContext."
+  ]
+}

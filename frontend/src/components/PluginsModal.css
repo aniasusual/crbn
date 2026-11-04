@@ -889,6 +889,35 @@
   flex-wrap: wrap;
 }
 
+.plugins-direct-install-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.plugins-direct-input-wrap {
+  width: 100%;
+}
+
+.plugins-direct-input-wrap .plugins-form-input {
+  width: 100%;
+}
+
+.plugins-direct-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.plugins-direct-selects {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 /* Borderless Glass Input & Select */
 .plugins-form-input {
   display: flex;
@@ -983,6 +1012,40 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
+
+/* Marketplace Catalog Suggestions */
+.plugins-mkt-suggestions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.plugins-mkt-suggestions-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-right: 2px;
+}
+
+.plugins-mkt-suggestion-chip {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.plugins-mkt-suggestion-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.18);
+}
 /* Spin animation */
 @keyframes plugins-spin {
   from {

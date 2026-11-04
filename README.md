@@ -30,10 +30,8 @@ cd crbn
 # 2. Install submodule dependencies (generates tool views)
 bun install --cwd pi-harness
 
-# 3. Install backend & starter template dependencies
+# 3. Install backend dependencies
 bun install --cwd backend
-bun install --cwd backend/templates/node_react
-
 # 4. Install frontend dependencies (automatically stages prebuilt native addons)
 cd frontend
 npm install

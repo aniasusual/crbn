@@ -344,6 +344,231 @@
   margin-bottom: 46px;
 }
 
+/* Segmented Horizontal Template Selector */
+.degrees-template-segments-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.degrees-template-segments {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2.5px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.degrees-template-segments::-webkit-scrollbar {
+  display: none;
+}
+
+.degrees-template-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  white-space: nowrap;
+  outline: none;
+}
+
+.degrees-template-seg-btn:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.degrees-template-seg-btn--active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.degrees-template-seg-btn--disabled {
+  opacity: 0.42;
+}
+
+.degrees-template-seg-name {
+  letter-spacing: -0.01em;
+}
+
+.degrees-template-seg-tag {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.degrees-template-notice-pill {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+}
+
+/* Sub-segments for Game Engine Selection */
+.degrees-template-selection-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.degrees-template-subsegments-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  width: fit-content;
+  max-width: 100%;
+  animation: fadeInSubsegments 0.18s ease-out;
+}
+
+@keyframes fadeInSubsegments {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.degrees-template-subsegments-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  margin-right: 2px;
+}
+
+.degrees-template-subsegments {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 7px;
+}
+
+.degrees-template-subseg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 23px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  user-select: none;
+  white-space: nowrap;
+  outline: none;
+}
+
+.degrees-template-subseg-btn:hover {
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.degrees-template-subseg-btn--active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.degrees-template-subseg-btn--disabled {
+  opacity: 0.42;
+}
+
+.degrees-template-subseg-tag {
+  font-size: 8.5px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  line-height: 1;
+}
+
+/* Naming Screen Template Row */
+.degrees-naming-template-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  margin-bottom: 22px;
+}
+
+.degrees-naming-template-label {
+  color: rgba(255, 255, 255, 0.4);
+  font-family: var(--font-mono, 'JetBrains Mono', -apple-system, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+
+.degrees-naming-template-name {
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.degrees-naming-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px 14px;
+  background: rgba(234, 88, 12, 0.12);
+  border: 1px solid rgba(234, 88, 12, 0.28);
+  border-radius: 9999px;
+  color: rgba(254, 215, 170, 0.95);
+  font-size: 11.5px;
+  animation: fadeIn 0.2s ease;
+}
+
+.degrees-spinner--small {
+  width: 11px;
+  height: 11px;
+  border-width: 1.5px;
+  border-top-color: #fb923c;
+}
 .degrees-composer {
   position: relative;
   width: 100%;
@@ -1876,4 +2101,241 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.35);
   flex-shrink: 0;
+}
+
+/* Workspace Preparation HUD (Staged Real-Time Progress) */
+.degrees-prep-hud {
+  width: 100%;
+  max-width: 540px;
+  background: rgba(18, 18, 22, 0.78);
+  backdrop-filter: blur(40px) saturate(190%);
+  -webkit-backdrop-filter: blur(40px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  box-shadow:
+    0 32px 80px -16px rgba(0, 0, 0, 0.85),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 0 24px rgba(255, 255, 255, 0.02);
+  padding: 30px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+}
+
+.degrees-prep-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.degrees-prep-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #fed7aa;
+  background: rgba(234, 88, 12, 0.14);
+  border: 1px solid rgba(234, 88, 12, 0.3);
+  border-radius: 9999px;
+  padding: 3px 10px;
+  width: fit-content;
+}
+
+.degrees-prep-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ea580c;
+  box-shadow: 0 0 8px #ea580c;
+  animation: pulseGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.degrees-prep-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.2;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+}
+
+.degrees-prep-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.degrees-prep-template-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  padding: 2.5px 9px;
+}
+
+.degrees-prep-template-pill svg {
+  color: #fb923c;
+}
+
+.degrees-prep-path {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.degrees-prep-bar-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.degrees-prep-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ea580c 0%, #f97316 60%, #fed7aa 100%);
+  border-radius: 9999px;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 12px rgba(234, 88, 12, 0.6);
+}
+
+.degrees-prep-status-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  min-height: 20px;
+  margin-bottom: 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.degrees-prep-milestones {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.degrees-prep-milestone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: all 0.22s ease;
+}
+
+.degrees-prep-milestone--completed {
+  background: rgba(34, 197, 94, 0.06);
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+.degrees-prep-milestone--active {
+  background: rgba(234, 88, 12, 0.09);
+  border-color: rgba(234, 88, 12, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.degrees-prep-milestone--pending {
+  opacity: 0.42;
+}
+
+.degrees-prep-milestone-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.degrees-prep-milestone--completed .degrees-prep-milestone-indicator {
+  background: #22c55e;
+  color: #052e16;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+}
+
+.degrees-prep-milestone--active .degrees-prep-milestone-indicator {
+  background: rgba(234, 88, 12, 0.25);
+  border: 1px solid rgba(234, 88, 12, 0.5);
+}
+
+.degrees-prep-milestone-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.degrees-prep-milestone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.degrees-prep-milestone-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.degrees-prep-milestone--pending .degrees-prep-milestone-title {
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.degrees-prep-milestone-desc {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.degrees-prep-milestone-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.degrees-prep-milestone-badge--active {
+  background: rgba(234, 88, 12, 0.18);
+  color: #fb923c;
+  border-color: rgba(234, 88, 12, 0.35);
 }

@@ -7,7 +7,6 @@ import {
 } from "../../pi-harness/packages/coding-agent/src/utils/markit";
 import { notebookToEditableText } from "../../pi-harness/packages/natives/native/index.js";
 import { isProbablyBinary, formatBytes } from "../../pi-harness/packages/utils/src/index";
-
 export interface RawAttachment {
   name: string;
   size?: number;
@@ -37,8 +36,8 @@ const MAX_INLINE_DOC_CHARS = 120_000; // ~30,000 tokens for converted documents
 function sanitizeFileName(name: string): string {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
-
 export class AttachmentService {
+
   /**
    * Process client attachments, persisting them into the project workspace
    * and leveraging pi-harness markit/Rust converters for PDFs and documents.
@@ -100,6 +99,7 @@ export class AttachmentService {
       } else {
         continue;
       }
+
       const relPath = projectPath ? path.relative(projectPath, filePath) : filePath;
       const isImg =
         Boolean(att.isImage) ||

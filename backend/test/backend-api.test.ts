@@ -76,6 +76,44 @@ describe("Backend HTTP API", () => {
     expect(body.port).toBe(testPort);
   });
 
+  it("responds to GET /api/templates with template list", async () => {
+    const res = await fetch(`http://127.0.0.1:${testPort}/api/templates`);
+    expect(res.status).toBe(200);
+
+    const data = (await res.json()) as { templates: Array<{ id: string; name: string }> };
+    expect(data.templates).toBeDefined();
+    expect(Array.isArray(data.templates)).toBe(true);
+    expect(data.templates.some((t) => t.id === "node_react")).toBe(true);
+  });
+
+  it("streams real-time project creation progress on POST /api/projects?stream=true", async () => {
+    const streamProjName = `test-stream-proj-${Date.now()}`;
+    const res = await fetch(`http://127.0.0.1:${testPort}/api/projects?stream=true`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: streamProjName,
+        template: "node_react",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/x-ndjson");
+
+    const text = await res.text();
+    const lines = text.trim().split("\n").map((l) => JSON.parse(l));
+
+    const progressEvents = lines.filter((l) => l.type === "progress");
+    expect(progressEvents.length).toBeGreaterThanOrEqual(3);
+    expect(progressEvents.some((p) => p.phase === "scaffolding")).toBe(true);
+    expect(progressEvents.some((p) => p.phase === "git")).toBe(true);
+    expect(progressEvents.some((p) => p.phase === "dependencies")).toBe(true);
+
+    const completeEvent = lines.find((l) => l.type === "complete");
+    expect(completeEvent).toBeDefined();
+    expect(completeEvent.project.name).toBe(streamProjName);
+    expect(completeEvent.project.template).toBe("node_react");
+  });
   it("responds to GET /api/system/git-status with structured status", async () => {
     const res = await fetch(`http://127.0.0.1:${testPort}/api/system/git-status`);
     expect(res.status).toBe(200);

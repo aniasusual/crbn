@@ -1,0 +1,205 @@
+/* Dedicated Middle Screen: Workspace Preparation */
+.degrees-prep-screen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #08080a;
+  background-image: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.025) 0%, rgba(8, 8, 10, 1) 75%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 24px;
+  box-sizing: border-box;
+  animation: prepFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes prepFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.degrees-prep-container {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* Header */
+.degrees-prep-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.degrees-prep-kicker {
+  font-family: var(--font-mono, 'JetBrains Mono', -apple-system, monospace);
+  font-size: 10.5px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.degrees-prep-heading {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.25;
+}
+
+/* Slim 2px Progress Line */
+.degrees-prep-line-track {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+
+.degrees-prep-line-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ea580c 0%, #f97316 60%, #fed7aa 100%);
+  border-radius: 2px;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 8px rgba(234, 88, 12, 0.5);
+}
+
+/* Text Lines */
+.degrees-prep-text-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.degrees-prep-line-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: all 0.2s ease;
+}
+
+.degrees-prep-line-bullet {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.degrees-prep-dim-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.degrees-prep-inline-spinner {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid rgba(234, 88, 12, 0.25);
+  border-top-color: #ea580c;
+  border-radius: 50%;
+  animation: degreesPrepSpin 0.7s linear infinite;
+}
+
+@keyframes degreesPrepSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.degrees-prep-line-text {
+  flex: 1;
+  letter-spacing: -0.01em;
+}
+
+.degrees-prep-line-state {
+  font-family: var(--font-mono, 'JetBrains Mono', -apple-system, monospace);
+  font-size: 10.5px;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+/* Completed Row */
+.degrees-prep-line-row--completed .degrees-prep-line-bullet svg {
+  color: #22c55e;
+}
+
+.degrees-prep-line-row--completed .degrees-prep-line-text {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.degrees-prep-line-row--completed .degrees-prep-line-state {
+  color: rgba(34, 197, 94, 0.8);
+}
+
+/* Active Row */
+.degrees-prep-line-row--active .degrees-prep-line-text {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.degrees-prep-line-row--active .degrees-prep-line-state {
+  color: #fb923c;
+  font-weight: 500;
+}
+
+/* Pending Row */
+.degrees-prep-line-row--pending {
+  opacity: 0.35;
+}
+
+.degrees-prep-line-row--pending .degrees-prep-line-text {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.degrees-prep-line-row--pending .degrees-prep-line-state {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Live Log Box */
+.degrees-prep-log-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.degrees-prep-log-prompt {
+  font-family: var(--font-mono, 'JetBrains Mono', -apple-system, monospace);
+  font-size: 11px;
+  color: #ea580c;
+  font-weight: 600;
+}
+
+.degrees-prep-log-text {
+  font-family: var(--font-mono, 'JetBrains Mono', -apple-system, monospace);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.01em;
+}
