@@ -118,7 +118,7 @@ export default function WorkspaceView({
             onSendMessage={onSendMessage}
             onToolResponse={onToolResponse}
             isConnected={isConnected}
-            isAgentRunning={isAgentRunning ?? (agentStatus === 'generating')}
+            isAgentRunning={isAgentRunning ?? (agentStatus === 'generating' || agentStatus === 'retrying')}
             agentStatus={agentStatus}
             onClearStatus={onClearStatus}
             onClearContext={onClearContext}

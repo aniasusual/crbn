@@ -190,17 +190,43 @@ export default function App() {
           if (!data || typeof data !== 'object') return;
           const timestamp = new Date().toISOString();
 
-          // Self-heal running status when active execution events arrive
+          // Explicit agent status event from backend bridge
+          if (data.type === 'agent_status') {
+            const rawStatus = data.status;
+            const newStatus =
+              rawStatus === 'idle'
+                ? null
+                : rawStatus === 'generating' ||
+                  rawStatus === 'retrying' ||
+                  rawStatus === 'awaiting_human' ||
+                  rawStatus === 'done' ||
+                  rawStatus === 'error'
+                ? rawStatus
+                : null;
+            updateTab(tabId, (t) => ({
+              agentStatus: newStatus,
+              ...(newStatus === 'done' || newStatus === 'error' || newStatus === null
+                ? {
+                    messages: (t.messages || []).map((m) =>
+                      m.type === 'tool_call' || m.type === 'tool_result' || m.type === 'thinking'
+                        ? { ...m, collapsed: true }
+                        : m
+                    ),
+                  }
+                : {}),
+            }));
+            return;
+          }
+
+          // Self-heal running status when active streaming tokens arrive
           if (
             (data.type === 'status' && data.content === 'Running') ||
             data.type === 'token' ||
             data.type === 'thinking' ||
-            data.type === 'tool_call' ||
-            data.type === 'tool_result' ||
-            data.type === 'subagent_event'
+            data.type === 'tool_call'
           ) {
             updateTab(tabId, (t) => ({
-              agentStatus: t.agentStatus !== 'awaiting_human' ? 'generating' : t.agentStatus,
+              agentStatus: t.agentStatus !== 'awaiting_human' && t.agentStatus !== 'retrying' ? 'generating' : t.agentStatus,
             }));
           }
           if (data.type === 'session_cleared') {
@@ -673,10 +699,16 @@ export default function App() {
             return;
           }
 
+          if (data.type === 'status' && typeof data.content === 'string' && data.content.startsWith('Retrying')) {
+            updateTab(tabId, { agentStatus: 'retrying' });
+            return;
+          }
+
           const isTerminalStatus =
             data.type === 'status' &&
             (data.content === 'Done' ||
               data.content === 'AwaitingHuman' ||
+              data.content === 'idle' ||
               data.content?.startsWith('Error') ||
               data.content?.startsWith('Harness Error') ||
               data.content?.startsWith('Stopped'));
@@ -1113,11 +1145,18 @@ export default function App() {
       const videos = attachments?.videos ?? [];
       const files = attachments?.files ?? [];
 
-      const isAlreadyGenerating = tab.agentStatus === 'generating';
+      const isAlreadyGenerating = tab.agentStatus === 'generating' || tab.agentStatus === 'retrying';
 
       if (!isAlreadyGenerating) {
         updateTab(activeTabId, (t) => ({
           agentStatus: 'generating',
+          queuedMessages: {
+            steering: Array.isArray(t.queuedMessages?.steering) ? t.queuedMessages.steering : [],
+            followUp: (t.queuedMessages?.followUp || []).filter(
+              (item) => (typeof item === 'string' ? item : item?.text) !== prompt
+            ),
+            liveSteered: t.queuedMessages?.liveSteered || 0,
+          },
           messages: [
             ...t.messages,
             {
@@ -1223,7 +1262,12 @@ export default function App() {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ action: 'stop_agent' }));
     }
-    updateTab(activeTabId, { agentStatus: null, pendingApproval: null, pendingPlanProposal: null });
+    updateTab(activeTabId, {
+      agentStatus: null,
+      queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
+      pendingApproval: null,
+      pendingPlanProposal: null,
+    });
   }, [activeTabId, updateTab]);
 
   const handleRewindToStep = useCallback(
@@ -1241,7 +1285,7 @@ export default function App() {
     const handleGlobalKeyDown = (e) => {
       if (e.key === 'Escape') {
         const tab = tabs.find((t) => t.id === activeTabId);
-        if (tab && (tab.agentStatus === 'generating' || tab.agentStatus === 'awaiting_human')) {
+        if (tab && (tab.agentStatus === 'generating' || tab.agentStatus === 'retrying' || tab.agentStatus === 'awaiting_human')) {
           handleStopAgent();
         }
       }
@@ -1492,7 +1536,7 @@ export default function App() {
           onSendMessage={handleSendMessage}
           onToolResponse={handleToolResponse}
           isConnected={activeTab.isConnected}
-          isAgentRunning={activeTab.agentStatus === 'generating'}
+          isAgentRunning={activeTab.agentStatus === 'generating' || activeTab.agentStatus === 'retrying'}
           agentStatus={activeTab.agentStatus}
           onClearStatus={() => updateTab(activeTab.id, { agentStatus: null })}
           onClearContext={handleClearContext}

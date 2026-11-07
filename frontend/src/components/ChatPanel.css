@@ -464,6 +464,28 @@
   background: linear-gradient(90deg, rgba(147, 51, 234, 0.04) 0%, rgba(147, 51, 234, 0.2) 25%, rgba(147, 51, 234, 0.24) 50%, rgba(147, 51, 234, 0.2) 75%, rgba(147, 51, 234, 0.04) 100%);
   color: #d8b4fe;
 }
+
+/* Retrying: Pulsing Amber / Honey Fade */
+.chat-panel__status-strip--retrying {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.04) 0%, rgba(245, 158, 11, 0.22) 25%, rgba(245, 158, 11, 0.26) 50%, rgba(245, 158, 11, 0.22) 75%, rgba(245, 158, 11, 0.04) 100%);
+  color: #fde047;
+  animation: chat-status-pulse 1.8s infinite ease-in-out;
+}
+
+/* Error: Ruby Rose Fade */
+.chat-panel__status-strip--error {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.04) 0%, rgba(244, 63, 94, 0.22) 25%, rgba(244, 63, 94, 0.26) 50%, rgba(244, 63, 94, 0.22) 75%, rgba(244, 63, 94, 0.04) 100%);
+  color: #fda4af;
+}
+
+@keyframes chat-status-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
 .chat-panel__status-strip-text {
   font-family: inherit;
   font-weight: 500;
