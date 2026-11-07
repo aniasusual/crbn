@@ -28,7 +28,10 @@ import type {
   PluginSourceType,
   MarketplaceCatalogSummary,
   MarketplacePluginListing,
+  DiscoveredCapability,
 } from "./plugins-types";
+import { MCP_PRESETS } from "./mcp-presets";
+import { readMCPConfigFile } from "../../pi-harness/packages/coding-agent/src/mcp/config-writer";
 
 function inspectPluginCapabilities(installPath: string, manifest?: Record<string, unknown>): PluginCapabilities {
   const exists = (sub: string) => {
@@ -576,5 +579,113 @@ export class PluginsService {
         installedScope,
       };
     });
+  }
+
+  /**
+   * Unified search across both marketplace plugins and MCP presets.
+   */
+  async searchCapabilities(options?: {
+    query?: string;
+    category?: string;
+    type?: "all" | "plugin" | "mcp";
+    projectPath?: string;
+    limit?: number;
+  }): Promise<DiscoveredCapability[]> {
+    const results: DiscoveredCapability[] = [];
+    const cwd = options?.projectPath || process.cwd();
+    const typeFilter = options?.type || "all";
+    const query = options?.query?.toLowerCase().trim();
+    const category = options?.category?.toLowerCase().trim();
+    const limit = options?.limit || 25;
+
+    // 1. Search Plugins if type is "all" or "plugin"
+    if (typeFilter === "all" || typeFilter === "plugin") {
+      const plugins = await this.discoverMarketplacePlugins({
+        query: options?.query,
+        projectPath: cwd,
+      });
+
+      for (const p of plugins) {
+        if (category && p.category?.toLowerCase() !== category) {
+          const tagsMatch = Array.isArray(p.tags) && p.tags.some((t) => t.toLowerCase() === category);
+          if (!tagsMatch) continue;
+        }
+
+        const descLower = (p.description || "").toLowerCase();
+        const requiresAuth =
+          descLower.includes("token") ||
+          descLower.includes("api key") ||
+          descLower.includes("oauth") ||
+          descLower.includes("api_key") ||
+          descLower.includes("authenticated");
+
+        results.push({
+          id: p.id,
+          name: p.name,
+          type: "plugin",
+          category: p.category,
+          description: p.description,
+          version: p.version,
+          installed: p.installed,
+          installedScope: p.installedScope,
+          requiresAuth,
+          capabilities: {
+            hasTools: true,
+            hasSkills: true,
+            hasMcp: descLower.includes("mcp"),
+          },
+        });
+      }
+    }
+
+    // 2. Search MCP Presets if type is "all" or "mcp"
+    if (typeFilter === "all" || typeFilter === "mcp") {
+      let configuredMcpServers = new Set<string>();
+      try {
+        const mcpPath = path.join(cwd, ".omp", "mcp.json");
+        const mcpConfig = await readMCPConfigFile(mcpPath);
+        if (mcpConfig?.mcpServers) {
+          configuredMcpServers = new Set(Object.keys(mcpConfig.mcpServers));
+        }
+      } catch {}
+
+      for (const preset of MCP_PRESETS) {
+        if (query) {
+          const match =
+            preset.id.toLowerCase().includes(query) ||
+            preset.name.toLowerCase().includes(query) ||
+            preset.description.toLowerCase().includes(query) ||
+            preset.category.toLowerCase().includes(query) ||
+            preset.command.toLowerCase().includes(query);
+          if (!match) continue;
+        }
+
+        if (category && preset.category.toLowerCase() !== category) {
+          continue;
+        }
+
+        const isInstalled =
+          configuredMcpServers.has(preset.defaultName) ||
+          configuredMcpServers.has(preset.id);
+
+        results.push({
+          id: `mcp:${preset.id}`,
+          name: preset.name,
+          type: "mcp",
+          category: preset.category,
+          description: preset.description,
+          installed: isInstalled,
+          requiresAuth: preset.requiresKey,
+          authHint: preset.keyHint,
+          requiredEnvKeys: preset.requiredEnvKeys,
+          capabilities: {
+            hasTools: true,
+            hasMcp: true,
+          },
+        });
+      }
+    }
+
+    return results.slice(0, limit);
   }
 }
