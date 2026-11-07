@@ -128,16 +128,6 @@
   color: #ffffff;
 }
 
-.tab-bar__tab--home.tab-bar__tab--active {
-  background: transparent !important;
-  border: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  color: #ffffff !important;
-  transform: none !important;
-  animation: none !important;
-  box-shadow: none !important;
-}
 .tab-bar__tab-icon {
   width: 14px;
   height: 14px;
