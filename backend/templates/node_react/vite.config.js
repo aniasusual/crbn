@@ -130,6 +130,8 @@ export default defineConfig({
     port: frontendPort,
     strictPort: true,
     host: '127.0.0.1',
+    allowedHosts: true,
+    cors: true,
     proxy: {
       '/api': {
         target: `http://127.0.0.1:${backendPort}`,

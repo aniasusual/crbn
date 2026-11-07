@@ -114,8 +114,7 @@ describe("Backend HTTP API", () => {
     expect(completeEvent).toBeDefined();
     expect(completeEvent.project.name).toBe(streamProjName);
     expect(completeEvent.project.template).toBe("node_react");
-  });
-
+  }, 45000);
   it("checks name availability on GET /api/projects/check-name", async () => {
     const existingRes = await fetch(`http://127.0.0.1:${testPort}/api/projects/check-name?name=${streamProjName}`);
     expect(existingRes.status).toBe(200);

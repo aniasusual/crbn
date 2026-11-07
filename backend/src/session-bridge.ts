@@ -2153,7 +2153,7 @@ export class SessionBridge {
       targetPath = match.path;
     }
 
-    const switched = await this.session.switchSession(targetPath);
+    const switched = await this.session.switchSession(targetPath, { keepModel: true });
     if (switched === false) {
       console.warn(`[SessionBridge] Session switch cancelled by harness: ${targetPath}`);
       return;

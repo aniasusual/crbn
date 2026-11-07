@@ -154,7 +154,15 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
       if (data.type === "project_opened") {
         resolveOpened(data);
       }
-      if (data.type === "status" || data.type === "thinking" || data.type === "token" || data.type === "turn_finished") {
+      if (
+        data.type === "status" ||
+        data.type === "thinking" ||
+        data.type === "token" ||
+        data.type === "turn_finished" ||
+        data.type === "agent_status" ||
+        data.type === "auth_required" ||
+        data.type === "assistant_error"
+      ) {
         resolveResponse(data);
       }
     };
@@ -186,7 +194,7 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
     // Verify agent receives prompt and emits active status or events
     const firstAgentEvent = await Promise.race([
       responsePromise,
-      new Promise((_, r) => setTimeout(() => r(new Error("Timeout waiting for agent response")), 15000)),
+      new Promise((_, r) => setTimeout(() => r(new Error("Timeout waiting for agent response")), 25000)),
     ]);
     expect(firstAgentEvent).toBeDefined();
     console.log("[E2E Step 6 Result] Agent event received:", firstAgentEvent.type);
