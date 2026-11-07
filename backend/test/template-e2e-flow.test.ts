@@ -74,8 +74,7 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
     try {
       await fs.rm(tempProjectsRoot, { recursive: true, force: true });
     } catch {}
-  });
-
+  }, 30000);
   it("completes full lifecycle: template query -> project preparation -> local install -> preview ready -> WebSocket agent session", async () => {
     // 1. Query available templates (User sees chips in composer)
     console.log("[E2E Step 1] Querying /api/templates...");
