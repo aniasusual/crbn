@@ -56,3 +56,25 @@ export interface MarketplacePluginListing {
   installed: boolean;
   installedScope?: PluginScope;
 }
+
+export interface DiscoveredCapability {
+  id: string; // e.g. "vercel@claude-plugins-official" or "mcp:puppeteer"
+  name: string;
+  type: "plugin" | "mcp";
+  category?: string;
+  description?: string;
+  version?: string;
+  installed: boolean;
+  installedScope?: PluginScope;
+  requiresAuth: boolean;
+  authHint?: string;
+  requiredEnvKeys?: string[];
+  capabilities?: {
+    hasTools?: boolean;
+    hasSkills?: boolean;
+    hasHooks?: boolean;
+    hasCommands?: boolean;
+    hasAgents?: boolean;
+    hasMcp?: boolean;
+  };
+}

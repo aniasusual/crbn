@@ -23,6 +23,7 @@ import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tu
 import { clearCache as clearFsCache } from "../../pi-harness/packages/coding-agent/src/capability/fs";
 import { clearPluginRootsAndCaches } from "../../pi-harness/packages/coding-agent/src/discovery/helpers";
 import { PluginsService } from "./plugins-service";
+import { createMarketplaceExtension } from "./marketplace-extension";
 import type { UnifiedPlugin } from "./plugins-types";
 import { AttachmentService, type RawAttachment } from "./attachment-service";
 import { ChatHistoryManager } from "./chat-history";
@@ -516,7 +517,10 @@ export class SessionBridge {
         const previewPort = devServer?.port ?? 3000;
         const previewUrl = devServer?.url ?? `http://127.0.0.1:${previewPort}`;
         this.currentPreviewUrl = previewUrl;
-        const appendSystemPrompt = this.buildPreviewSystemPrompt(previewUrl, devServer?.backend_port);
+        const appendSystemPrompt = [
+          this.buildPreviewSystemPrompt(previewUrl, devServer?.backend_port),
+          this.buildMarketplaceSystemPrompt(),
+        ].join("\n\n");
         const { session, setToolUIContext, mcpManager } = await createAgentSession({
           cwd: projectPath,
           modelPattern: this.activeModel,
@@ -527,6 +531,18 @@ export class SessionBridge {
           appendSystemPrompt,
           agentRegistry: new AgentRegistry(),
           agentId: `agent_${path.basename(projectPath)}`,
+          extensions: [
+            createMarketplaceExtension({
+              pluginsService: this.pluginsService,
+              getProjectPath: () => this.activeProjectPath || projectPath,
+              onReloadPlugins: async () => {
+                await this.reloadPlugins();
+              },
+              onReloadMcp: async () => {
+                await this.reloadMcp();
+              },
+            }),
+          ],
         });
         this.session = session;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));
@@ -1886,6 +1902,26 @@ export class SessionBridge {
       );
     }
     return lines.join("\n");
+  }
+
+  private buildMarketplaceSystemPrompt(): string {
+    return [
+      `# External Capabilities & Marketplace Ecosystem`,
+      `You have access to a rich marketplace of official plugins and Model Context Protocol (MCP) servers.`,
+      `Key operational domains available in the marketplace include:`,
+      `- **Deployment & Hosting**: Vercel (\`vercel\`), Railway (\`railway\`), Cloudflare (\`cloudflare\`), Netlify (\`netlify\`), Render (\`render\`), AWS (\`aws\`), Azure (\`azure\`), Docker`,
+      `- **Databases & Backends**: Supabase (\`supabase\`), Neon Postgres (\`neon\`), MongoDB (\`mongodb\`), SQLite (\`sqlite\`), Pinecone (\`pinecone\`), Convex (\`convex\`), Firebase (\`firebase\`)`,
+      `- **Browsers & Testing**: Chrome DevTools (\`chrome-devtools-mcp\`), Puppeteer (\`puppeteer\`), Playwright (\`playwright\`)`,
+      `- **3D Assets & Audio**: Poly Pizza 3D Models (\`poly-pizza\`), Sketchfab (\`sketchfab\`), Blender (\`blender\`), ElevenLabs Audio (\`elevenlabs\`)`,
+      `- **Productivity & Dev Tools**: GitHub (\`github\`), Linear (\`linear\`), Sentry, Datadog`,
+      ``,
+      `## WORKFLOW RULE FOR EXTERNAL OPERATIONS & DEPLOYMENTS:`,
+      `When the user requests an operation requiring external infrastructure (such as deploying the app, connecting to cloud databases, fetching 3D assets, automated browser inspection):`,
+      `1. DO NOT guess CLI commands or claim that you cannot perform the deployment or operation.`,
+      `2. Search available marketplace plugins and MCP servers using the \`marketplace_search\` tool.`,
+      `3. Install the required plugin using \`marketplace_install_plugin\` or enable the MCP server using \`marketplace_configure_mcp\`.`,
+      `4. Once installed, the plugin's skills (accessible as \`skill://<name>\`) and MCP tools become live immediately in this session. Read the relevant skill using the \`read\` tool to follow the platform's official instructions and complete the user's task.`,
+    ].join("\n");
   }
 
   private handlePreviewReady(newUrl: string, backendPort?: number | null): void {
