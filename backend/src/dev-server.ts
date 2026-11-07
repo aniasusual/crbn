@@ -427,7 +427,7 @@ export class DevServerManager {
     const directViteJs = path.join(resolvedPath, "node_modules", "vite", "bin", "vite.js");
     let frontendCmd: string[];
     if (fsSync.existsSync(directViteJs)) {
-      frontendCmd = [process.execPath, directViteJs, "--port", String(targetPort), "--strictPort"];
+      frontendCmd = [process.execPath, directViteJs, "--port", String(targetPort), "--strictPort", "--host", "127.0.0.1", "--cors"];
     } else if (templateManifest?.devServer?.frontend?.command?.length) {
       const raw = templateManifest.devServer.frontend.command;
       const bin = raw[0] === "bun" ? process.execPath : raw[0];
@@ -682,7 +682,7 @@ export class DevServerManager {
           const directViteJs = path.join(resolvedPath, "node_modules", "vite", "bin", "vite.js");
           let frontendCmd: string[];
           if (fsSync.existsSync(directViteJs)) {
-            frontendCmd = [process.execPath, directViteJs, "--port", String(entry.info.port), "--strictPort"];
+            frontendCmd = [process.execPath, directViteJs, "--port", String(entry.info.port), "--strictPort", "--host", "127.0.0.1", "--cors"];
           } else {
             frontendCmd = [process.execPath, "run", frontendScript, "--", "--port", String(entry.info.port), "--strictPort"];
           }

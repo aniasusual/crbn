@@ -132,6 +132,9 @@ export default defineConfig({
     host: '127.0.0.1',
     allowedHosts: true,
     cors: true,
+    fs: {
+      strict: false,
+    },
     proxy: {
       '/api': {
         target: `http://127.0.0.1:${backendPort}`,

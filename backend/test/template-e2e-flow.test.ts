@@ -136,7 +136,9 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
     // 4. Verify preview dev server is actively listening and responsive
     const previewPort = projectInfo.port!;
     console.log(`[E2E Step 4] Testing live preview on port ${previewPort}...`);
-    const previewRes = await fetch(`http://127.0.0.1:${previewPort}/`);
+    const previewRes = await fetch(`http://127.0.0.1:${previewPort}/`, {
+      headers: { Host: `127.0.0.1:${previewPort}` },
+    });
     expect(previewRes.status).toBe(200);
     const html = await previewRes.text();
     expect(html).toContain("<!DOCTYPE html>");
@@ -237,7 +239,9 @@ describe("Rigorous End-to-End Multi-Template Preparation Flow", () => {
     expect(fsSync.existsSync(path.join(projectDir, "server/index.js"))).toBe(true);
 
     // Test 3D game preview HTML
-    const previewRes = await fetch(`http://127.0.0.1:${projectInfo.port}/`);
+    const previewRes = await fetch(`http://127.0.0.1:${projectInfo.port}/`, {
+      headers: { Host: `127.0.0.1:${projectInfo.port}` },
+    });
     expect(previewRes.status).toBe(200);
     const html = await previewRes.text();
     expect(html).toContain("<!DOCTYPE html>");
