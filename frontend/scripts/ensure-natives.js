@@ -7,7 +7,14 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const NATIVE_VERSION = '18.12.3';
+let NATIVE_VERSION = '18.18.0';
+try {
+  const pkgPath = path.resolve(__dirname, '../../pi-harness/packages/natives/package.json');
+  if (fs.existsSync(pkgPath)) {
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    if (pkg.version) NATIVE_VERSION = pkg.version;
+  }
+} catch {}
 
 const NATIVE_MODULE_CONFIGS = [
   {
@@ -36,6 +43,19 @@ const NATIVE_MODULE_CONFIGS = [
   },
 ];
 
+
+function hasMatchingVersion(filePath, version) {
+  try {
+    if (!fs.existsSync(filePath)) return false;
+    const stat = fs.statSync(filePath);
+    if (stat.size < 1000) return false;
+    const buf = fs.readFileSync(filePath);
+    const needle = Buffer.from(`PI_NATIVES_VERSION_STAMP:${version}\0`, 'utf8');
+    return buf.includes(needle);
+  } catch {
+    return false;
+  }
+}
 async function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
   const url = `https://registry.npmjs.org/@oh-my-pi/pi-natives-${moduleConfig.pkg}/-/pi-natives-${moduleConfig.pkg}-${moduleConfig.version}.tgz`;
   const extractDir = path.dirname(targetFile);
@@ -101,11 +121,11 @@ export async function ensureNativeModules(options = {}) {
       (isCurrentPlatform &&
         ((currentArch === 'arm64' && moduleConfig.file.includes('arm64')) ||
           (currentArch === 'x64' && moduleConfig.file.includes('x64'))));
-    // Check if target file exists and is valid
-    const hasTarget = fs.existsSync(targetFile) && fs.statSync(targetFile).size > 1000;
-    const hasSource = fs.existsSync(sourceFile) && fs.statSync(sourceFile).size > 1000;
+    // Check if target and source exist and carry the matching version stamp
+    const hasTarget = hasMatchingVersion(targetFile, moduleConfig.version);
+    const hasSource = hasMatchingVersion(sourceFile, moduleConfig.version);
 
-    // Both already exist
+    // Both already exist and are on the correct version
     if (hasTarget && hasSource) {
       continue;
     }
