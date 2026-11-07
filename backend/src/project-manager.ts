@@ -141,6 +141,15 @@ export class ProjectManager {
     }
   }
 
+  pathEntryExists(p: string): boolean {
+    try {
+      fsSync.lstatSync(p);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   suggestName(basePrompt: string = "app"): string {
     const words = basePrompt
       .toLowerCase()
@@ -273,13 +282,20 @@ export class ProjectManager {
 
     const live = this.devServerManager?.getServerInfo(projectDir);
     const metaPath = path.join(projectDir, META_FILENAME);
+    let realProjectPath = projectDir;
+    try {
+      if (fsSync.lstatSync(projectDir).isSymbolicLink()) {
+        realProjectPath = fsSync.realpathSync(projectDir);
+      }
+    } catch {}
+
     if (fsSync.existsSync(metaPath)) {
       try {
         const raw = await fs.readFile(metaPath, "utf-8");
         const meta = JSON.parse(raw);
         return {
-          name: meta.name ?? validatedName,
-          path: projectDir,
+          name: validatedName,
+          path: realProjectPath,
           template: meta.template ?? "node_react",
           model: meta.model ?? undefined,
           status: live ? "running" : (this.devServerManager ? "stopped" : (meta.status ?? "stopped")),
@@ -296,7 +312,7 @@ export class ProjectManager {
 
     return {
       name: validatedName,
-      path: projectDir,
+      path: realProjectPath,
       template: "node_react",
       status: live ? "running" : "stopped",
       port: live ? live.port : null,
@@ -366,7 +382,16 @@ export class ProjectManager {
       throw new Error(`Path is not a directory: ${resolvedPath}`);
     }
 
-    const dirBase = path.basename(resolvedPath);
+    // If the path is already inside the projects root directory, directly open that project
+    if (resolvedPath.startsWith(this.root)) {
+      const rel = path.relative(this.root, resolvedPath);
+      const topDir = rel.split(path.sep)[0];
+      if (topDir) {
+        return await this.getProject(topDir);
+      }
+    }
+
+    const dirBase = path.basename(resolvedPath) || "project";
     const candidateName = (preferredName || dirBase)
       .trim()
       .toLowerCase()
@@ -377,7 +402,7 @@ export class ProjectManager {
     let finalProjectName = candidateName;
     let linkPath = path.join(this.root, finalProjectName);
     let counter = 2;
-    while (fsSync.existsSync(linkPath)) {
+    while (fsSync.existsSync(linkPath) || this.pathEntryExists(linkPath)) {
       try {
         const existingTarget = fsSync.realpathSync(linkPath);
         if (existingTarget === fsSync.realpathSync(resolvedPath)) {
@@ -388,6 +413,14 @@ export class ProjectManager {
       linkPath = path.join(this.root, finalProjectName);
       counter++;
     }
+
+    // Clean up any dead symlink at linkPath before linking
+    try {
+      const lstat = fsSync.lstatSync(linkPath);
+      if (lstat.isSymbolicLink()) {
+        fsSync.unlinkSync(linkPath);
+      }
+    } catch {}
 
     // Create symlink in ~/.80degrees/projects so it appears in listProjects()
     await fs.symlink(resolvedPath, linkPath, "junction");
@@ -429,7 +462,7 @@ export class ProjectManager {
         const raw = await fs.readFile(metaPath, "utf-8");
         const meta = JSON.parse(raw);
         projectInfo = {
-          name: meta.name ?? finalProjectName,
+          name: finalProjectName,
           path: resolvedPath,
           template: meta.template ?? "local_import",
           model: meta.model ?? undefined,
@@ -465,8 +498,8 @@ export class ProjectManager {
         created_at: now,
         last_opened: now,
       };
-      await fs.writeFile(metaPath, JSON.stringify(projectInfo, null, 2), "utf-8");
     }
+    await fs.writeFile(metaPath, JSON.stringify(projectInfo, null, 2), "utf-8");
 
     const isGit = fsSync.existsSync(path.join(resolvedPath, ".git"));
     telemetry.track("project_imported", {

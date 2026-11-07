@@ -823,11 +823,14 @@ export default function App() {
   const handleOpenProject = useCallback(
     (projectInfo, initialPrompt, initialAttachments, initialMode = 'build') => {
       const projectName = projectInfo.name;
+      const projectPath = projectInfo.path;
       const tabId = `tab_${projectName}`;
       const chosenModel = projectInfo.model || globalDefaultModel;
 
       // If already open, switch to that tab
-      const existingTab = tabs.find((t) => t.id === tabId || t.projectName === projectName);
+      const existingTab = tabs.find(
+        (t) => t.id === tabId || t.projectName === projectName || (projectPath && t.project?.path && t.project.path === projectPath)
+      );
       if (existingTab) {
         setActiveTabId(existingTab.id);
         setCurrentView('workspace');
