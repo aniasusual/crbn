@@ -249,7 +249,7 @@ export default function ChatPanel({
   onRemoveQueuedMessage = null,
   sessions = [],
   activeSessionId = null,
-  isSessionsDrawerOpen = true,
+  isSessionsDrawerOpen = false,
   onToggleSessionsDrawer = null,
   onCreateSession = null,
   onSwitchSession = null,

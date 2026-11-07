@@ -56,7 +56,7 @@ export default function WorkspaceView({
   onRemoveQueuedMessage = null,
   sessions = [],
   activeSessionId = null,
-  isSessionsDrawerOpen = true,
+  isSessionsDrawerOpen = false,
   onToggleSessionsDrawer = null,
   onCreateSession = null,
   onSwitchSession = null,

@@ -61,7 +61,7 @@ export default function App() {
         model: t.model,
         mode: t.mode || 'build',
         activeSessionId: t.activeSessionId || null,
-        isSessionsDrawerOpen: t.isSessionsDrawerOpen ?? true,
+        isSessionsDrawerOpen: t.isSessionsDrawerOpen ?? false,
         pendingPlanProposal: t.pendingPlanProposal || null,
       }));
       localStorage.setItem('80degrees_open_tabs', JSON.stringify(serialized));
@@ -829,6 +829,7 @@ export default function App() {
           branches: [],
           isConnected: false,
           queuedMessages: { steering: [], followUp: [] },
+          isSessionsDrawerOpen: t.isSessionsDrawerOpen ?? false,
         }));
         setTabs(initialized);
 
@@ -911,6 +912,7 @@ export default function App() {
         branches: [],
         isConnected: false,
         queuedMessages: { steering: [], followUp: [] },
+        isSessionsDrawerOpen: false,
       };
       setTabs((prev) => [...prev, newTab]);
       setActiveTabId(tabId);
@@ -1566,7 +1568,7 @@ export default function App() {
 
   const handleToggleSessionsDrawer = useCallback((tabId) => {
     updateTab(tabId, (t) => ({
-      isSessionsDrawerOpen: t.isSessionsDrawerOpen === false ? true : false,
+      isSessionsDrawerOpen: !t.isSessionsDrawerOpen,
     }));
   }, [updateTab]);
 
@@ -1666,7 +1668,7 @@ export default function App() {
           onRemoveQueuedMessage={handleRemoveQueuedMessage}
           sessions={activeTab.sessions || []}
           activeSessionId={activeTab.activeSessionId}
-          isSessionsDrawerOpen={activeTab.isSessionsDrawerOpen ?? true}
+          isSessionsDrawerOpen={activeTab.isSessionsDrawerOpen ?? false}
           onToggleSessionsDrawer={() => handleToggleSessionsDrawer(activeTab.id)}
           onCreateSession={(title) => handleCreateSession(activeTab.id, title)}
           onSwitchSession={(sessionId) => handleSwitchSession(activeTab.id, sessionId)}
