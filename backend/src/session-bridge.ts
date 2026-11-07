@@ -8,6 +8,7 @@ import {
   type AgentSession,
   type MCPManager,
   type AuthStorage,
+  type SessionInfo,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { Model } from "../../pi-harness/packages/ai/src/index";
 import type { AgentSessionEvent } from "../../pi-harness/packages/coding-agent/src/session/agent-session-events";
@@ -63,6 +64,8 @@ export class SessionBridge {
   private session: AgentSession | null = null;
   private unsubscribe: (() => void) | null = null;
   private activeProjectPath: string | null = null;
+  private activeSessionId: string | null = null;
+  private activeSessionFile: string | null = null;
   private activeBranchName: string = "main";
   private activeModel: string = "gemini-3.8-flash";
   private isGenerating: boolean = false;
@@ -102,10 +105,15 @@ export class SessionBridge {
   getActiveTurns(): Record<string, unknown>[] {
     return this.activeTurns;
   }
+  getActiveSessionId(): string | null {
+    return this.activeSessionId;
+  }
+  getActiveSessionFile(): string | null {
+    return this.activeSessionFile;
+  }
   getCurrentMode(): "build" | "plan" {
     return this.currentMode;
   }
-
   async setMode(mode: "build" | "plan"): Promise<void> {
     if (this.currentMode === mode) return;
     this.currentMode = mode;
@@ -380,7 +388,9 @@ export class SessionBridge {
   }
 
   async resolveModel(modelName: string): Promise<Record<string, unknown> | undefined> {
-    if (!this.modelsService) return undefined;
+    if (!this.modelsService) {
+      return { id: modelName, provider: "default", canonical_id: modelName };
+    }
     const registry = await this.modelsService.getRegistry();
     const authStorage = await this.modelsService.getAuthStorage();
 
@@ -442,7 +452,7 @@ export class SessionBridge {
     return this.isGenerating;
   }
 
-  async openProject(projectPath: string, modelName?: string): Promise<void> {
+  async openProject(projectPath: string, modelName?: string, targetSessionId?: string): Promise<void> {
     const requestedModel = modelName || this.activeModel;
     const resolved = await this.resolveModel(requestedModel);
 
@@ -476,12 +486,28 @@ export class SessionBridge {
       this.activeProjectPath = projectPath;
       this.activeToolCalls.clear();
 
-      // Load branch state and persisted chat history for active branch
+      // Resolve sessionManager for specified targetSessionId, or continue recent session
+      let sessionManager: SessionManager;
+      if (targetSessionId) {
+        const sessions = await SessionManager.list(projectPath);
+        const match = sessions.find((s) => s.id === targetSessionId || s.path === targetSessionId);
+        if (match && fsSync.existsSync(match.path)) {
+          sessionManager = await SessionManager.open(match.path);
+        } else {
+          sessionManager = await SessionManager.continueRecent(projectPath);
+        }
+      } else {
+        sessionManager = await SessionManager.continueRecent(projectPath);
+      }
+      await sessionManager.ensureOnDisk().catch(() => {});
+      this.activeSessionId = sessionManager.getSessionId() || null;
+      this.activeSessionFile = sessionManager.getSessionFile() || null;
+      // Load branch state and persisted chat history for active branch and active session
       const branchState = await CheckpointManager.getBranches(projectPath).catch(() => null);
       if (branchState) {
         this.activeBranchName = branchState.active_branch || "main";
       }
-      const history = await ChatHistoryManager.loadHistory(projectPath, this.activeBranchName);
+      const history = await ChatHistoryManager.loadHistory(projectPath, this.activeBranchName, { sessionId: this.activeSessionId || undefined });
       this.activeTurns = [...history.ui_events];
       CheckpointManager.ensureGitRepo(projectPath).catch(() => {});
       CheckpointManager.getCheckpoints(projectPath).then((steps) => {
@@ -498,8 +524,7 @@ export class SessionBridge {
         const authStorage = this.modelsService ? await this.modelsService.getAuthStorage() : undefined;
         const modelRegistry = this.modelsService ? await this.modelsService.getRegistry() : undefined;
 
-        const sessionManager = await SessionManager.continueRecent(projectPath);
-
+        // sessionManager already initialized above
         // Subscribe to devServer events to keep the agent's prompt in sync with real ports
         if (this.devServerManager && !this.devServerUnsubscribe) {
           this.devServerUnsubscribe = this.devServerManager.onEvent((event) => {
@@ -545,6 +570,8 @@ export class SessionBridge {
           ],
         });
         this.session = session;
+        this.activeSessionId = session.sessionId || sessionManager.getSessionId() || null;
+        this.activeSessionFile = session.sessionFile || sessionManager.getSessionFile() || null;
         this.unsubscribe = session.subscribe(event => this.handleSessionEvent(event));
         this.mcpManager = mcpManager ?? null;
         if (this.currentMode === "plan") {
@@ -744,6 +771,7 @@ export class SessionBridge {
           ...this.getMcpStatus(),
         });
         this.broadcastQueueUpdate();
+        await this.broadcastSessionsList();
       } catch (err) {
         console.error(`[SessionBridge] Failed to create AgentSession:`, err);
         const errorMsg = err instanceof Error ? err.message : String(err);
@@ -880,9 +908,16 @@ export class SessionBridge {
     }
     this.activeTurns.push(userMsg);
     if (this.activeProjectPath) {
-      await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName);
+      await ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName, this.activeSessionId || undefined);
     }
 
+    // Auto-derive session name from first prompt if untitled
+    if (this.session && promptText.trim() && !this.session.sessionManager.getSessionName()) {
+      const autoTitle = promptText.trim().replace(/\s+/g, " ").slice(0, 45);
+      this.session.sessionManager.setSessionName(autoTitle, "auto").then(() => {
+        this.broadcastSessionsList().catch(() => {});
+      }).catch(() => {});
+    }
     this.send({
       type: "status",
       content: "Running",
@@ -944,7 +979,8 @@ export class SessionBridge {
           ChatHistoryManager.appendEvent(
             this.activeProjectPath,
             errorAssistantMsg,
-            this.activeBranchName
+            this.activeBranchName,
+            this.activeSessionId || undefined,
           ).catch(() => {});
         }
         this.send({
@@ -1076,7 +1112,7 @@ export class SessionBridge {
     this.pendingFollowUps = [];
     this.dispatchedPrompts.clear();
 
-    await ChatHistoryManager.recordResetBoundary(this.activeProjectPath, this.activeBranchName);
+    await ChatHistoryManager.recordResetBoundary(this.activeProjectPath, this.activeBranchName, this.activeSessionId || undefined);
 
     this.send({
       type: "session_cleared",
@@ -1099,11 +1135,11 @@ export class SessionBridge {
 
   async undoClear(): Promise<void> {
     if (!this.activeProjectPath) return;
-    const history = await ChatHistoryManager.loadHistory(this.activeProjectPath, this.activeBranchName, { raw: true });
+    const history = await ChatHistoryManager.loadHistory(this.activeProjectPath, this.activeBranchName, { raw: true, sessionId: this.activeSessionId || undefined });
     const lastBoundaryIdx = history.ui_events.findLastIndex((ev) => ev.type === "reset_boundary");
     if (lastBoundaryIdx >= 0) {
       history.ui_events.splice(lastBoundaryIdx, 1);
-      await ChatHistoryManager.saveHistory(this.activeProjectPath, history.ui_events, this.activeBranchName, { immediate: true });
+      await ChatHistoryManager.saveHistory(this.activeProjectPath, history.ui_events, this.activeBranchName, { immediate: true, sessionId: this.activeSessionId || undefined });
       this.activeTurns = [...history.ui_events];
       this.send({
         type: "chat_history_loaded",
@@ -1137,6 +1173,7 @@ export class SessionBridge {
         projectPath,
         stepId,
         rewindResult.targetStep.timestamp,
+        this.activeSessionId || undefined,
       );
       this.activeTurns = [...prunedEvents];
 
@@ -1360,7 +1397,7 @@ export class SessionBridge {
 
             this.activeTurns.push(userMsg);
             if (this.activeProjectPath) {
-              ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName).catch(() => {});
+              ChatHistoryManager.appendEvent(this.activeProjectPath, userMsg, this.activeBranchName, this.activeSessionId || undefined).catch(() => {});
             }
             this.send({
               type: "message",
@@ -1434,7 +1471,8 @@ export class SessionBridge {
               ChatHistoryManager.appendEvent(
                 this.activeProjectPath,
                 errorMsg,
-                this.activeBranchName
+                this.activeBranchName,
+                this.activeSessionId || undefined,
               ).catch(() => {});
             }
             this.send({
@@ -1471,7 +1509,7 @@ export class SessionBridge {
               };
               this.activeTurns.push(assistantMsg);
               if (this.activeProjectPath) {
-                ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg, this.activeBranchName).catch(() => {});
+                ChatHistoryManager.appendEvent(this.activeProjectPath, assistantMsg, this.activeBranchName, this.activeSessionId || undefined).catch(() => {});
               }
             }
           }
@@ -1492,7 +1530,7 @@ export class SessionBridge {
         };
         this.activeTurns.push(toolCallMsg);
         if (this.activeProjectPath) {
-          ChatHistoryManager.appendEvent(this.activeProjectPath, toolCallMsg, this.activeBranchName).catch(() => {});
+          ChatHistoryManager.appendEvent(this.activeProjectPath, toolCallMsg, this.activeBranchName, this.activeSessionId || undefined).catch(() => {});
         }
 
         this.send(toolCallMsg);
@@ -1553,7 +1591,7 @@ export class SessionBridge {
         };
         this.activeTurns.push(toolResultMsg);
         if (this.activeProjectPath) {
-          ChatHistoryManager.appendEvent(this.activeProjectPath, toolResultMsg, this.activeBranchName).catch(() => {});
+          ChatHistoryManager.appendEvent(this.activeProjectPath, toolResultMsg, this.activeBranchName, this.activeSessionId || undefined).catch(() => {});
         }
 
         this.send(toolResultMsg);
@@ -1758,7 +1796,7 @@ export class SessionBridge {
                 if (this.activeTurns.length > 0) {
                   const lastMsg = this.activeTurns[this.activeTurns.length - 1];
                   lastMsg.step_id = checkpoint.step_id;
-                  await ChatHistoryManager.saveHistory(this.activeProjectPath!, this.activeTurns, this.activeBranchName);
+                  await ChatHistoryManager.saveHistory(this.activeProjectPath!, this.activeTurns, this.activeBranchName, { sessionId: this.activeSessionId || undefined });
                   if (leafId) {
                     await CheckpointManager.updateBranchLeaf(this.activeProjectPath!, this.activeBranchName, leafId);
                   }
@@ -1998,5 +2036,210 @@ export class SessionBridge {
       usage_pct: usagePct,
       status: usagePct >= 80 ? "critical" : usagePct >= 70 ? "warning" : "normal",
     });
+  }
+
+  async listSessions(): Promise<SessionInfo[]> {
+    if (!this.activeProjectPath) return [];
+    const list = await SessionManager.list(this.activeProjectPath);
+    if (this.activeSessionId && !list.some((s) => s.id === this.activeSessionId)) {
+      list.unshift({
+        id: this.activeSessionId,
+        title: this.session?.sessionManager?.getSessionName() || "Untitled Session",
+        cwd: this.activeProjectPath,
+        created: new Date(),
+        modified: new Date(),
+        messageCount: this.activeTurns.length,
+        firstMessage: "",
+        allMessagesText: "",
+        size: 0,
+        path: this.activeSessionFile || "",
+      });
+    }
+    return list;
+  }
+  async broadcastSessionsList(): Promise<void> {
+    if (!this.activeProjectPath) return;
+    const sessions = await this.listSessions();
+    this.send({
+      type: "sessions_list",
+      project: this.activeProjectPath,
+      activeSessionId: this.activeSessionId,
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        title: s.title || (s.firstMessage && s.firstMessage !== "(no messages)" ? s.firstMessage.slice(0, 50) : "Untitled Session"),
+        created: s.created ? new Date(s.created).toISOString() : new Date().toISOString(),
+        modified: s.modified ? new Date(s.modified).toISOString() : new Date().toISOString(),
+        messageCount: s.messageCount || 0,
+        firstMessage: s.firstMessage || "",
+        path: s.path,
+      })),
+    });
+  }
+
+  async createSession(title?: string): Promise<{ session: { id: string; title: string; path: string } }> {
+    if (this.isGenerating) {
+      this.send({
+        type: "assistant_error",
+        error: "Agent busy",
+        message: "Cannot create a new session while the agent is running. Please stop the agent first.",
+      });
+      throw new Error("Agent busy");
+    }
+    if (!this.session || !this.activeProjectPath) {
+      throw new Error("No active project session");
+    }
+
+    await this.session.newSession();
+    this.activeSessionId = this.session.sessionId || null;
+    this.activeSessionFile = this.session.sessionFile || null;
+
+    if (title && title.trim()) {
+      await this.session.sessionManager.setSessionName(title.trim(), "user");
+    }
+
+    this.activeTurns = [];
+    this.activeToolCalls.clear();
+    this.pendingFollowUps = [];
+    this.dispatchedPrompts.clear();
+
+    if (this.activeSessionId) {
+      await ChatHistoryManager.saveHistory(
+        this.activeProjectPath,
+        [],
+        this.activeBranchName,
+        { immediate: true, sessionId: this.activeSessionId },
+      );
+    }
+
+    const sessionInfo = {
+      id: this.activeSessionId || "",
+      title: title?.trim() || "Untitled Session",
+      path: this.activeSessionFile || "",
+    };
+
+    this.send({
+      type: "session_created",
+      session: sessionInfo,
+    });
+    this.send({
+      type: "chat_history_loaded",
+      project: this.activeProjectPath,
+      sessionId: this.activeSessionId,
+      messages: [],
+    });
+    await this.broadcastSessionsList();
+    return { session: sessionInfo };
+  }
+
+  async switchSession(sessionIdOrPath: string): Promise<void> {
+    if (this.isGenerating) {
+      this.send({
+        type: "assistant_error",
+        error: "Agent busy",
+        message: "Cannot switch sessions while the agent is running. Please stop the agent first.",
+      });
+      return;
+    }
+    if (!this.session || !this.activeProjectPath) return;
+
+    let targetPath = sessionIdOrPath;
+    if (!sessionIdOrPath.endsWith(".jsonl")) {
+      const sessions = await SessionManager.list(this.activeProjectPath);
+      const match = sessions.find((s) => s.id === sessionIdOrPath || s.path === sessionIdOrPath);
+      if (!match) {
+        console.warn(`[SessionBridge] Session not found for switch: ${sessionIdOrPath}`);
+        return;
+      }
+      targetPath = match.path;
+    }
+
+    const switched = await this.session.switchSession(targetPath);
+    if (switched === false) {
+      console.warn(`[SessionBridge] Session switch cancelled by harness: ${targetPath}`);
+      return;
+    }
+
+    this.activeSessionId = this.session.sessionId || null;
+    this.activeSessionFile = this.session.sessionFile || null;
+    this.activeToolCalls.clear();
+    this.pendingFollowUps = [];
+    this.dispatchedPrompts.clear();
+
+    // Load turns for switched session
+    const history = await ChatHistoryManager.loadHistory(
+      this.activeProjectPath,
+      this.activeBranchName,
+      { sessionId: this.activeSessionId || undefined },
+    );
+    this.activeTurns = [...history.ui_events];
+
+    this.send({
+      type: "session_switched",
+      sessionId: this.activeSessionId,
+      messages: this.activeTurns,
+    });
+    this.send({
+      type: "chat_history_loaded",
+      project: this.activeProjectPath,
+      sessionId: this.activeSessionId,
+      messages: this.activeTurns,
+    });
+    this.emitContextTelemetry();
+    await this.broadcastSessionsList();
+  }
+
+  async deleteSession(sessionIdOrPath: string): Promise<void> {
+    if (this.isGenerating) {
+      this.send({
+        type: "assistant_error",
+        error: "Agent busy",
+        message: "Cannot delete a session while the agent is running. Please stop the agent first.",
+      });
+      return;
+    }
+    if (!this.activeProjectPath) return;
+
+    const sessions = await SessionManager.list(this.activeProjectPath);
+    const match = sessions.find((s) => s.id === sessionIdOrPath || s.path === sessionIdOrPath);
+    if (!match) return;
+
+    const isTargetActive = this.activeSessionId === match.id || this.activeSessionFile === match.path;
+    if (this.session) {
+      await this.session.sessionManager.dropSession(match.path).catch(() => {});
+    }
+    await ChatHistoryManager.deleteSessionHistory(this.activeProjectPath, match.id);
+
+    if (isTargetActive) {
+      const remaining = await SessionManager.list(this.activeProjectPath);
+      if (remaining.length > 0) {
+        await this.switchSession(remaining[0].path);
+      } else {
+        await this.createSession("New Session");
+      }
+    } else {
+      await this.broadcastSessionsList();
+    }
+
+    this.send({
+      type: "session_deleted",
+      deletedSessionId: match.id,
+      nextActiveSessionId: this.activeSessionId,
+    });
+  }
+
+  async renameSession(sessionIdOrPath: string, newTitle: string): Promise<void> {
+    if (!this.activeProjectPath || !newTitle.trim()) return;
+    const sessions = await SessionManager.list(this.activeProjectPath);
+    const match = sessions.find((s) => s.id === sessionIdOrPath || s.path === sessionIdOrPath);
+    if (!match) return;
+
+    if (this.session && (this.activeSessionId === match.id || this.activeSessionFile === match.path)) {
+      await this.session.sessionManager.setSessionName(newTitle.trim(), "user");
+    } else {
+      const tempSm = await SessionManager.open(match.path);
+      await tempSm.setSessionName(newTitle.trim(), "user");
+      await tempSm.flush();
+    }
+    await this.broadcastSessionsList();
   }
 }

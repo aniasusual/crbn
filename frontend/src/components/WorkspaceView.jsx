@@ -54,6 +54,14 @@ export default function WorkspaceView({
   onRefreshTab = null,
   queuedMessages = null,
   onRemoveQueuedMessage = null,
+  sessions = [],
+  activeSessionId = null,
+  isSessionsDrawerOpen = true,
+  onToggleSessionsDrawer = null,
+  onCreateSession = null,
+  onSwitchSession = null,
+  onDeleteSession = null,
+  onRenameSession = null,
 }) {
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
@@ -89,8 +97,8 @@ export default function WorkspaceView({
 
     // Account for the 16px padding on the left of the workspace
     let newWidth = e.clientX;
-    const minWidth = Math.max(300, window.innerWidth * 0.2);
-    const maxWidth = Math.min(window.innerWidth - 300, window.innerWidth * 0.8);
+    const minWidth = Math.max(360, window.innerWidth * 0.25);
+    const maxWidth = Math.min(window.innerWidth - 320, window.innerWidth * 0.8);
     if (newWidth < minWidth) newWidth = minWidth;
     if (newWidth > maxWidth) newWidth = maxWidth;
 
@@ -157,6 +165,14 @@ export default function WorkspaceView({
             onRefreshTab={onRefreshTab}
             queuedMessages={queuedMessages}
             onRemoveQueuedMessage={onRemoveQueuedMessage}
+            sessions={sessions}
+            activeSessionId={activeSessionId}
+            isSessionsDrawerOpen={isSessionsDrawerOpen}
+            onToggleSessionsDrawer={onToggleSessionsDrawer}
+            onCreateSession={onCreateSession}
+            onSwitchSession={onSwitchSession}
+            onDeleteSession={onDeleteSession}
+            onRenameSession={onRenameSession}
           />
         </div>
 

@@ -15,16 +15,19 @@ export interface ChatStoragePayload {
   ui_events: Record<string, unknown>[];
 }
 export class ChatHistoryManager {
-  static getChatFilePath(projectPath: string): string {
+  static getChatFilePath(projectPath: string, sessionId?: string): string {
+    if (sessionId) {
+      return path.join(projectPath, ".80degrees", "sessions_ui", `${sessionId}.json`);
+    }
     return path.join(projectPath, CHAT_FILENAME);
   }
 
   static async loadHistory(
     projectPath: string,
     branchName?: string,
-    options?: { raw?: boolean },
+    options?: { raw?: boolean; sessionId?: string },
   ): Promise<ChatStoragePayload> {
-    const filePath = this.getChatFilePath(projectPath);
+    const filePath = this.getChatFilePath(projectPath, options?.sessionId);
     const projectName = path.basename(projectPath);
     const now = new Date().toISOString();
 
@@ -42,7 +45,24 @@ export class ChatHistoryManager {
     }
 
     if (!fsSync.existsSync(filePath)) {
-      const recovered = await this.recoverFromSession(projectPath);
+      // If loading a specific session and its UI file doesn't exist yet,
+      // try recovering from the session's .jsonl transcript or fall back to legacy chat
+      let recovered: Record<string, unknown>[] = [];
+      if (options?.sessionId) {
+        recovered = await this.recoverFromSession(projectPath, options.sessionId);
+        if (recovered.length === 0) {
+          const legacyPath = this.getChatFilePath(projectPath);
+          if (fsSync.existsSync(legacyPath)) {
+            try {
+              const rawLegacy = await fs.readFile(legacyPath, "utf-8");
+              const parsedLegacy = JSON.parse(rawLegacy);
+              recovered = parsedLegacy.branches?.[branchName || "main"] || parsedLegacy.ui_events || [];
+            } catch {}
+          }
+        }
+      } else {
+        recovered = await this.recoverFromSession(projectPath);
+      }
       const payload: ChatStoragePayload = {
         version: 3,
         project_name: projectName,
@@ -55,11 +75,11 @@ export class ChatHistoryManager {
         ui_events: recovered,
       };
       if (recovered.length > 0) {
+        await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => {});
         await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf-8").catch(() => {});
       }
       return payload;
     }
-
     try {
       const raw = await fs.readFile(filePath, "utf-8");
       let data = JSON.parse(raw);
@@ -106,7 +126,7 @@ export class ChatHistoryManager {
         ui_events: branchEvents,
       };
     } catch {
-      const recovered = await this.recoverFromSession(projectPath);
+      const recovered = await this.recoverFromSession(projectPath, options?.sessionId);
       return {
         version: 3,
         project_name: projectName,
@@ -122,7 +142,7 @@ export class ChatHistoryManager {
   }
 
   private static writeDebounceTimers = new Map<string, Timer>();
-  private static pendingSaves = new Map<string, { payload: ChatStoragePayload; resolve: () => void }>();
+  private static pendingSaves = new Map<string, { payload: ChatStoragePayload; resolvers: Array<() => void> }>();
 
   static async flushPendingWrites(projectPath?: string): Promise<void> {
     if (projectPath) {
@@ -135,16 +155,18 @@ export class ChatHistoryManager {
       const pending = this.pendingSaves.get(filePath);
       if (pending) {
         this.pendingSaves.delete(filePath);
+        await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => {});
         await fs.writeFile(filePath, JSON.stringify(pending.payload), "utf-8").catch(() => {});
-        pending.resolve();
+        for (const res of pending.resolvers) res();
       }
     } else {
       for (const [filePath, timer] of this.writeDebounceTimers.entries()) {
         clearTimeout(timer);
         const pending = this.pendingSaves.get(filePath);
         if (pending) {
+          await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => {});
           await fs.writeFile(filePath, JSON.stringify(pending.payload), "utf-8").catch(() => {});
-          pending.resolve();
+          for (const res of pending.resolvers) res();
         }
       }
       this.writeDebounceTimers.clear();
@@ -156,9 +178,9 @@ export class ChatHistoryManager {
     projectPath: string,
     uiEvents: Record<string, unknown>[],
     branchName?: string,
-    options?: { immediate?: boolean },
+    options?: { immediate?: boolean; sessionId?: string },
   ): Promise<void> {
-    const filePath = this.getChatFilePath(projectPath);
+    const filePath = this.getChatFilePath(projectPath, options?.sessionId);
     const projectName = path.basename(projectPath);
     const now = new Date().toISOString();
 
@@ -192,8 +214,13 @@ export class ChatHistoryManager {
         clearTimeout(timer);
         this.writeDebounceTimers.delete(filePath);
       }
+      const pending = this.pendingSaves.get(filePath);
       this.pendingSaves.delete(filePath);
+      await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => {});
       await fs.writeFile(filePath, JSON.stringify(payload), "utf-8");
+      if (pending) {
+        for (const res of pending.resolvers) res();
+      }
       return;
     }
 
@@ -202,7 +229,9 @@ export class ChatHistoryManager {
     const existingTimer = this.writeDebounceTimers.get(filePath);
     clearTimeout(existingTimer);
 
-    this.pendingSaves.set(filePath, { payload, resolve });
+    const existingPending = this.pendingSaves.get(filePath);
+    const resolvers = existingPending ? [...existingPending.resolvers, resolve] : [resolve];
+    this.pendingSaves.set(filePath, { payload, resolvers });
 
     const newTimer = setTimeout(async () => {
       this.writeDebounceTimers.delete(filePath);
@@ -210,11 +239,12 @@ export class ChatHistoryManager {
       if (pending) {
         this.pendingSaves.delete(filePath);
         try {
+          await fs.mkdir(path.dirname(filePath), { recursive: true }).catch(() => {});
           await fs.writeFile(filePath, JSON.stringify(pending.payload), "utf-8");
         } catch {}
-        pending.resolve();
+        for (const res of pending.resolvers) res();
       }
-    }, 250);
+    }, 50);
 
     this.writeDebounceTimers.set(filePath, newTimer);
     return promise;
@@ -280,38 +310,49 @@ export class ChatHistoryManager {
     return clonedEvents;
   }
 
+  static async deleteSessionHistory(projectPath: string, sessionId: string): Promise<void> {
+    const filePath = this.getChatFilePath(projectPath, sessionId);
+    try {
+      if (fsSync.existsSync(filePath)) {
+        await fs.unlink(filePath);
+      }
+    } catch {}
+  }
+
   static async appendEvent(
     projectPath: string,
     event: Record<string, unknown>,
     branchName?: string,
+    sessionId?: string,
   ): Promise<void> {
-    const history = await this.loadHistory(projectPath, branchName, { raw: true });
+    const history = await this.loadHistory(projectPath, branchName, { raw: true, sessionId });
     const sanitized = this.sanitizeEventForStorage(event);
     history.ui_events.push(sanitized);
-    await this.saveHistory(projectPath, history.ui_events, branchName || history.active_branch || "main");
+    await this.saveHistory(projectPath, history.ui_events, branchName || history.active_branch || "main", { sessionId });
   }
 
-  static async recordResetBoundary(projectPath: string, branchName?: string): Promise<void> {
+  static async recordResetBoundary(projectPath: string, branchName?: string, sessionId?: string): Promise<void> {
     const boundaryEvent: Record<string, unknown> = {
       type: "reset_boundary",
       id: `reset_${Date.now()}`,
       timestamp: new Date().toISOString(),
     };
-    await this.appendEvent(projectPath, boundaryEvent, branchName);
-    const history = await this.loadHistory(projectPath, branchName, { raw: true });
-    await this.saveHistory(projectPath, history.ui_events, branchName, { immediate: true });
+    await this.appendEvent(projectPath, boundaryEvent, branchName, sessionId);
+    const history = await this.loadHistory(projectPath, branchName, { raw: true, sessionId });
+    await this.saveHistory(projectPath, history.ui_events, branchName, { immediate: true, sessionId });
   }
 
-  static async clearHistory(projectPath: string, branchName?: string): Promise<void> {
-    await this.recordResetBoundary(projectPath, branchName);
+  static async clearHistory(projectPath: string, branchName?: string, sessionId?: string): Promise<void> {
+    await this.recordResetBoundary(projectPath, branchName, sessionId);
   }
 
   static async pruneHistoryAfter(
     projectPath: string,
     targetStepId: string,
     targetTimestamp?: string,
+    sessionId?: string,
   ): Promise<Record<string, unknown>[]> {
-    const history = await this.loadHistory(projectPath, undefined, { raw: true });
+    const history = await this.loadHistory(projectPath, undefined, { raw: true, sessionId });
     const events = history.ui_events;
     // 1. Try finding by step_id
     let cutoffIndex = -1;
@@ -342,17 +383,30 @@ export class ChatHistoryManager {
       : cutoffIndex !== -1
       ? events.slice(0, cutoffIndex + 1)
       : events;
-
-    await this.saveHistory(projectPath, prunedEvents, history.active_branch);
     const lastBoundaryIdx = prunedEvents.findLastIndex((ev) => ev.type === "reset_boundary");
+    await this.saveHistory(projectPath, prunedEvents, history.active_branch, { sessionId });
     return lastBoundaryIdx >= 0 ? prunedEvents.slice(lastBoundaryIdx + 1) : prunedEvents;
   }
 
-  static async recoverFromSession(projectPath: string): Promise<Record<string, unknown>[]> {
+  static async recoverFromSession(projectPath: string, sessionIdOrPath?: string): Promise<Record<string, unknown>[]> {
     try {
-      const sm = await SessionManager.continueRecent(projectPath);
+      let sm: SessionManager;
+      if (sessionIdOrPath) {
+        if (fsSync.existsSync(sessionIdOrPath)) {
+          sm = await SessionManager.open(sessionIdOrPath);
+        } else {
+          const sessions = await SessionManager.list(projectPath);
+          const match = sessions.find((s) => s.id === sessionIdOrPath);
+          if (match && fsSync.existsSync(match.path)) {
+            sm = await SessionManager.open(match.path);
+          } else {
+            sm = await SessionManager.continueRecent(projectPath);
+          }
+        }
+      } else {
+        sm = await SessionManager.continueRecent(projectPath);
+      }
       const branch = sm.getBranch();
-      if (!branch || branch.length === 0) return [];
 
       const events: Record<string, unknown>[] = [];
       for (const entry of branch) {

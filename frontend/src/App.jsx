@@ -60,6 +60,8 @@ export default function App() {
         projectName: t.projectName,
         model: t.model,
         mode: t.mode || 'build',
+        activeSessionId: t.activeSessionId || null,
+        isSessionsDrawerOpen: t.isSessionsDrawerOpen ?? true,
         pendingPlanProposal: t.pendingPlanProposal || null,
       }));
       localStorage.setItem('80degrees_open_tabs', JSON.stringify(serialized));
@@ -146,7 +148,7 @@ export default function App() {
 
   // Connects a dedicated WebSocket for a specific tab
   const connectTabSocket = useCallback(
-    (tabId, projectName, modelName, initialPrompt, initialAttachments, initialMode = 'build', isRefresh = false) => {
+    (tabId, projectName, modelName, initialPrompt, initialAttachments, initialMode = 'build', isRefresh = false, targetSessionId = undefined) => {
       // Close existing socket for this tab if any
       const oldWs = socketsRef.current.get(tabId);
       if (oldWs) {
@@ -171,6 +173,7 @@ export default function App() {
             model: modelName,
             mode: initialMode,
             refresh: isRefresh,
+            sessionId: targetSessionId,
           })
         );
       };
@@ -437,6 +440,7 @@ export default function App() {
               return {
                 project: data.project,
                 model: data.project?.model || t.model,
+                activeSessionId: data.activeSessionId || t.activeSessionId,
                 previewData: port
                   ? {
                       port,
@@ -491,6 +495,40 @@ export default function App() {
             }
             return;
           }
+          if (data.type === 'sessions_list') {
+            updateTab(tabId, (t) => ({
+              sessions: Array.isArray(data.sessions) ? data.sessions : [],
+              activeSessionId: data.activeSessionId || t.activeSessionId || (data.sessions?.[0]?.id ?? null),
+            }));
+            return;
+          }
+
+          if (data.type === 'session_created') {
+            updateTab(tabId, (t) => ({
+              activeSessionId: data.session?.id || t.activeSessionId,
+              messages: [],
+              agentStatus: null,
+            }));
+            return;
+          }
+
+          if (data.type === 'session_switched') {
+            updateTab(tabId, (t) => ({
+              activeSessionId: data.sessionId,
+              agentStatus: null,
+            }));
+            return;
+          }
+
+          if (data.type === 'session_deleted') {
+            updateTab(tabId, (t) => ({
+              sessions: (t.sessions || []).filter((s) => s.id !== data.deletedSessionId),
+              activeSessionId: data.nextActiveSessionId || t.activeSessionId,
+              agentStatus: null,
+            }));
+            return;
+          }
+
 
           if (data.type === 'chat_history_loaded') {
             const rawEvents = Array.isArray(data.messages) ? data.messages : [];
@@ -1498,6 +1536,40 @@ export default function App() {
       ws.send(JSON.stringify({ action: 'reload_plugins' }));
     }
   }, [activeTabId]);
+  const handleCreateSession = useCallback((tabId, title) => {
+    const socket = socketsRef.current.get(tabId);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ action: 'create_session', title }));
+    }
+  }, []);
+
+  const handleSwitchSession = useCallback((tabId, sessionId) => {
+    const socket = socketsRef.current.get(tabId);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ action: 'switch_session', sessionId }));
+    }
+  }, []);
+
+  const handleDeleteSession = useCallback((tabId, sessionId) => {
+    const socket = socketsRef.current.get(tabId);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ action: 'delete_session', sessionId }));
+    }
+  }, []);
+
+  const handleRenameSession = useCallback((tabId, sessionId, title) => {
+    const socket = socketsRef.current.get(tabId);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ action: 'rename_session', sessionId, title }));
+    }
+  }, []);
+
+  const handleToggleSessionsDrawer = useCallback((tabId) => {
+    updateTab(tabId, (t) => ({
+      isSessionsDrawerOpen: t.isSessionsDrawerOpen === false ? true : false,
+    }));
+  }, [updateTab]);
+
 
   return (
     <div className="app-container">
@@ -1592,6 +1664,14 @@ export default function App() {
           onRefreshTab={() => handleRefreshTab(activeTab.id)}
           queuedMessages={activeTab.queuedMessages}
           onRemoveQueuedMessage={handleRemoveQueuedMessage}
+          sessions={activeTab.sessions || []}
+          activeSessionId={activeTab.activeSessionId}
+          isSessionsDrawerOpen={activeTab.isSessionsDrawerOpen ?? true}
+          onToggleSessionsDrawer={() => handleToggleSessionsDrawer(activeTab.id)}
+          onCreateSession={(title) => handleCreateSession(activeTab.id, title)}
+          onSwitchSession={(sessionId) => handleSwitchSession(activeTab.id, sessionId)}
+          onDeleteSession={(sessionId) => handleDeleteSession(activeTab.id, sessionId)}
+          onRenameSession={(sessionId, title) => handleRenameSession(activeTab.id, sessionId, title)}
         />
       )}
     </div>

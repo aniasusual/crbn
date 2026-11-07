@@ -15,7 +15,7 @@ import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL } from '../config';
 import './ChatPanel.css';
 import PlanProposalCard from './PlanProposalCard';
-
+import SessionsDrawer from './SessionsDrawer';
 const SendIcon = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="12" y1="19" x2="12" y2="5"></line>
@@ -247,12 +247,20 @@ export default function ChatPanel({
   onRefreshTab = null,
   queuedMessages = null,
   onRemoveQueuedMessage = null,
+  sessions = [],
+  activeSessionId = null,
+  isSessionsDrawerOpen = true,
+  onToggleSessionsDrawer = null,
+  onCreateSession = null,
+  onSwitchSession = null,
+  onDeleteSession = null,
+  onRenameSession = null,
 }) {
+  const textareaRef = useRef(null);
   const [isClearPopoverOpen, setIsClearPopoverOpen] = useState(false);
   const [undoToast, setUndoToast] = useState(null);
   const clearPopoverRef = useRef(null);
   const undoToastTimerRef = useRef(null);
-  const [localInput, setLocalInput] = useState('');
   const input = controlledInput !== undefined ? controlledInput : localInput;
   const setInput = onInputChange || setLocalInput;
   const [isQueueExpanded, setIsQueueExpanded] = useState(false);
@@ -612,77 +620,114 @@ export default function ChatPanel({
   const showLoader = isAgentRunning && !hasStreamingStarted;
 
   return (
-    <div className={`chat-panel ${mode === 'plan' ? 'chat-panel--plan-mode' : 'chat-panel--build-mode'}`}>
+    <div className={`chat-panel ${mode === 'plan' ? 'chat-panel--plan-mode' : 'chat-panel--build-mode'} ${isSessionsDrawerOpen ? 'chat-panel--drawer-open' : 'chat-panel--drawer-collapsed'}`}>
       <div className="chat-panel__mode-backdrop" aria-hidden="true" />
-      <div className="chat-panel__header">
-        <div className="chat-panel__header-left">
-          <span className="chat-panel__project-title">{projectName || _projectName || 'Workspace'}</span>
-        </div>
-        <div className="chat-panel__header-right">
-          <div className="chat-panel__clear-wrap" ref={clearPopoverRef}>
+      <SessionsDrawer
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        isOpen={isSessionsDrawerOpen}
+        onToggle={onToggleSessionsDrawer}
+        onCreateSession={onCreateSession}
+        onSwitchSession={onSwitchSession}
+        onDeleteSession={onDeleteSession}
+        onRenameSession={onRenameSession}
+        disabled={Boolean(isAgentRunning)}
+      />
+      <div className="chat-panel__content-area">
+        <div className="chat-panel__header">
+          <div className="chat-panel__header-left">
             <button
               type="button"
-              className={`chat-panel__clear-btn ${isClearPopoverOpen ? 'chat-panel__clear-btn--active' : ''}`}
-              onClick={() => setIsClearPopoverOpen((prev) => !prev)}
-              disabled={Boolean(isAgentRunning)}
-              title={
-                isAgentRunning
-                  ? "Cannot clear context while agent is generating"
-                  : "Clear conversation context in place — drops message history from model memory while keeping workspace files, checkpoints, and git branches intact."
-              }
-              aria-label="Clear conversation context"
-              aria-expanded={isClearPopoverOpen}
+              className={`chat-panel__sidebar-toggle-btn ${isSessionsDrawerOpen ? 'chat-panel__sidebar-toggle-btn--active' : ''}`}
+              onClick={onToggleSessionsDrawer}
+              title={isSessionsDrawerOpen ? 'Collapse sessions sidebar' : 'Show sessions sidebar'}
+              aria-label="Toggle sessions sidebar"
             >
-              <ClearIcon size={12} />
-              <span>Clear</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
             </button>
-            {isClearPopoverOpen && (
-              <div className="chat-panel__clear-popover">
-                <div className="chat-panel__clear-popover-title">Reset Conversation Context?</div>
-                <div className="chat-panel__clear-popover-desc">
-                  AI memory will be dropped. Your workspace files, git commits, and checkpoints remain safe.
-                </div>
-                <div className="chat-panel__clear-popover-actions">
-                  <button
-                    type="button"
-                    className="chat-panel__clear-popover-cancel"
-                    onClick={() => setIsClearPopoverOpen(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="chat-panel__clear-popover-confirm"
-                    onClick={handleExecuteClear}
-                  >
-                    Clear Context
-                  </button>
-                </div>
-              </div>
-            )}
+            <span className="chat-panel__project-title">{projectName || _projectName || 'Workspace'}</span>
           </div>
-          <button
-            type="button"
-            className={`chat-panel__search-toggle-btn ${isSearchOpen ? 'chat-panel__search-toggle-btn--active' : ''}`}
-            onClick={() => {
-              setIsSearchOpen((prev) => {
-                const next = !prev;
-                if (next) {
-                  setTimeout(() => {
-                    searchInputRef.current?.focus();
-                    searchInputRef.current?.select();
-                  }, 50);
-                } else {
-                  setSearchQuery('');
+          <div className="chat-panel__header-right">
+            <button
+              type="button"
+              className={`chat-panel__search-toggle-btn ${isSearchOpen ? 'chat-panel__search-toggle-btn--active' : ''}`}
+              onClick={() => {
+                setIsSearchOpen((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setTimeout(() => {
+                      searchInputRef.current?.focus();
+                      searchInputRef.current?.select();
+                    }, 50);
+                  } else {
+                    setSearchQuery('');
+                  }
+                  return next;
+                });
+              }}
+              title="Find in chat (Cmd+F)"
+              aria-label="Find in chat"
+            >
+              <SearchIcon size={12} />
+            </button>
+            <button
+              type="button"
+              className="chat-panel__header-new-session-btn"
+              onClick={() => onCreateSession?.()}
+              disabled={Boolean(isAgentRunning)}
+              title="Create a new conversation session in this project"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>New Session</span>
+            </button>
+            <div className="chat-panel__clear-wrap" ref={clearPopoverRef}>
+              <button
+                type="button"
+                className={`chat-panel__clear-btn ${isClearPopoverOpen ? 'chat-panel__clear-btn--active' : ''}`}
+                onClick={() => setIsClearPopoverOpen((prev) => !prev)}
+                disabled={Boolean(isAgentRunning)}
+                title={
+                  isAgentRunning
+                    ? "Cannot clear context while agent is generating"
+                    : "Clear conversation context in place — drops message history from model memory while keeping workspace files, checkpoints, and git branches intact."
                 }
-                return next;
-              });
-            }}
-            title="Find in chat (Cmd+F)"
-            aria-label="Find in chat"
-          >
-            <SearchIcon size={12} />
-          </button>
+                aria-label="Clear conversation context"
+                aria-expanded={isClearPopoverOpen}
+              >
+                <ClearIcon size={12} />
+                <span>Clear</span>
+              </button>
+              {isClearPopoverOpen && (
+                <div className="chat-panel__clear-popover">
+                  <div className="chat-panel__clear-popover-title">Reset Conversation Context?</div>
+                  <div className="chat-panel__clear-popover-desc">
+                    AI memory will be dropped. Your workspace files, git commits, and checkpoints remain safe.
+                  </div>
+                  <div className="chat-panel__clear-popover-actions">
+                    <button
+                      type="button"
+                      className="chat-panel__clear-popover-cancel"
+                      onClick={() => setIsClearPopoverOpen(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="chat-panel__clear-popover-confirm"
+                      onClick={handleExecuteClear}
+                    >
+                      Clear Context
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           <button
             type="button"
             className="chat-panel__gh-btn"
@@ -788,11 +833,48 @@ export default function ChatPanel({
             </button>
           </div>
         )}
-        {(() => {
-          const lastBoundaryIndex = allMessages.findLastIndex(
-            (m) => m.type === 'reset_boundary' || m.type === 'reset_divider'
-          );
-          return visibleMessages.map((msg, idx) => {
+        {visibleMessages.length === 0 ? (
+          <div className="chat-panel__empty-state">
+            <div className="chat-panel__empty-ambient-glow" aria-hidden="true" />
+            <div className="chat-panel__empty-sparkle">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+            </div>
+            <div className="chat-panel__empty-title">
+              What do you want to build?
+            </div>
+            <div className="chat-panel__empty-desc">
+              Ask questions, implement new features, or describe changes to start working in this session.
+            </div>
+            <div className="chat-panel__empty-suggestions">
+              {[
+                "Create a responsive hero section with CTA buttons",
+                "Set up user authentication and database schema",
+                "Inspect layout and polish UI styling",
+                "Debug current preview and fix errors",
+              ].map((promptText, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="chat-panel__empty-suggestion-pill"
+                  onClick={() => {
+                    setInput(promptText);
+                    textareaRef.current?.focus();
+                  }}
+                >
+                  <span className="chat-panel__empty-suggestion-arrow">↳</span>
+                  <span>{promptText}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          (() => {
+            const lastBoundaryIndex = allMessages.findLastIndex(
+              (m) => m.type === 'reset_boundary' || m.type === 'reset_divider'
+            );
+            return visibleMessages.map((msg, idx) => {
             const i = startIndex + idx;
             const isDivider = msg.type === 'reset_boundary' || msg.type === 'reset_divider';
             const isUser = !isDivider && isUserMessage(msg);
@@ -824,7 +906,7 @@ export default function ChatPanel({
               </div>
             );
           });
-        })()}
+        })())}
         {/* Loader in chat area when agent is working and response has not started streaming yet */}
         {showLoader && (
           <div className="chat-msg chat-msg--assistant chat-msg--loading-stream">
@@ -1165,6 +1247,7 @@ export default function ChatPanel({
           }`}
         >
           <textarea
+            ref={textareaRef}
             className="chat-panel__input"
             value={input}
             onChange={(e) => {
@@ -1396,6 +1479,7 @@ export default function ChatPanel({
         onReloadPlugins={onReloadPlugins}
       />
 
+      </div>
     </div>
   );
 }

@@ -1,0 +1,445 @@
+/* =========================================================
+   80degrees — Sessions Drawer Component Styles
+   Museum-Grade Studio Canvas, Precision Typography & Borderless Architecture
+   ========================================================= */
+
+.sessions-drawer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #000000;
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  overflow: hidden;
+  z-index: 5;
+  box-sizing: border-box;
+}
+
+.sessions-drawer--open {
+  width: 220px;
+}
+
+.sessions-drawer--collapsed {
+  width: 36px;
+}
+
+.sessions-drawer__content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 220px;
+  overflow: hidden;
+}
+
+/* Header */
+.sessions-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 44px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+.sessions-drawer__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sessions-drawer__title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+}
+
+.sessions-drawer__count {
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+  padding: 1px 5px;
+  line-height: 1.2;
+}
+
+.sessions-drawer__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Frosted glass pill button matching crbn design language */
+.sessions-drawer__new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 1.65rem;
+  padding: 0 0.6rem;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.72rem;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  user-select: none;
+}
+
+.sessions-drawer__new-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sessions-drawer__new-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sessions-drawer__toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sessions-drawer__toggle-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Filter Input */
+.sessions-drawer__filter-wrap {
+  position: relative;
+  margin: 8px 10px 4px 10px;
+  flex-shrink: 0;
+}
+
+.sessions-drawer__filter-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.sessions-drawer__filter-input {
+  width: 100%;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0 22px 0 24px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.sessions-drawer__filter-input:focus {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sessions-drawer__filter-clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Sessions List */
+.sessions-drawer__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sessions-drawer__list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sessions-drawer__list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+}
+
+.sessions-drawer__empty {
+  padding: 24px 12px;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Session Item */
+.sessions-drawer__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sessions-drawer__item:hover {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.sessions-drawer__item--active {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sessions-drawer__item--active::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 2px;
+}
+
+.sessions-drawer__item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.sessions-drawer__item-title {
+  font-size: 11.5px;
+  font-weight: 450;
+  color: rgba(255, 255, 255, 0.65);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  font-family: inherit;
+}
+
+.sessions-drawer__item--active .sessions-drawer__item-title {
+  color: #ffffff;
+  font-weight: 550;
+}
+
+.sessions-drawer__rename-input {
+  flex: 1;
+  height: 20px;
+  font-size: 11.5px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 0 5px;
+  outline: none;
+  font-family: inherit;
+}
+
+.sessions-drawer__item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sessions-drawer__item:hover .sessions-drawer__item-actions {
+  opacity: 1;
+}
+
+.sessions-drawer__action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.sessions-drawer__action-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sessions-drawer__action-btn--delete:hover {
+  color: #ff6666;
+  background: rgba(255, 80, 80, 0.1);
+}
+
+.sessions-drawer__item-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.sessions-drawer__item--active .sessions-drawer__item-meta {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.sessions-drawer__item-dot {
+  font-size: 7px;
+  opacity: 0.5;
+}
+
+/* Delete Confirmation */
+.sessions-drawer__delete-confirm {
+  margin-top: 6px;
+  padding: 6px 8px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  backdrop-filter: blur(12px);
+}
+
+.sessions-drawer__delete-confirm-text {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 450;
+}
+
+.sessions-drawer__delete-confirm-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.sessions-drawer__delete-cancel-btn {
+  font-size: 9px;
+  padding: 2px 7px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.sessions-drawer__delete-cancel-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sessions-drawer__delete-ok-btn {
+  font-size: 9px;
+  padding: 2px 7px;
+  background: rgba(255, 70, 70, 0.2);
+  border: 1px solid rgba(255, 70, 70, 0.4);
+  color: #ff8888;
+  border-radius: 3px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.sessions-drawer__delete-ok-btn:hover {
+  background: rgba(255, 70, 70, 0.35);
+  color: #ffffff;
+}
+
+/* Collapsed Mini Rail */
+.sessions-drawer__collapsed-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  gap: 8px;
+  width: 36px;
+}
+
+.sessions-drawer__expand-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sessions-drawer__expand-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sessions-drawer__collapsed-new-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sessions-drawer__collapsed-new-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.sessions-drawer__collapsed-new-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sessions-drawer__collapsed-badge {
+  font-size: 8.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  padding: 2px 4px;
+}

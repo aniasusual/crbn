@@ -1880,6 +1880,7 @@ const _server = Bun.serve<WsData>({
         try {
           if (action === "open_project") {
             const projectName = (data.name as string) || "default";
+            const targetSessionId = (data.sessionId || data.session_id) as string | undefined;
             const previousProject = ws.data.activeProjectName;
             ws.data.activeProjectName = projectName;
             activeBridges.set(projectName, bridge);
@@ -1931,7 +1932,7 @@ const _server = Bun.serve<WsData>({
               projectManager.saveMeta(project).catch(() => {});
             }
             // 2. Open project session (now devServerManager.getServerInfo has the real port & url)
-            await bridge.openProject(project.path, modelName);
+            await bridge.openProject(project.path, modelName, targetSessionId);
             if (data.mode === "plan") {
               await bridge.setMode("plan");
             }
@@ -1941,11 +1942,17 @@ const _server = Bun.serve<WsData>({
               projectManager.saveMeta(project).catch(() => {});
             }
 
-            ws.send(JSON.stringify({ type: "project_opened", project, mode: bridge.getCurrentMode() }));
+            ws.send(JSON.stringify({
+              type: "project_opened",
+              project,
+              mode: bridge.getCurrentMode(),
+              activeSessionId: bridge.getActiveSessionId(),
+            }));
             ws.send(
               JSON.stringify({
                 type: "chat_history_loaded",
                 project: project.name,
+                sessionId: bridge.getActiveSessionId(),
                 messages: bridge.getActiveTurns(),
               }),
             );
@@ -2001,6 +2008,76 @@ const _server = Bun.serve<WsData>({
           }
           return;
         }
+        if (action === "create_session") {
+          try {
+            await bridge.createSession(data.title as string | undefined);
+          } catch (err) {
+            console.error("[WebSocket] Failed to create session:", err);
+            ws.send(JSON.stringify({
+              type: "assistant_error",
+              error: "Create session failed",
+              message: `Failed to create session: ${err instanceof Error ? err.message : String(err)}`,
+            }));
+          }
+          return;
+        }
+
+        if (action === "switch_session") {
+          const targetSessionId = (data.sessionId || data.session_id) as string;
+          if (targetSessionId) {
+            try {
+              await bridge.switchSession(targetSessionId);
+            } catch (err) {
+              console.error("[WebSocket] Failed to switch session:", err);
+              ws.send(JSON.stringify({
+                type: "assistant_error",
+                error: "Switch session failed",
+                message: `Failed to switch session: ${err instanceof Error ? err.message : String(err)}`,
+              }));
+            }
+          }
+          return;
+        }
+
+        if (action === "delete_session") {
+          const targetSessionId = (data.sessionId || data.session_id) as string;
+          if (targetSessionId) {
+            try {
+              await bridge.deleteSession(targetSessionId);
+            } catch (err) {
+              console.error("[WebSocket] Failed to delete session:", err);
+              ws.send(JSON.stringify({
+                type: "assistant_error",
+                error: "Delete session failed",
+                message: `Failed to delete session: ${err instanceof Error ? err.message : String(err)}`,
+              }));
+            }
+          }
+          return;
+        }
+
+        if (action === "rename_session") {
+          const targetSessionId = (data.sessionId || data.session_id) as string;
+          const newTitle = (data.title || data.name) as string;
+          if (targetSessionId && newTitle) {
+            try {
+              await bridge.renameSession(targetSessionId, newTitle);
+            } catch (err) {
+              console.error("[WebSocket] Failed to rename session:", err);
+            }
+          }
+          return;
+        }
+
+        if (action === "list_sessions") {
+          try {
+            await bridge.broadcastSessionsList();
+          } catch (err) {
+            console.error("[WebSocket] Failed to list sessions:", err);
+          }
+          return;
+        }
+
 
         if (action === "undo_clear") {
           try {
