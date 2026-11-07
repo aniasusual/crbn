@@ -5,6 +5,7 @@ import * as path from "node:path";
 
 let serverProc: Subprocess | null = null;
 let testPort = 8991;
+let streamProjName = "";
 
 function findFreePort(): Promise<number> {
   const { promise, resolve, reject } = Promise.withResolvers<number>();
@@ -87,7 +88,7 @@ describe("Backend HTTP API", () => {
   });
 
   it("streams real-time project creation progress on POST /api/projects?stream=true", async () => {
-    const streamProjName = `test-stream-proj-${Date.now()}`;
+    streamProjName = `test-stream-proj-${Date.now()}`;
     const res = await fetch(`http://127.0.0.1:${testPort}/api/projects?stream=true`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,6 +114,33 @@ describe("Backend HTTP API", () => {
     expect(completeEvent).toBeDefined();
     expect(completeEvent.project.name).toBe(streamProjName);
     expect(completeEvent.project.template).toBe("node_react");
+  });
+
+  it("checks name availability on GET /api/projects/check-name", async () => {
+    const existingRes = await fetch(`http://127.0.0.1:${testPort}/api/projects/check-name?name=${streamProjName}`);
+    expect(existingRes.status).toBe(200);
+    const existingData = await existingRes.json();
+    expect(existingData.exists).toBe(true);
+
+    const uniqueRes = await fetch(`http://127.0.0.1:${testPort}/api/projects/check-name?name=unique-brand-new-${Date.now()}`);
+    expect(uniqueRes.status).toBe(200);
+    const uniqueData = await uniqueRes.json();
+    expect(uniqueData.exists).toBe(false);
+  });
+
+  it("rejects duplicate project names on POST /api/projects with HTTP 409", async () => {
+    const res = await fetch(`http://127.0.0.1:${testPort}/api/projects`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: streamProjName,
+        template: "node_react",
+      }),
+    });
+
+    expect(res.status).toBe(409);
+    const data = await res.json();
+    expect(data.detail).toContain("already exists");
   });
   it("responds to GET /api/system/git-status with structured status", async () => {
     const res = await fetch(`http://127.0.0.1:${testPort}/api/system/git-status`);

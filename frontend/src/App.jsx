@@ -885,19 +885,28 @@ export default function App() {
   const handleCreateProject = useCallback(
     async (prompt, projectName, attachments, initialMode = 'build', templateId = 'node_react') => {
       try {
+        const cleanName = (projectName || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
+        const existingTab = tabs.find((t) => t.projectName?.toLowerCase() === cleanName);
+        if (existingTab) {
+          setActiveTabId(existingTab.id);
+          setCurrentView('workspace');
+          alert(`A workspace named "${cleanName}" already exists.`);
+          return;
+        }
+
         setIsTransitioning(true);
         setCreationProgress({
           phase: 'scaffolding',
           message: 'Scaffolding project template...',
           percent: 20,
-          projectName,
+          projectName: cleanName,
         });
 
         const response = await fetch(`${API_BASE_URL}/api/projects?stream=true`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            name: projectName,
+            name: cleanName,
             template: templateId || 'node_react',
             model: globalDefaultModel,
           }),

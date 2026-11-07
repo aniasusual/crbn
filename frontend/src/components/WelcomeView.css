@@ -1225,6 +1225,21 @@
   background: rgba(0, 0, 0, 0.35);
 }
 
+.degrees-naming-field--error {
+  border: 1px solid rgba(244, 63, 94, 0.45) !important;
+  background: rgba(244, 63, 94, 0.08) !important;
+}
+
+.degrees-naming-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #fda4af;
+  margin-top: -10px;
+  padding: 0 4px;
+}
+
 .degrees-naming-icon {
   color: rgba(255, 255, 255, 0.4);
   display: flex;

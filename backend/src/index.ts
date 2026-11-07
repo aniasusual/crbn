@@ -636,6 +636,20 @@ const _server = Bun.serve<WsData>({
         { headers: CORS_HEADERS },
       );
     }
+    // Projects: Check Name Availability
+    if (url.pathname === "/api/projects/check-name" && req.method === "GET") {
+      const rawName = url.searchParams.get("name") || "";
+      try {
+        const sanitized = projectManager.validateName(rawName);
+        const exists = projectManager.projectExists(sanitized);
+        return Response.json({ exists, name: rawName, sanitized }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { exists: false, name: rawName, sanitized: "", error: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS }
+        );
+      }
+    }
     // Dev Server: Status
     if (url.pathname === "/api/dev-server/status" && req.method === "GET") {
       const projectName = url.searchParams.get("project") || url.searchParams.get("name");
@@ -669,12 +683,27 @@ const _server = Bun.serve<WsData>({
       const isStream = url.searchParams.get("stream") === "true";
       try {
         const body = (await req.json()) as { name?: string; template?: string; model?: string };
-        if (!body.name) {
+        if (!body.name || !body.name.trim()) {
           return Response.json({ detail: "Project name is required" }, { status: 400, headers: CORS_HEADERS });
+        }
+        let validatedName: string;
+        try {
+          validatedName = projectManager.validateName(body.name);
+        } catch (e) {
+          return Response.json(
+            { detail: e instanceof Error ? e.message : "Invalid project name" },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+        if (projectManager.projectExists(validatedName)) {
+          return Response.json(
+            { detail: `A project named "${validatedName}" already exists. Duplicate project names are not allowed.` },
+            { status: 409, headers: CORS_HEADERS }
+          );
         }
 
         if (!isStream) {
-          const project = await projectManager.createProject(body.name, body.template || "node_react", body.model);
+          const project = await projectManager.createProject(validatedName, body.template || "node_react", body.model);
           return Response.json(project, { headers: CORS_HEADERS });
         }
 

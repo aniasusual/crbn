@@ -695,14 +695,21 @@ export class GithubService {
       .replace(/[^a-z0-9_-]/g, "-")
       .replace(/-+/g, "-");
 
-    // Determine target directory name (deduplicate so every prompt creates a fresh workspace)
-    let finalProjectName = candidateName;
-    let targetDir = path.join(this.projectManager.root, finalProjectName);
-    let counter = 2;
-    while (fsSync.existsSync(targetDir)) {
-      finalProjectName = `${candidateName}-${counter}`;
-      targetDir = path.join(this.projectManager.root, finalProjectName);
-      counter++;
+    // If repository already exists in projects, reuse existing workspace instead of duplicating
+    const finalProjectName = candidateName;
+    const targetDir = path.join(this.projectManager.root, finalProjectName);
+    if (fsSync.existsSync(targetDir)) {
+      console.log(`[GithubService] Repository ${effectiveFullName} already exists at ${targetDir}. Reusing existing project.`);
+      try {
+        const existingProject = await this.projectManager.getProject(finalProjectName);
+        if (model) {
+          existingProject.model = model;
+          await this.projectManager.saveMeta(existingProject);
+        }
+        return existingProject;
+      } catch (err) {
+        throw new Error(`A project named "${finalProjectName}" already exists.`);
+      }
     }
     console.log(`[GithubService] Cloning ${effectiveFullName} into ${targetDir}...`);
 

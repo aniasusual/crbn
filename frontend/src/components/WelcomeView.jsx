@@ -356,6 +356,29 @@ export default function WelcomeView({
     }
   };
 
+  const sanitizeProjectName = useCallback((name) => {
+    return (name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '-')
+      .replace(/-+/g, '-');
+  }, []);
+
+  const nameValidationError = useMemo(() => {
+    if (!projectName.trim()) return null;
+    const sanitized = sanitizeProjectName(projectName);
+    if (!sanitized) {
+      return 'Project name must contain valid alphanumeric characters or hyphens.';
+    }
+    const alreadyExists = projects.some(
+      (p) => sanitizeProjectName(p.name) === sanitized
+    );
+    if (alreadyExists) {
+      return `A workspace named "${sanitized}" already exists. Duplicate names are not allowed.`;
+    }
+    return null;
+  }, [projectName, projects, sanitizeProjectName]);
+
   // Fetch GitHub connection status
   const fetchGithubStatus = async () => {
     try {
@@ -651,11 +674,23 @@ export default function WelcomeView({
         const data = await response.json();
         setProjectName(data.suggested_name || 'app');
       } else {
-        setProjectName('app');
+        let candidate = 'app';
+        let counter = 2;
+        while (projects.some((p) => sanitizeProjectName(p.name) === candidate)) {
+          candidate = `app-${counter}`;
+          counter++;
+        }
+        setProjectName(candidate);
       }
     } catch (err) {
       console.error('Failed to get suggested name', err);
-      setProjectName('app');
+      let candidate = 'app';
+      let counter = 2;
+      while (projects.some((p) => sanitizeProjectName(p.name) === candidate)) {
+        candidate = `app-${counter}`;
+        counter++;
+      }
+      setProjectName(candidate);
     } finally {
       setIsGeneratingName(false);
     }
@@ -663,7 +698,8 @@ export default function WelcomeView({
 
   const handleFinalSubmit = (e) => {
     e.preventDefault();
-    if (!projectName.trim()) return;
+    const sanitized = sanitizeProjectName(projectName);
+    if (!sanitized || nameValidationError) return;
 
     const images = attachments
       .filter((a) => a.type === 'image')
@@ -680,7 +716,7 @@ export default function WelcomeView({
     const files = attachments
       .filter((a) => a.type === 'file')
       .map((a) => ({ name: a.name, data: a.data, content: a.content, size: a.size, mimeType: a.mimeType }));
-    onSubmit(prompt, projectName.trim(), { images, videos, files }, welcomeMode, selectedTemplate);
+    onSubmit(prompt, sanitized, { images, videos, files }, welcomeMode, selectedTemplate);
     clearAttachments();
   };
 
@@ -1435,7 +1471,7 @@ export default function WelcomeView({
 
               <form className="degrees-welcome__form degrees-naming-form" onSubmit={handleFinalSubmit}>
                 <div className="degrees-naming-console">
-                  <div className="degrees-naming-field">
+                  <div className={`degrees-naming-field ${nameValidationError ? 'degrees-naming-field--error' : ''}`}>
                     <span className="degrees-naming-icon">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
@@ -1456,6 +1492,17 @@ export default function WelcomeView({
                     )}
                   </div>
 
+                  {nameValidationError && (
+                    <div className="degrees-naming-error-msg" role="alert">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="8" x2="12" y2="12" />
+                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                      </svg>
+                      <span>{nameValidationError}</span>
+                    </div>
+                  )}
+
                   <div className="degrees-naming-actions">
                     <button
                       type="button"
@@ -1468,7 +1515,7 @@ export default function WelcomeView({
                     <button
                       type="submit"
                       className="degrees-cta-btn"
-                      disabled={isGeneratingName || !projectName.trim() || isTransitioning}
+                      disabled={isGeneratingName || !projectName.trim() || Boolean(nameValidationError) || isTransitioning}
                     >
                       <span>Create Workspace</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
