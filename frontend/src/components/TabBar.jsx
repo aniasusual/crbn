@@ -227,7 +227,7 @@ export default function TabBar({
         <div className="tab-bar__tabs-scroll">
           {tabs.map((tab) => {
             const isActive = !isHomeActive && tab.id === activeTabId;
-            const isGenerating = tab.agentStatus === 'generating';
+            const isGenerating = tab.agentStatus === 'generating' || tab.agentStatus === 'retrying';
             const isAwaiting = tab.agentStatus === 'awaiting_human';
 
             return (

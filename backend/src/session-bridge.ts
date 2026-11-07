@@ -872,7 +872,11 @@ export class SessionBridge {
       content: "Running",
       timestamp: now,
     });
-
+    this.send({
+      type: "agent_status",
+      status: "generating",
+      timestamp: now,
+    });
     const promptToSend = fullPromptText || "Analyze the attached media and proceed.";
     this.dispatchedPrompts.add(promptToSend.trim());
     try {
@@ -882,6 +886,13 @@ export class SessionBridge {
     } catch (err) {
       if (!this.wasStoppedByUser) {
         this.turnHadError = true;
+        this.pendingFollowUps = [];
+        if (this.session) {
+          try {
+            this.session.clearQueue({ forInterrupt: false });
+          } catch {}
+        }
+        this.broadcastQueueUpdate();
         const errText = err instanceof Error ? err.message : String(err);
         let friendlyNotice = errText;
         if (
@@ -931,9 +942,15 @@ export class SessionBridge {
           content: `Error: ${errText}`,
           timestamp: errorAssistantMsg.timestamp,
         });
+        this.send({
+          type: "agent_status",
+          status: "error",
+          timestamp: errorAssistantMsg.timestamp,
+        });
       }
     } finally {
       this.isGenerating = false;
+      this.broadcastQueueUpdate();
       telemetry.track("agent_turn_completed", {
         duration_ms: Date.now() - promptStartTime,
         had_error: this.turnHadError,
@@ -965,16 +982,25 @@ export class SessionBridge {
       req.reject(new Error("Agent execution stopped by user."));
     }
     this.pendingUiRequests.clear();
+    this.pendingFollowUps = [];
 
     if (this.session) {
       this.wasStoppedByUser = true;
       this.isGenerating = false;
+      try {
+        this.session.clearQueue({ forInterrupt: true });
+      } catch {}
+      this.broadcastQueueUpdate();
       telemetry.track("agent_stopped_by_user", {
         model: this.activeModel?.name || this.activeModel?.id || "default",
       });
       this.send({
         type: "status",
         content: "Stopped: Agent execution stopped by user.",
+      });
+      this.send({
+        type: "agent_status",
+        status: "idle",
       });
       await this.session.abort({ reason: USER_INTERRUPT_LABEL }).catch(() => {});
     }
@@ -1595,10 +1621,51 @@ export class SessionBridge {
         break;
       }
 
+      case "auto_retry_start": {
+        this.isGenerating = true;
+        this.turnHadError = false;
+        const attempt = "attempt" in event && typeof event.attempt === "number" ? event.attempt : 1;
+        const maxAttempts = "maxAttempts" in event && typeof event.maxAttempts === "number" ? event.maxAttempts : 3;
+        this.send({
+          type: "status",
+          content: `Retrying (${attempt}/${maxAttempts})...`,
+          timestamp,
+        });
+        this.send({
+          type: "agent_status",
+          status: "retrying",
+          attempt,
+          maxAttempts,
+          timestamp,
+        });
+        break;
+      }
+
+      case "auto_retry_end": {
+        const isSuccess = !("success" in event) || Boolean(event.success);
+        if (isSuccess) {
+          this.isGenerating = true;
+          this.turnHadError = false;
+          this.send({
+            type: "status",
+            content: "Running",
+            timestamp,
+          });
+          this.send({
+            type: "agent_status",
+            status: "generating",
+            timestamp,
+          });
+        } else {
+          this.turnHadError = true;
+        }
+        break;
+      }
+
       case "agent_end": {
         const wasStopped = this.wasStoppedByUser;
         const hadError = this.turnHadError;
-        const isTerminal = (event as { isTerminal?: boolean }).isTerminal !== false;
+        const isTerminal = !("isTerminal" in event) || event.isTerminal !== false;
 
         if (!isTerminal && !wasStopped) {
           console.log("[SessionBridge] Agent turn ended with queued continuation, continuing...");
@@ -1610,17 +1677,51 @@ export class SessionBridge {
         this.turnHadError = false;
         this.isGenerating = false;
         if (wasStopped) {
+          this.pendingFollowUps = [];
+          if (this.session) {
+            try {
+              this.session.clearQueue({ forInterrupt: true });
+            } catch {}
+          }
+          this.broadcastQueueUpdate();
           this.send({
             type: "status",
             content: "Stopped: Agent execution stopped by user.",
             timestamp,
           });
+          this.send({
+            type: "agent_status",
+            status: "idle",
+            timestamp,
+          });
         } else if (hadError) {
-          console.log("[SessionBridge] Agent turn ended with error, skipping 'Done' status");
+          console.log("[SessionBridge] Agent turn ended with error, clearing queues and sending error status");
+          this.pendingFollowUps = [];
+          if (this.session) {
+            try {
+              this.session.clearQueue({ forInterrupt: false });
+            } catch {}
+          }
+          this.broadcastQueueUpdate();
+          this.send({
+            type: "status",
+            content: "Error: Agent execution encountered an error.",
+            timestamp,
+          });
+          this.send({
+            type: "agent_status",
+            status: "error",
+            timestamp,
+          });
         } else {
           this.send({
             type: "status",
             content: "Done",
+            timestamp,
+          });
+          this.send({
+            type: "agent_status",
+            status: "done",
             timestamp,
           });
         }

@@ -1796,9 +1796,11 @@ const _server = Bun.serve<WsData>({
         }
         return;
       }
+      const hasContent = Boolean(data.prompt || data.images || data.videos || data.files);
       if (
-        action === "queue_message" ||
-        ((action === "prompt" || !action) && (data.prompt || data.images || data.videos || data.files) && bridge.isRunning)
+        (action === "queue_message" || action === "prompt" || !action) &&
+        hasContent &&
+        bridge.isRunning
       ) {
         const promptText = (data.prompt as string)?.trim() || "";
         const rawImages = Array.isArray(data.images) ? (data.images as unknown[]) : [];
