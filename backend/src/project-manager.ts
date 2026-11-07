@@ -125,11 +125,20 @@ export class ProjectManager {
   setDevServerManager(manager: DevServerManager): void {
     this.devServerManager = manager;
   }
-  private validateName(name: string): string {
-    const cleaned = name.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-");
+  validateName(name: string): string {
+    const cleaned = (name || "").trim().toLowerCase().replace(/[^a-z0-9_-]/g, "-").replace(/-+/g, "-");
     if (!cleaned) throw new Error("Invalid project name");
     if (cleaned.length > 50) return cleaned.slice(0, 50);
     return cleaned;
+  }
+
+  projectExists(name: string): boolean {
+    try {
+      const validatedName = this.validateName(name);
+      return fsSync.existsSync(path.join(this.root, validatedName));
+    } catch {
+      return false;
+    }
   }
 
   suggestName(basePrompt: string = "app"): string {
