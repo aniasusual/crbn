@@ -1,8 +1,14 @@
 node_modules/
 .DS_Store
 dist/
-.env.local
-.env.*.local
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+.dev.vars
+.dev.vars.*
+*.env
 *.log
 
 # Electron packaging output

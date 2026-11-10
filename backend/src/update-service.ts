@@ -283,6 +283,52 @@ export class UpdateService {
   async applyUpdate(): Promise<UpdateApplyResult> {
     return await this.startUpdate();
   }
+  private extractPackage(archivePath: string, destDir: string, targetOs: string, ext: string): void {
+    if (targetOs === "win") {
+      // 1. Try Windows native PowerShell Expand-Archive (built into all modern Windows versions)
+      try {
+        const escapedArchive = archivePath.replace(/'/g, "''");
+        const escapedDest = destDir.replace(/'/g, "''");
+        execSync(
+          `powershell -NoProfile -NonInteractive -Command "Expand-Archive -LiteralPath '${escapedArchive}' -DestinationPath '${escapedDest}' -Force"`,
+          { stdio: "pipe" }
+        );
+        return;
+      } catch (psErr) {
+        console.warn("[UpdateService] PowerShell Expand-Archive failed, trying tar fallback:", psErr);
+      }
+
+      // 2. Fallback to Windows 10+ native bsdtar (System32/tar.exe extracts .zip natively)
+      try {
+        execSync(`tar -xf "${archivePath}" -C "${destDir}"`, { stdio: "pipe" });
+        return;
+      } catch (tarErr) {
+        console.warn("[UpdateService] Windows tar fallback failed, trying unzip fallback:", tarErr);
+      }
+
+      // 3. Fallback to unzip if present (e.g. MinGit / Git Bash)
+      execSync(`unzip -q -o "${archivePath}" -d "${destDir}"`, { stdio: "pipe" });
+    } else if (targetOs === "mac") {
+      // macOS: ditto preserves file metadata, code signatures, resource forks, and symlinks
+      try {
+        execSync(`ditto -xk "${archivePath}" "${destDir}"`, { stdio: "pipe" });
+      } catch {
+        execSync(`unzip -q -o "${archivePath}" -d "${destDir}"`, { stdio: "pipe" });
+      }
+    } else {
+      // Linux
+      if (ext === "zip") {
+        try {
+          execSync(`unzip -q -o "${archivePath}" -d "${destDir}"`, { stdio: "pipe" });
+        } catch {
+          execSync(`tar -xf "${archivePath}" -C "${destDir}"`, { stdio: "pipe" });
+        }
+      } else {
+        execSync(`tar -xzf "${archivePath}" -C "${destDir}"`, { stdio: "pipe" });
+      }
+    }
+  }
+
 
   private async runUpdateJob(check: UpdateCheckResult): Promise<void> {
     const { targetOs, arch, ext } = this.getPlatformArch();
@@ -327,7 +373,14 @@ export class UpdateService {
           this.notifyListeners();
         }
       }
+      // Ensure write stream is completely flushed and closed on disk before extraction
+      const { promise: flushPromise, resolve: resolveFlush, reject: rejectFlush } = Promise.withResolvers<void>();
+      fileStream.on("finish", () => {
+        fileStream.close(() => resolveFlush());
+      });
+      fileStream.on("error", rejectFlush);
       fileStream.end();
+      await flushPromise;
 
       console.log(`[UpdateService] Extracting update package...`);
       this.status = {
@@ -338,12 +391,7 @@ export class UpdateService {
       };
       this.notifyListeners();
 
-      if (targetOs === "mac" || (targetOs === "win" && ext === "zip")) {
-        execSync(`unzip -q "${zipPath}" -d "${extractDir}"`);
-      } else {
-        execSync(`tar -xzf "${zipPath}" -C "${extractDir}"`);
-      }
-
+      this.extractPackage(zipPath, extractDir, targetOs, ext);
       this.status = {
         ...this.status,
         state: "installing",
@@ -417,6 +465,15 @@ export class UpdateService {
           }
           execSync(`powershell -NoProfile -Command "Get-ChildItem -Path '${extractDir}' -Recurse | Unblock-File" 2>nul || true`);
 
+          let sourceDir = extractDir;
+          if (!fs.existsSync(path.join(sourceDir, `${this.appName}.exe`))) {
+            const entries = fs.readdirSync(extractDir, { withFileTypes: true });
+            const sub = entries.find((e) => e.isDirectory() && fs.existsSync(path.join(extractDir, e.name, `${this.appName}.exe`)));
+            if (sub) {
+              sourceDir = path.join(extractDir, sub.name);
+            }
+          }
+
           if (fs.existsSync(installDir)) {
             const backupDir = `${installDir}.bak.${Date.now()}`;
             try {
@@ -424,7 +481,57 @@ export class UpdateService {
             } catch {}
           }
           fs.mkdirSync(installDir, { recursive: true });
-          fs.cpSync(extractDir, installDir, { recursive: true });
+          fs.cpSync(sourceDir, installDir, { recursive: true });
+        }
+      } else if (targetOs === "linux") {
+        const isPackaged = Boolean(process.env.RESOURCES_PATH && !process.env.RESOURCES_PATH.includes("node_modules"));
+        if (!isPackaged) {
+          console.log(`[UpdateService] Running in development mode (source build). Verified update package extracted cleanly.`);
+        } else {
+          if (process.env.APPIMAGE && fs.existsSync(process.env.APPIMAGE)) {
+            const currentAppImage = process.env.APPIMAGE;
+            const entries = fs.readdirSync(extractDir, { withFileTypes: true });
+            const appImageFile = entries.find((e) => e.name.endsWith(".AppImage"));
+            if (appImageFile) {
+              const srcAppImage = path.join(extractDir, appImageFile.name);
+              fs.chmodSync(srcAppImage, 0o755);
+              fs.copyFileSync(srcAppImage, currentAppImage);
+              fs.chmodSync(currentAppImage, 0o755);
+            }
+          } else {
+            let installDir = path.join(os.homedir(), ".local", "share", this.appName);
+            if (process.env.RESOURCES_PATH) {
+              try {
+                const candidateDir = path.resolve(process.env.RESOURCES_PATH, "..");
+                if (fs.existsSync(path.join(candidateDir, this.appName)) && !candidateDir.includes("node_modules")) {
+                  installDir = candidateDir;
+                }
+              } catch {}
+            }
+
+            let sourceDir = extractDir;
+            if (!fs.existsSync(path.join(sourceDir, this.appName))) {
+              const entries = fs.readdirSync(extractDir, { withFileTypes: true });
+              const sub = entries.find((e) => e.isDirectory() && fs.existsSync(path.join(extractDir, e.name, this.appName)));
+              if (sub) {
+                sourceDir = path.join(extractDir, sub.name);
+              }
+            }
+
+            if (fs.existsSync(installDir)) {
+              const backupDir = `${installDir}.bak.${Date.now()}`;
+              try {
+                fs.renameSync(installDir, backupDir);
+              } catch {}
+            }
+            fs.mkdirSync(installDir, { recursive: true });
+            fs.cpSync(sourceDir, installDir, { recursive: true });
+
+            const binaryPath = path.join(installDir, this.appName);
+            if (fs.existsSync(binaryPath)) {
+              fs.chmodSync(binaryPath, 0o755);
+            }
+          }
         }
       }
       this.status = {
