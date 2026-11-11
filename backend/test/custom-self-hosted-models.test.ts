@@ -221,30 +221,31 @@ describe("Self-hosted and custom models integration", () => {
     // Regression check: verify SessionBridge.resolveModel resolves keyless omniroute model (not auth_required)
     const wsProjectDir = path.join(tempRoot, "proj-keyless");
     await fs.mkdir(wsProjectDir, { recursive: true });
-    const checkProc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        `
-        import { ModelsService } from "./src/models-service.ts";
-        import { SessionBridge } from "./src/session-bridge.ts";
-        const ms = new ModelsService();
-        const bridge = new SessionBridge(() => {}, ms);
-        const resolved = await bridge.resolveModel("omniroute/qwen2.5-coder-32b");
-        console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, baseUrl: resolved?.baseUrl, contextWindow: resolved?.contextWindow }));
-        `,
-      ],
-      {
-        cwd: path.resolve(__dirname, ".."),
-        env: {
-          ...(process.env as Record<string, string>),
-          HOME: tempRoot,
-          PI_CODING_AGENT_DIR: tempAgentDir,
-        },
-        stdout: "pipe",
-        stderr: "pipe",
-      },
+    const scriptFile = path.join(tempRoot, "check-keyless.ts");
+    const backendDir = path.resolve(__dirname, "..");
+    const modelsServiceFile = path.join(backendDir, "src/models-service.ts").replace(/\\/g, "/");
+    const sessionBridgeFile = path.join(backendDir, "src/session-bridge.ts").replace(/\\/g, "/");
+    await fs.writeFile(
+      scriptFile,
+      `import { ModelsService } from ${JSON.stringify(modelsServiceFile)};
+import { SessionBridge } from ${JSON.stringify(sessionBridgeFile)};
+const ms = new ModelsService();
+const bridge = new SessionBridge(() => {}, ms);
+const resolved = await bridge.resolveModel("omniroute/qwen2.5-coder-32b");
+console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, baseUrl: resolved?.baseUrl, contextWindow: resolved?.contextWindow }));
+`
     );
+    const checkProc = Bun.spawn(["bun", scriptFile], {
+      cwd: path.resolve(__dirname, ".."),
+      env: {
+        ...(process.env as Record<string, string>),
+        HOME: tempRoot,
+        USERPROFILE: tempRoot,
+        PI_CODING_AGENT_DIR: tempAgentDir,
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const out = await new Response(checkProc.stdout).text();
     const code = await checkProc.exited;
     expect(code).toBe(0);
@@ -528,47 +529,48 @@ describe("Self-hosted and custom models integration", () => {
     const wsProj = path.join(tempRoot, "hot-reload-proj");
     await fs.mkdir(wsProj, { recursive: true });
 
-    const checkProc = Bun.spawn(
-      [
-        "bun",
-        "-e",
-        `
-        import { ModelsService } from "./src/models-service.ts";
-        import { SessionBridge } from "./src/session-bridge.ts";
-        const ms = new ModelsService();
-        await ms.saveCustomProvider({
-          name: "Hot",
-          baseUrl: "http://127.0.0.1:19001/v1",
-          format: "openai",
-          modelId: "hot-model",
-        });
-        const bridge = new SessionBridge(() => {}, ms);
-        await bridge.openProject(${JSON.stringify(wsProj)}, "custom-hot/hot-model");
-        const beforeUrl = bridge["session"]?.model?.baseUrl;
-        await ms.saveCustomProvider({
-          provider: "custom-hot",
-          isEdit: true,
-          baseUrl: "http://127.0.0.1:19002/v1",
-          format: "openai",
-          modelId: "hot-model",
-        });
-        await bridge.refreshProviderIfActive("custom-hot");
-        const afterUrl = bridge["session"]?.model?.baseUrl;
-        await bridge.dispose();
-        console.log("HOT_RELOAD_RESULT:" + JSON.stringify({ beforeUrl, afterUrl }));
-        `,
-      ],
-      {
-        cwd: path.resolve(__dirname, ".."),
-        env: {
-          ...(process.env as Record<string, string>),
-          HOME: tempRoot,
-          PI_CODING_AGENT_DIR: tempAgentDir,
-        },
-        stdout: "pipe",
-        stderr: "pipe",
-      },
+    const hotReloadScript = path.join(tempRoot, "check-hot-reload.ts");
+    const backendDir = path.resolve(__dirname, "..");
+    const modelsServiceFile = path.join(backendDir, "src/models-service.ts").replace(/\\/g, "/");
+    const sessionBridgeFile = path.join(backendDir, "src/session-bridge.ts").replace(/\\/g, "/");
+    await fs.writeFile(
+      hotReloadScript,
+      `import { ModelsService } from ${JSON.stringify(modelsServiceFile)};
+import { SessionBridge } from ${JSON.stringify(sessionBridgeFile)};
+const ms = new ModelsService();
+await ms.saveCustomProvider({
+  name: "Hot",
+  baseUrl: "http://127.0.0.1:19001/v1",
+  format: "openai",
+  modelId: "hot-model",
+});
+const bridge = new SessionBridge(() => {}, ms);
+await bridge.openProject(${JSON.stringify(wsProj)}, "custom-hot/hot-model");
+const beforeUrl = bridge["session"]?.model?.baseUrl;
+await ms.saveCustomProvider({
+  provider: "custom-hot",
+  isEdit: true,
+  baseUrl: "http://127.0.0.1:19002/v1",
+  format: "openai",
+  modelId: "hot-model",
+});
+await bridge.refreshProviderIfActive("custom-hot");
+const afterUrl = bridge["session"]?.model?.baseUrl;
+await bridge.dispose();
+console.log("HOT_RELOAD_RESULT:" + JSON.stringify({ beforeUrl, afterUrl }));
+`
     );
+    const checkProc = Bun.spawn(["bun", hotReloadScript], {
+      cwd: path.resolve(__dirname, ".."),
+      env: {
+        ...(process.env as Record<string, string>),
+        HOME: tempRoot,
+        USERPROFILE: tempRoot,
+        PI_CODING_AGENT_DIR: tempAgentDir,
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
     const out = await new Response(checkProc.stdout).text();
     const errOut = await new Response(checkProc.stderr).text();
     const code = await checkProc.exited;
