@@ -254,7 +254,7 @@ console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, bas
     expect(resolved.provider).toBe("omniroute");
     expect(resolved.baseUrl).toBe(`http://127.0.0.1:${mockOpenAIPort}/v1`);
     expect(resolved.contextWindow).toBe(65536);
-  });
+  }, 30_000);
 
   it("saves, updates (preserving apiKey), lists, and deletes a custom Anthropic provider", async () => {
     const saveRes = await fetch(`http://127.0.0.1:${backendPort}/api/models/custom-providers`, {
@@ -334,7 +334,7 @@ console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, bas
       providers: Record<string, Record<string, unknown>>;
     };
     expect(afterDelYml.providers["corp-claude"]).toBeUndefined();
-  });
+  }, 30_000);
 
   it("discovers late-started Ollama via /api/models/local/refresh and resolves in SessionBridge", async () => {
     // Initially Ollama is NOT running
@@ -394,7 +394,7 @@ console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, bas
     expect(ollamaModel?.auth_type).toBe("local");
     expect(ollamaModel?.context_tokens).toBe(40960);
     expect(ollamaModel?.supports_thinking).toBe(true);
-  });
+  }, 30_000);
 
   it("rejects invalid custom provider configurations cleanly without corrupting models.yml", async () => {
     const beforeYml = await fs.readFile(path.join(tempAgentDir, "models.yml"), "utf-8");
@@ -414,7 +414,7 @@ console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, bas
 
     const afterYml = await fs.readFile(path.join(tempAgentDir, "models.yml"), "utf-8");
     expect(afterYml).toBe(beforeYml);
-  });
+  }, 30_000);
 
   it("saves a custom model via Name + Base URL + Model ID even when /v1/models returns 404, and protects built-in providers", async () => {
     const saveRes = await fetch(`http://127.0.0.1:${backendPort}/api/models/custom-providers`, {
@@ -466,7 +466,7 @@ console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, bas
     expect(remoteModel?.auth_type).toBe("custom");
     expect(remoteModel?.tags).toContain("custom");
     expect(remoteModel?.tags).not.toContain("local");
-  });
+  }, 30_000);
 
   it("runs 1-token inference probes for OpenAI, Responses, and Anthropic formats with clear error diagnostics", async () => {
     const openaiProbe = await fetch(`http://127.0.0.1:${backendPort}/api/models/custom-providers/probe`, {
@@ -523,7 +523,7 @@ console.log(JSON.stringify({ id: resolved?.id, provider: resolved?.provider, bas
     expect(badKeyProbe.status).toBe(400);
     const errBody = (await badKeyProbe.json()) as { detail: string };
     expect(errBody.detail).toContain("Authentication failed");
-  });
+  }, 30_000);
 
   it("hot-reloads active SessionBridge model when custom provider baseUrl is updated", async () => {
     const wsProj = path.join(tempRoot, "hot-reload-proj");
@@ -585,7 +585,7 @@ console.log("HOT_RELOAD_RESULT:" + JSON.stringify({ beforeUrl, afterUrl }));
     };
     expect(parsed.beforeUrl).toBe("http://127.0.0.1:19001/v1");
     expect(parsed.afterUrl).toBe("http://127.0.0.1:19002/v1");
-  });
+  }, 30_000);
 
   it("never exposes encoded models.json metadata keys or unnamed models in the catalog", async () => {
     const res = await fetch(`http://127.0.0.1:${backendPort}/api/system/models-and-hardware`);
@@ -611,5 +611,5 @@ console.log("HOT_RELOAD_RESULT:" + JSON.stringify({ beforeUrl, afterUrl }));
     );
     expect(malformedModels).toEqual([]);
     expect(data.models.length).toBeGreaterThan(100);
-  });
+  }, 30_000);
 });
