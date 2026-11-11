@@ -326,19 +326,27 @@ export class OAuthManager {
       const identity =
         authStorage?.oauth?.identity(targetId) ||
         (targetId !== p.id ? authStorage?.oauth?.identity(p.id) : undefined);
+      const storedCred =
+        authStorage?.credentials.get(targetId) ||
+        (targetId !== p.id ? authStorage?.credentials.get(p.id) : undefined);
+      const oauthCred = storedCred && storedCred.type === "oauth" ? storedCred : undefined;
+      const email = identity?.email || oauthCred?.email;
+      const accountId = identity?.accountId || oauthCred?.accountId;
+      const orgName = identity?.orgName || oauthCred?.orgName;
 
       const connected = hasOAuth || hasKey || Boolean(identity);
 
       return {
         ...p,
         connected,
-        account: identity
-          ? {
-              email: identity.email,
-              accountId: identity.accountId,
-              orgName: identity.orgName,
-            }
-          : undefined,
+        account:
+          email || accountId || orgName
+            ? {
+                email,
+                accountId,
+                orgName,
+              }
+            : undefined,
       };
     });
   }

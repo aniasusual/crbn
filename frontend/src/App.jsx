@@ -120,7 +120,7 @@ export default function App() {
                 if (!t.model || !isTabModelAuth) {
                   const socket = socketsRef.current.get(t.id);
                   if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({ type: 'set_model', model: effectiveModel }));
+                    socket.send(JSON.stringify({ action: 'set_model', model: effectiveModel }));
                   }
                   return { ...t, model: effectiveModel };
                 }

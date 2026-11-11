@@ -7,7 +7,6 @@ import {
   USER_INTERRUPT_LABEL,
   type AgentSession,
   type MCPManager,
-  type AuthStorage,
   type SessionInfo,
 } from "../../pi-harness/packages/coding-agent/src/index";
 import type { Model } from "../../pi-harness/packages/ai/src/index";
@@ -350,73 +349,60 @@ export class SessionBridge {
     return this.pluginsService.listInstalledPlugins(this.activeProjectPath ?? undefined);
   }
 
-  private isProviderAuthenticated(providerId: string, authStorage: AuthStorage): boolean {
-    const oauthMatch = this.modelsService?.oauthManager.getOAuthProviders().find(
-      (p) => p.id === providerId || p.storeCredentialsAs === providerId
-    );
-    const targetId = oauthMatch?.storeCredentialsAs ?? providerId;
-    const identity =
-      authStorage.oauth.identity(targetId) ||
-      (targetId !== providerId ? authStorage.oauth.identity(providerId) : undefined);
-
-    const hasOAuth = Boolean(
-      authStorage.credentials.hasOAuth(providerId) ||
-        (targetId !== providerId && authStorage.credentials.hasOAuth(targetId)) ||
-        identity
-    );
-
-    const storedApiKey =
-      authStorage.credentials.get(providerId) ||
-      (targetId !== providerId ? authStorage.credentials.get(targetId) : undefined);
-    const hasVaultKey = Boolean(
-      storedApiKey && storedApiKey.type === "api_key" && storedApiKey.key
-    );
-
-    const keySource = authStorage.keys.source(providerId);
-    const hasRuntimeKey = Boolean(
-      keySource?.concrete && (keySource.kind === "runtime" || keySource.kind === "config")
-    );
-    const hasEnvKey = Boolean(
-      keySource?.concrete &&
-        keySource.kind === "env" &&
-        keySource.envVar &&
-        Boolean(process.env[keySource.envVar])
-    );
-
-    const isLocalRunning = providerId === "ollama";
-    return hasOAuth || hasVaultKey || hasRuntimeKey || hasEnvKey || isLocalRunning;
-  }
-
   async resolveModel(modelName: string): Promise<Record<string, unknown> | undefined> {
     if (!this.modelsService) {
       return { id: modelName, provider: "default", canonical_id: modelName };
     }
     const registry = await this.modelsService.getRegistry();
-    const authStorage = await this.modelsService.getAuthStorage();
 
-    // 1. If explicit provider is specified (provider/modelId), check if that provider has auth
+    // 1. If explicit provider is specified (provider/modelId), validate concrete auth (including keyless/local)
     const slashIdx = modelName.indexOf("/");
     if (slashIdx > 0) {
       const provider = modelName.slice(0, slashIdx);
       const modelId = modelName.slice(slashIdx + 1);
-      if (this.isProviderAuthenticated(provider, authStorage)) {
-        const found = registry.find(provider, modelId);
+      if (registry.hasConcreteAuth(provider)) {
+        let found = registry.find(provider, modelId);
+        if (!found) {
+          if (registry.getDiscoverableProviders().includes(provider)) {
+            await registry.refreshDiscoverableProviders([provider], "online").catch(() => {});
+          } else if (provider === "vllm" || provider === "litellm") {
+            await registry.refreshProvider(provider, "online").catch(() => {});
+          }
+          found = registry.find(provider, modelId);
+        }
         if (found) return found as unknown as Record<string, unknown>;
       }
     }
 
     // 2. Find all models matching modelName (by id, canonical_id, or provider/id)
-    const allMatches = registry.getAll().filter((m) => {
+    let allMatches = registry.getAll().filter((m) => {
       const canonical = "canonical_id" in m && typeof m.canonical_id === "string" ? m.canonical_id : undefined;
       return m.id === modelName || canonical === modelName || `${m.provider}/${m.id}` === modelName;
     });
 
-    // 3. Filter strictly to providers for which the user HAS authenticated
-    const authenticatedMatches = allMatches.filter((m) => this.isProviderAuthenticated(m.provider, authStorage));
+    // 3. Filter to providers with concrete auth (OAuth, API key, models.yml config, auth: none, or local engines)
+    let authenticatedMatches = allMatches.filter((m) => registry.hasConcreteAuth(m.provider));
+
+    // 4. Lazy refresh for local engines started after initial ModelRegistry load
+    if (authenticatedMatches.length === 0) {
+      const localProviders = registry
+        .getDiscoverableProviders()
+        .filter((p) => p === "ollama" || p === "llama.cpp" || p === "lm-studio");
+      if (localProviders.length > 0) {
+        await registry.refreshDiscoverableProviders(localProviders, "online").catch(() => {});
+        allMatches = registry.getAll().filter((m) => {
+          const canonical = "canonical_id" in m && typeof m.canonical_id === "string" ? m.canonical_id : undefined;
+          return m.id === modelName || canonical === modelName || `${m.provider}/${m.id}` === modelName;
+        });
+        authenticatedMatches = allMatches.filter((m) => registry.hasConcreteAuth(m.provider));
+      }
+    }
+
     if (authenticatedMatches.length > 0) {
       return authenticatedMatches[0] as unknown as Record<string, unknown>;
     }
-    // 4. Zero matching authenticated providers -> return undefined
+
+    // 5. Zero matching authenticated/keyless providers -> return undefined
     console.log(`[SessionBridge] No authenticated provider found for model "${modelName}".`);
     return undefined;
   }
@@ -446,6 +432,39 @@ export class SessionBridge {
       console.log(`[SessionBridge] Reviving session for project ${this.activeProjectPath} with model ${this.activeModel}`);
       await this.openProject(this.activeProjectPath, this.activeModel);
     }
+  }
+  async refreshProviderIfActive(providerId: string): Promise<void> {
+    const target = providerId.trim().toLowerCase();
+    if (!target || !this.session) return;
+    const sessionProvider = this.session.model?.provider?.toLowerCase();
+    const activePrefix = `${target}/`;
+    const isMatch = sessionProvider === target || this.activeModel.toLowerCase().startsWith(activePrefix);
+    if (!isMatch || this.isGenerating) return;
+
+    const resolved = await this.resolveModel(this.activeModel);
+    if (resolved) {
+      try {
+        await this.session.setModel(resolved as unknown as Model);
+        this.emitContextTelemetry();
+        return;
+      } catch (err) {
+        console.warn("[SessionBridge] Failed to hot-reload model, reopening project session:", err);
+      }
+      if (this.activeProjectPath) {
+        await this.openProject(this.activeProjectPath, this.activeModel);
+      }
+      return;
+    }
+
+    // Active custom provider was removed: tear down stale session cleanly and prompt user to re-select
+    this.unsubscribe?.();
+    this.unsubscribe = null;
+    await this.session.dispose().catch(() => {});
+    this.session = null;
+    this.send({
+      type: "auth_required",
+      message: `Provider "${providerId}" was removed. Select another model to continue.`,
+    });
   }
 
   getIsGenerating(): boolean {
@@ -794,7 +813,7 @@ export class SessionBridge {
     const promptStartTime = Date.now();
     telemetry.track("agent_prompt_started", {
       has_attachments: Boolean(attachments && (attachments.images?.length || attachments.files?.length)),
-      model: this.activeModel?.name || this.activeModel?.id || "default",
+      model: this.activeModel || "default",
     });
     if (this.initPromise) {
       await this.initPromise.catch(() => {});
@@ -1007,7 +1026,7 @@ export class SessionBridge {
         duration_ms: Date.now() - promptStartTime,
         had_error: this.turnHadError,
         was_stopped: this.wasStoppedByUser,
-        model: this.activeModel?.name || this.activeModel?.id || "default",
+        model: this.activeModel || "default",
       });
     }
   }
@@ -1044,7 +1063,7 @@ export class SessionBridge {
       } catch {}
       this.broadcastQueueUpdate();
       telemetry.track("agent_stopped_by_user", {
-        model: this.activeModel?.name || this.activeModel?.id || "default",
+        model: this.activeModel || "default",
       });
       this.send({
         type: "status",
@@ -1460,6 +1479,18 @@ export class SessionBridge {
               (errMsg.includes("404") && errMsg.includes("Cloud Code Assist"))
             ) {
               friendlyError = `⚠️ **Google Antigravity Model Unavailable**\n\nThis model is no longer available on Google Antigravity.\n\n👉 **To continue**: Switch to **Gemini 3.8 Flash** or **Gemini 2.5 Flash** in the Model Selector (✦).`;
+            } else if (
+              this.activeModel.startsWith("custom-") ||
+              this.activeModel.startsWith("omniroute/") ||
+              this.activeModel.startsWith("vllm/")
+            ) {
+              if (/401|403|unauthorized|forbidden|invalid.*api.?key/i.test(errMsg)) {
+                friendlyError = `⚠️ **Custom Model Authentication Error**: ${errMsg}\n\n👉 **To fix**: Open **Custom Models** and check your API key.`;
+              } else if (/404|not found/i.test(errMsg)) {
+                friendlyError = `⚠️ **Custom Endpoint Not Found (404)**: ${errMsg}\n\n👉 **To fix**: Verify the **Base URL** (e.g. \`/v1\` suffix) and **Format** (OpenAI vs Anthropic) in **Custom Models**.`;
+              } else if (/strict|store|reasoning_effort/i.test(errMsg)) {
+                friendlyError = `⚠️ **Custom Endpoint Parameter Rejection**: ${errMsg}\n\n👉 **To fix**: Open **Custom Models → Advanced** and toggle **Disable strict tool schemas** or check the model format.`;
+              }
             }
             const errorMsg = {
               role: "assistant",

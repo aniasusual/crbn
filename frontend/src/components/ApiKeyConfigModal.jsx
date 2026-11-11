@@ -8,6 +8,7 @@ export default function ApiKeyConfigModal({
   onClose,
   providers = [],
   onRefreshModels,
+  onConnected,
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [keyInputs, setKeyInputs] = useState({});
@@ -26,7 +27,7 @@ export default function ApiKeyConfigModal({
   // Filter providers that accept API keys with instant local override support
   const apiKeyProviders = useMemo(() => {
     return providers
-      .filter((p) => p.id !== 'ollama' && p.id !== 'local' && p.id !== 'web')
+      .filter((p) => p.id !== 'ollama' && p.id !== 'local' && p.id !== 'web' && p.id !== 'apple' && p.auth_type !== 'local' && p.auth_type !== 'custom' && !p.is_custom)
       .map((p) => {
         const override = localOverrides[p.id];
         if (override !== undefined) {
@@ -85,6 +86,10 @@ export default function ApiKeyConfigModal({
       setEditingProviders((prev) => ({ ...prev, [providerId]: false }));
 
       if (onRefreshModels) await onRefreshModels();
+      if (onConnected) {
+        const provObj = providers.find((p) => p.id === providerId);
+        onConnected({ id: providerId, name: provObj?.label || providerId });
+      }
     } catch (err) {
       setErrorMsg(err.message);
     } finally {

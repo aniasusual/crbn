@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './ProviderConnectModal.css';
@@ -56,28 +56,28 @@ export default function ProviderConnectModal({
   const [copiedCode, setCopiedCode] = useState(false);
   const [gcpProjectId, setGcpProjectId] = useState('');
 
+  const refreshOAuthProviders = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/auth/oauth/providers`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setOauthProviders(data);
+        return data;
+      }
+    } catch (err) {
+      console.warn('Failed to load dynamic OAuth providers, using defaults:', err);
+    }
+    return [];
+  }, []);
+
   // Fetch full dynamic OAuth providers directory from backend
   useEffect(() => {
     if (!isOpen) return;
-    let isCancelled = false;
+    refreshOAuthProviders();
+  }, [isOpen, refreshOAuthProviders]);
 
-    fetch(`${API_BASE_URL}/api/auth/oauth/providers`)
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        if (!isCancelled && Array.isArray(data) && data.length > 0) {
-          setOauthProviders(data);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to load dynamic OAuth providers, using defaults:', err);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isOpen]);
-
-  // Combined providers list: merges backend dynamic providers with default metadata
+  // Combined providers list: merges backend dynamic providers with catalog status
   const providerList = useMemo(() => {
     const map = new Map();
 
@@ -99,8 +99,25 @@ export default function ProviderConnectModal({
       });
     }
 
-    return Array.from(map.values());
-  }, [oauthProviders]);
+    const list = Array.from(map.values()).map((entry) => {
+      const catalogMeta = providers.find((p) => p.id === entry.id);
+      const isConnected = Boolean(entry.connected || catalogMeta?.has_oauth);
+      const account =
+        entry.account ||
+        (catalogMeta?.account_email || catalogMeta?.account_id || catalogMeta?.org_name
+          ? {
+              email: catalogMeta.account_email,
+              accountId: catalogMeta.account_id,
+              orgName: catalogMeta.org_name,
+            }
+          : null);
+      return { ...entry, connected: isConnected, account };
+    });
+
+    // Show connected accounts at the top so users immediately see what is signed in
+    list.sort((a, b) => Number(b.connected) - Number(a.connected));
+    return list;
+  }, [oauthProviders, providers]);
 
   // Filter providers by search
   const filteredProviders = useMemo(() => {
@@ -111,7 +128,8 @@ export default function ProviderConnectModal({
         p.name.toLowerCase().includes(q) ||
         p.id.toLowerCase().includes(q) ||
         (p.plan && p.plan.toLowerCase().includes(q)) ||
-        (p.modelsText && p.modelsText.toLowerCase().includes(q))
+        (p.modelsText && p.modelsText.toLowerCase().includes(q)) ||
+        (p.account?.email && p.account.email.toLowerCase().includes(q))
     );
   }, [providerList, searchQuery]);
 
@@ -138,10 +156,12 @@ export default function ProviderConnectModal({
               setSuccessMsg(`Connected ${provider} successfully.`);
               setConnectingProvider(null);
               setPasteCodeInput('');
+              const latest = await refreshOAuthProviders();
+              const latestMatch = latest.find((p) => p.id === provider);
               const provObj = providerList.find((p) => p.id === provider);
-              const provName = provObj?.name || provider;
+              const provName = latestMatch?.name || provObj?.name || provider;
               if (onConnected) {
-                onConnected({ id: provider, name: provName });
+                onConnected({ id: provider, name: provName, account: latestMatch?.account });
               }
               if (onRefreshModels) await onRefreshModels();
               if (variant === 'welcome') {
@@ -156,13 +176,12 @@ export default function ProviderConnectModal({
           }
         }
       } catch (err) {
-        console.warn('OAuth polling error:', err);
+        console.warn('OAuth status poll error:', err);
       }
     }, 1200);
 
     return () => clearInterval(interval);
-  }, [activeSession, onRefreshModels]);
-
+  }, [activeSession, onRefreshModels, refreshOAuthProviders, variant, providerList, onConnected, onClose]);
   const handleStartOAuth = async (providerId, customProjectId) => {
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -261,6 +280,7 @@ export default function ProviderConnectModal({
           prev.map((p) => (p.id === providerId ? { ...p, connected: false, account: null } : p))
         );
         if (onRefreshModels) await onRefreshModels();
+        await refreshOAuthProviders();
       }
     } catch (err) {
       setErrorMsg(`Failed to disconnect: ${err.message}`);
@@ -503,21 +523,60 @@ export default function ProviderConnectModal({
                   </thead>
                   <tbody>
                     {filteredProviders.map((fp) => {
+                      const providerData = providers.find((p) => p.id === fp.id) || null;
+                      const isConnected = Boolean(fp.connected || providerData?.has_oauth);
                       const isConnecting =
                         connectingProvider === fp.id ||
                         (activeSession?.provider === fp.id &&
                           (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
+                      const accountLabel =
+                        fp.account?.email ||
+                        providerData?.account_email ||
+                        fp.account?.accountId ||
+                        providerData?.account_id ||
+                        fp.account?.orgName ||
+                        providerData?.org_name;
+                      const orgName = fp.account?.orgName || providerData?.org_name;
 
                       return (
                         <Fragment key={fp.id}>
                           <tr
-                            className={`provider-table-row ${isConnecting ? 'provider-table-row--active' : ''}`}
+                            className={`provider-table-row ${isConnected ? 'provider-table-row--connected' : ''} ${
+                              isConnecting ? 'provider-table-row--active' : ''
+                            }`}
                           >
                             <td className="provider-table-cell provider-table-cell--name">
-                              <span className="provider-table-name">{fp.name}</span>
+                              <div className="provider-table-title-row">
+                                <span className="provider-table-name">{fp.name}</span>
+                                {isConnected && (
+                                  <span className="shadcn-badge shadcn-badge-success">
+                                    <span className="shadcn-status-dot" />
+                                    Connected
+                                  </span>
+                                )}
+                              </div>
+                              {isConnected && (
+                                <div className="shadcn-item-account">
+                                  <span className="shadcn-item-account-label">Account:</span>
+                                  <code className="shadcn-item-account-code">
+                                    {accountLabel || 'Signed in'}
+                                  </code>
+                                  {orgName && accountLabel !== orgName && (
+                                    <span className="shadcn-item-account-org">({orgName})</span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="provider-table-cell provider-table-cell--action">
-                              {isConnecting ? (
+                              {isConnected ? (
+                                <button
+                                  type="button"
+                                  className="shadcn-btn shadcn-btn-destructive-outline shadcn-btn-sm"
+                                  onClick={() => handleDisconnect(fp.id)}
+                                >
+                                  Disconnect
+                                </button>
+                              ) : isConnecting ? (
                                 <button
                                   type="button"
                                   className="shadcn-btn shadcn-btn-outline shadcn-btn-sm"
@@ -554,13 +613,18 @@ export default function ProviderConnectModal({
               <div className="shadcn-dialog-list">
                 {filteredProviders.map((fp) => {
                   const providerData = providers.find((p) => p.id === fp.id) || null;
-                  const isConnected = Boolean(fp.connected || providerData?.has_auth);
+                  const isConnected = Boolean(fp.connected || providerData?.has_oauth);
                   const isConnecting =
                     connectingProvider === fp.id ||
                     (activeSession?.provider === fp.id &&
                       (activeSession?.status === 'awaiting_user' || activeSession?.status === 'exchanging'));
-                  const accountEmail = fp.account?.email || providerData?.account_email;
-
+                  const accountEmail =
+                    fp.account?.email ||
+                    providerData?.account_email ||
+                    fp.account?.accountId ||
+                    providerData?.account_id ||
+                    fp.account?.orgName ||
+                    providerData?.org_name;
                   return (
                     <div
                       key={fp.id}

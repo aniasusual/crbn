@@ -1,6 +1,8 @@
 import { useState, useEffect, useId, useMemo, useCallback } from 'react';
 import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
+import ApiKeyConfigModal from './ApiKeyConfigModal';
+import CustomProviderModal from './CustomProviderModal';
 import GitHubConnectModal from './GitHubConnectModal';
 import McpConnectModal from './McpConnectModal';
 import PluginsModal from './PluginsModal';
@@ -108,6 +110,9 @@ export default function WelcomeView({
   const [isGeneratingName, setIsGeneratingName] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isCustomProviderModalOpen, setIsCustomProviderModalOpen] = useState(false);
+  const [authHighlight, setAuthHighlight] = useState(false);
   const [isGitHubConnectModalOpen, setIsGitHubConnectModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [mcpCount, setMcpCount] = useState(0);
@@ -177,15 +182,28 @@ export default function WelcomeView({
 
   const [justConnectedProvider, setJustConnectedProvider] = useState(null);
 
-  const hasAnyConfiguredAuth = useMemo(() => {
+  useEffect(() => {
+    if (!justConnectedProvider) return;
+    const timer = setTimeout(() => setJustConnectedProvider(null), 4500);
+    return () => clearTimeout(timer);
+  }, [justConnectedProvider]);
+
+  const hasExplicitAuth = useMemo(() => {
     return (
-      models.some((m) => Boolean(m.has_auth || m.installed)) ||
-      providers.some((p) => Boolean(p.has_auth || p.connected))
+      providers.some((p) => Boolean(p.has_auth || p.connected) && p.id !== 'apple') ||
+      models.some((m) => Boolean(m.has_auth || m.installed) && m.provider !== 'apple')
     );
-  }, [models, providers]);
+  }, [providers, models]);
+  const hasAppleOnDeviceOnly =
+    !hasExplicitAuth &&
+    (providers.some((p) => p.id === 'apple' && p.has_auth) ||
+      models.some((m) => m.provider === 'apple' && Boolean(m.has_auth || m.installed)));
+
   const isAnyModalOpen =
     isModelSelectorOpen ||
     isConnectModalOpen ||
+    isApiKeyModalOpen ||
+    isCustomProviderModalOpen ||
     isGitHubConnectModalOpen ||
     isMcpModalOpen ||
     isPluginsModalOpen;
@@ -625,7 +643,8 @@ export default function WelcomeView({
     // Guard: ensure the user has configured at least one authenticated model
     const hasAnyAuth = models.some((m) => Boolean(m.has_auth || m.installed));
     if (!hasAnyAuth) {
-      setIsModelSelectorOpen(true);
+      setAuthHighlight(true);
+      setTimeout(() => setAuthHighlight(false), 2200);
       return;
     }
     // Case 1: Building on a selected GitHub repository
@@ -817,39 +836,60 @@ export default function WelcomeView({
               </p>
             </header>
 
-            {/* Direction banner for users without an API key OR newly connected status */}
-            {justConnectedProvider ? (
-              <div
-                className="degrees-welcome__oauth-direction degrees-welcome__oauth-direction--connected"
-                title={`Connected to ${justConnectedProvider.name || justConnectedProvider.id}`}
-              >
-                <div className="degrees-welcome__oauth-direction-left">
-                  <span className="degrees-welcome__oauth-connected-dot" />
-                  <span className="degrees-welcome__oauth-text">
-                    Connected to <strong style={{ color: '#ffffff', fontWeight: 600 }}>{justConnectedProvider.name || justConnectedProvider.id}</strong>
-                  </span>
-                </div>
-                <span className="degrees-welcome__oauth-badge-btn degrees-welcome__oauth-badge-btn--connected">
-                  <span>Connected</span>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', marginLeft: 4, verticalAlign: '-1px' }}>
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+            {/* Minimalist Borderless Accounts & Providers Banner */}
+            <div
+              className={`degrees-auth-banner ${
+                authHighlight ? 'degrees-auth-banner--attention' : ''
+              } ${justConnectedProvider ? 'degrees-auth-banner--just-connected' : ''}`}
+            >
+              <div className="degrees-auth-banner__status">
+                <span
+                  className={`degrees-auth-banner__dot ${
+                    hasExplicitAuth || justConnectedProvider ? 'degrees-auth-banner__dot--ok' : ''
+                  }`}
+                />
+                <span className="degrees-auth-banner__heading">
+                  {justConnectedProvider
+                    ? `Connected to ${justConnectedProvider.name || justConnectedProvider.id}${
+                        justConnectedProvider.account?.email ? ` (${justConnectedProvider.account.email})` : ''
+                      }`
+                    : authHighlight
+                    ? 'Connect an account or local model first'
+                    : hasExplicitAuth
+                    ? 'OAuth, API keys, or custom models'
+                    : hasAppleOnDeviceOnly
+                    ? 'Apple on-device ready — connect cloud or custom models'
+                    : 'Connect OAuth, an API key, or a custom model'}
                 </span>
               </div>
-            ) : !hasAnyConfiguredAuth ? (
-              <div
-                className="degrees-welcome__oauth-direction"
-                onClick={() => setIsConnectModalOpen(true)}
-                title="Connect Claude, ChatGPT, Copilot and more"
-              >
-                <div className="degrees-welcome__oauth-direction-left">
-                  <span className="degrees-welcome__oauth-text">
-                    No API key? No problem — connect Claude, ChatGPT, Copilot and more
-                  </span>
-                </div>
-                <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>
+
+              <div className="degrees-auth-banner__actions">
+                <button
+                  type="button"
+                  className="degrees-auth-btn"
+                  onClick={() => setIsConnectModalOpen(true)}
+                  title="Connect Claude, ChatGPT, Copilot, Antigravity via OAuth"
+                >
+                  OAuth
+                </button>
+                <button
+                  type="button"
+                  className="degrees-auth-btn"
+                  onClick={() => setIsApiKeyModalOpen(true)}
+                  title="Save OpenAI, Anthropic, Gemini, or other provider API keys"
+                >
+                  API Key
+                </button>
+                <button
+                  type="button"
+                  className="degrees-auth-btn"
+                  onClick={() => setIsCustomProviderModalOpen(true)}
+                  title="Add custom OpenAI/Anthropic models or self-hosted endpoints"
+                >
+                  Custom
+                </button>
               </div>
-            ) : null}
+            </div>
 
             {/* Main Creative Input Box (Timeline Composer) */}
             <form
@@ -1549,6 +1589,27 @@ export default function WelcomeView({
         providers={providers}
         onRefreshModels={onRefreshModels}
         variant="welcome"
+        onConnected={(info) => {
+          setJustConnectedProvider(info);
+        }}
+      />
+
+      {/* API Key Config Modal */}
+      <ApiKeyConfigModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        providers={providers}
+        onRefreshModels={onRefreshModels}
+        onConnected={(info) => {
+          setJustConnectedProvider(info);
+        }}
+      />
+
+      {/* Self-Hosted & Custom Providers Modal */}
+      <CustomProviderModal
+        isOpen={isCustomProviderModalOpen}
+        onClose={() => setIsCustomProviderModalOpen(false)}
+        onRefreshModels={onRefreshModels}
         onConnected={(info) => {
           setJustConnectedProvider(info);
         }}

@@ -1,48 +1,11 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
-import ProviderConnectModal from './ProviderConnectModal';
-import ApiKeyConfigModal from './ApiKeyConfigModal';
-import OmniRouteModal from './OmniRouteModal';
+import CustomProviderModal from './CustomProviderModal';
 import './ModelSelector.css';
 
 const INITIAL_RENDER_COUNT = 60;
 const RENDER_BATCH_SIZE = 60;
-const ZapIcon = ({ size = 14, className = '', style = {} }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2.2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    style={style}
-  >
-    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-  </svg>
-);
-
-const KeyIcon = ({ size = 14, className = '', style = {} }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    style={style}
-  >
-    <path d="M21 2l-2 2m-1.5 1.5L12 11l4 4 5.5-5.5a2.12 2.12 0 0 0 0-3L21 2z" />
-    <path d="M15.5 7.5L14 9" />
-    <path d="M3 21l3-3m0 0l2 2 4-4-2-2-4 4z" />
-  </svg>
-);
 
 const LockIcon = ({ size = 16, className = '', style = {} }) => (
   <svg
@@ -62,24 +25,6 @@ const LockIcon = ({ size = 16, className = '', style = {} }) => (
   </svg>
 );
 
-const RouteIcon = ({ size = 14, className = '', style = {} }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    style={style}
-  >
-    <circle cx="6" cy="19" r="3" />
-    <path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" />
-    <circle cx="18" cy="5" r="3" />
-  </svg>
-);
 
 function getFriendlyOAuthTitle(providerId, loginName) {
   if (providerId === 'anthropic') return 'Claude';
@@ -106,7 +51,7 @@ export default function ModelSelector({
   providers = [],
   onRefreshModels,
 }) {
-  const [selectedProvider, setSelectedProvider] = useState('ready'); // 'all' | 'ready' | 'ollama' | <provider_id>
+  const [selectedProvider, setSelectedProvider] = useState('ready'); // 'all' | 'ready' | 'local-all' | <provider_id>
   const [providerSearch, setProviderSearch] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [renderLimit, setRenderLimit] = useState(INITIAL_RENDER_COUNT);
@@ -122,9 +67,8 @@ export default function ModelSelector({
   const [isStartingOAuth, setIsStartingOAuth] = useState(false);
   const [showApiKeyFallback, setShowApiKeyFallback] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const [isFullOAuthModalOpen, setIsFullOAuthModalOpen] = useState(false);
-  const [isFullApiKeyModalOpen, setIsFullApiKeyModalOpen] = useState(false);
-  const [isOmniRouteModalOpen, setIsOmniRouteModalOpen] = useState(false);
+  const [isRefreshingLocal, setIsRefreshingLocal] = useState(false);
+  const [isCustomModalOpen, setIsCustomModalOpen] = useState(false);
 
   // Keep provider catalog synchronized with backend discovery
   useEffect(() => {
@@ -221,6 +165,8 @@ export default function ModelSelector({
         account_email: backendMeta?.account_email,
         account_id: backendMeta?.account_id,
         has_auth: entry.has_auth || Boolean(backendMeta?.has_auth),
+        auth_type: backendMeta?.auth_type,
+        is_custom: Boolean(backendMeta?.is_custom),
       };
     });
     list.sort((a, b) => {
@@ -248,10 +194,18 @@ export default function ModelSelector({
     const q = searchQuery.toLowerCase().trim();
 
     return models.filter((m) => {
+      const isLocalOrGateway =
+        m.auth_type === 'local' ||
+        m.auth_type === 'custom' ||
+        m.is_custom ||
+        m.tags?.includes('local') ||
+        m.tags?.includes('custom') ||
+        m.tags?.includes('gateway') ||
+        ['ollama', 'llama.cpp', 'lm-studio', 'vllm', 'apple', 'omniroute'].includes(m.provider);
       if (selectedProvider === 'ready') {
         if (!m.has_auth && !m.installed) return false;
-      } else if (selectedProvider === 'ollama') {
-        if (m.provider !== 'ollama') return false;
+      } else if (selectedProvider === 'local-all') {
+        if (!isLocalOrGateway) return false;
       } else if (selectedProvider !== 'all') {
         if (m.provider !== selectedProvider) return false;
       }
@@ -291,6 +245,23 @@ export default function ModelSelector({
     onClose();
   }, [onSelectModel, onClose]);
 
+  const handleRefreshLocal = useCallback(async () => {
+    setIsRefreshingLocal(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/models/local/refresh`, { method: 'POST' });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || 'Failed to refresh local models');
+      }
+      if (onRefreshModels) await onRefreshModels();
+      setActionSuccess('Refreshed local and self-hosted engines.');
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsRefreshingLocal(false);
+    }
+  }, [onRefreshModels]);
   const handleModelCardClick = (model) => {
     const isReady = Boolean(model.has_auth || model.installed);
     if (isReady) {
@@ -401,8 +372,14 @@ export default function ModelSelector({
   };
 
   const handleDisconnectProvider = async (providerId) => {
-    if (!window.confirm(`Disconnect ${providerId}? This removes saved credentials.`)) return;
+    if (!window.confirm(`Disconnect ${providerId}? This removes saved credentials or custom configuration.`)) return;
     try {
+      const provMeta = providerStats.find((p) => p.id === providerId);
+      if (provMeta?.auth_type === 'local' || provMeta?.auth_type === 'custom' || provMeta?.is_custom) {
+        await fetch(`${API_BASE_URL}/api/models/custom-providers/${encodeURIComponent(providerId)}`, {
+          method: 'DELETE',
+        });
+      }
       const res = await fetch(`${API_BASE_URL}/api/auth/oauth/${encodeURIComponent(providerId)}`, {
         method: 'DELETE',
       });
@@ -461,9 +438,22 @@ export default function ModelSelector({
   }, [oauthSession, unlockTargetModel, onRefreshModels, handleSelect]);
 
   const currentProviderInfo =
-    selectedProvider !== 'all' && selectedProvider !== 'ready' && selectedProvider !== 'ollama'
+    selectedProvider !== 'all' && selectedProvider !== 'ready' && selectedProvider !== 'local-all'
       ? providerStats.find((p) => p.id === selectedProvider)
       : null;
+
+  const localOrCustomCount = useMemo(() => {
+    return models.filter(
+      (m) =>
+        m.auth_type === 'local' ||
+        m.auth_type === 'custom' ||
+        m.is_custom ||
+        m.tags?.includes('local') ||
+        m.tags?.includes('custom') ||
+        m.tags?.includes('gateway') ||
+        ['ollama', 'llama.cpp', 'lm-studio', 'vllm', 'apple', 'omniroute'].includes(m.provider)
+    ).length;
+  }, [models]);
 
   return (
     <>
@@ -571,95 +561,6 @@ export default function ModelSelector({
               </div>
             )}
 
-            {/* Gateway Banner: Option 1 (When no models are configured) */}
-            {readyModelsCount === 0 && (
-              <div className="models-gateway-banner">
-                <div className="models-gateway-header">
-                  <div className="models-gateway-title-row">
-                    <span className="models-gateway-sparkle">
-                      <ZapIcon size={15} />
-                    </span>
-                    <span className="models-gateway-title">Connect a Provider to Unlock Models</span>
-                    <span className="models-gateway-badge">Action Required</span>
-                  </div>
-                  <p className="models-gateway-desc">
-                    You must connect at least one provider via <strong>OAuth</strong> or enter an <strong>API Key</strong> before selecting a model.
-                  </p>
-                </div>
-
-                <div className="models-gateway-cards">
-                  <button
-                    type="button"
-                    className="models-gateway-card models-gateway-card--oauth"
-                    onClick={() => setIsFullOAuthModalOpen(true)}
-                  >
-                    <div className="models-gateway-card-body">
-                      <div className="models-gateway-card-top">
-                        <span className="models-gateway-card-badge">OAuth</span>
-                        <span className="models-gateway-card-tag">Instant Sign-In</span>
-                      </div>
-                      <div className="models-gateway-card-heading">
-                        <span className="models-gateway-card-icon">
-                          <ZapIcon size={14} />
-                        </span>
-                        <span className="models-gateway-card-name">Connect via OAuth</span>
-                      </div>
-                      <span className="models-gateway-card-hint">Claude, ChatGPT, Copilot (No key needed)</span>
-                    </div>
-                    <span className="models-gateway-card-action">Connect Account →</span>
-                  </button>
-
-                  <div className="models-gateway-divider">
-                    <span className="models-gateway-divider-line" />
-                    <span className="models-gateway-divider-badge">OR</span>
-                    <span className="models-gateway-divider-line" />
-                  </div>
-
-                  <button
-                    type="button"
-                    className="models-gateway-card models-gateway-card--apikey"
-                    onClick={() => setIsFullApiKeyModalOpen(true)}
-                  >
-                    <div className="models-gateway-card-body">
-                      <div className="models-gateway-card-top">
-                        <span className="models-gateway-card-badge">API Key</span>
-                        <span className="models-gateway-card-tag">Custom Keys</span>
-                      </div>
-                      <div className="models-gateway-card-heading">
-                        <span className="models-gateway-card-icon">
-                          <KeyIcon size={14} />
-                        </span>
-                        <span className="models-gateway-card-name">Configure API Keys</span>
-                      </div>
-                      <span className="models-gateway-card-hint">OpenAI, Anthropic, Gemini, DeepSeek, Groq...</span>
-                    </div>
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  className="models-gateway-card models-gateway-card--omniroute"
-                  onClick={() => setIsOmniRouteModalOpen(true)}
-                >
-                  <div className="models-gateway-card-body">
-                    <div className="models-gateway-card-top">
-                      <span className="models-gateway-card-badge">Gateway</span>
-                      <span className="models-gateway-card-tag">Combos &amp; Failover</span>
-                    </div>
-                    <div className="models-gateway-card-heading">
-                      <span className="models-gateway-card-icon">
-                        <RouteIcon size={14} />
-                      </span>
-                      <span className="models-gateway-card-name">OmniRoute Gateway</span>
-                    </div>
-                    <span className="models-gateway-card-hint">
-                      Unified proxy for custom multi-model combos, fallbacks, and local runners (http://localhost:20128/v1)
-                    </span>
-                  </div>
-                  <span className="models-gateway-card-action">Connect Gateway →</span>
-                </button>
-              </div>
-            )}
 
             {/* Two-Panel Layout */}
             <div className="models-dialog-panels">
@@ -667,44 +568,18 @@ export default function ModelSelector({
               <aside className="models-sidebar">
                 <div className="models-sidebar-header">
                   <span className="models-sidebar-title">Providers</span>
-                  <span className="models-sidebar-badge">{providerStats.length}</span>
-                </div>
-
-                {/* Direct Config Modals Access */}
-                <div className="models-quick-nav">
-                  <button
-                    type="button"
-                    className="models-quick-nav-btn"
-                    onClick={() => setIsFullApiKeyModalOpen(true)}
-                  >
-                    <span className="models-quick-nav-btn-left">
-                      <KeyIcon size={13} />
-                      <span>Configure API Keys</span>
-                    </span>
-                    <span className="models-quick-nav-arrow">↗</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="models-quick-nav-btn"
-                    onClick={() => setIsFullOAuthModalOpen(true)}
-                  >
-                    <span className="models-quick-nav-btn-left">
-                      <ZapIcon size={13} />
-                      <span>Connect via OAuth</span>
-                    </span>
-                    <span className="models-quick-nav-arrow">↗</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="models-quick-nav-btn"
-                    onClick={() => setIsOmniRouteModalOpen(true)}
-                  >
-                    <span className="models-quick-nav-btn-left">
-                      <RouteIcon size={13} />
-                      <span>OmniRoute Gateway</span>
-                    </span>
-                    <span className="models-quick-nav-arrow">↗</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      className="models-btn models-btn-outline models-btn-xs"
+                      onClick={() => setIsCustomModalOpen(true)}
+                      title="Add or edit custom models"
+                      style={{ height: '22px', padding: '0 8px', fontSize: '11px' }}
+                    >
+                      + Custom
+                    </button>
+                    <span className="models-sidebar-badge">{providerStats.length}</span>
+                  </div>
                 </div>
 
                 {/* Quick Filter Categories */}
@@ -727,18 +602,26 @@ export default function ModelSelector({
                     <span>All</span>
                     <span className="models-filter-chip">{models.length.toLocaleString()}</span>
                   </button>
-                  {providerStats.some((p) => p.id === 'ollama') && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <button
                       type="button"
-                      className={`models-filter-tab ${selectedProvider === 'ollama' ? 'active' : ''}`}
-                      onClick={() => handleProviderChange('ollama')}
+                      className={`models-filter-tab ${selectedProvider === 'local-all' ? 'active' : ''}`}
+                      onClick={() => handleProviderChange('local-all')}
                     >
-                      <span>Local</span>
-                      <span className="models-filter-chip">
-                        {providerStats.find((p) => p.id === 'ollama')?.total_count || 0}
-                      </span>
+                      <span>Local / Custom</span>
+                      <span className="models-filter-chip">{localOrCustomCount}</span>
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      className="models-btn models-btn-outline models-btn-xs"
+                      onClick={handleRefreshLocal}
+                      disabled={isRefreshingLocal}
+                      title="Re-scan local and self-hosted engines"
+                      style={{ flexShrink: 0, padding: '0 6px', height: '24px' }}
+                    >
+                      {isRefreshingLocal ? '…' : '↻'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Provider Search */}
@@ -803,6 +686,8 @@ export default function ModelSelector({
                         ? currentProviderInfo.label
                         : selectedProvider === 'ready'
                         ? 'Configured Models'
+                        : selectedProvider === 'local-all'
+                        ? 'Local & Self-Hosted Models'
                         : 'All Models'}
                     </span>
                     <span className="models-main-count">
@@ -936,34 +821,16 @@ export default function ModelSelector({
                       </div>
                       <span className="models-empty-title">No Configured Models Yet</span>
                       <p className="models-empty-desc">
-                        Connect an account via OAuth or add an API Key to enable model inference.
+                        Connect an account or local server on the home screen, or switch to All and click any model to unlock it.
                       </p>
-                      <div className="models-empty-actions">
-                        <button
-                          type="button"
-                          className="models-btn models-btn-primary"
-                          onClick={() => setIsFullOAuthModalOpen(true)}
-                        >
-                          <ZapIcon size={13} style={{ marginRight: 6 }} />
-                          Connect via OAuth
-                        </button>
-                        <button
-                          type="button"
-                          className="models-btn models-btn-secondary"
-                          onClick={() => setIsFullApiKeyModalOpen(true)}
-                        >
-                          <KeyIcon size={13} style={{ marginRight: 6 }} />
-                          Configure API Keys
-                        </button>
-                        <button
-                          type="button"
-                          className="models-btn models-btn-secondary"
-                          onClick={() => setIsOmniRouteModalOpen(true)}
-                        >
-                          <RouteIcon size={13} style={{ marginRight: 6 }} />
-                          OmniRoute Gateway
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="models-btn models-btn-primary models-btn-sm"
+                        onClick={() => setIsCustomModalOpen(true)}
+                        style={{ marginTop: '10px' }}
+                      >
+                        + Add Custom Model
+                      </button>
                     </div>
                   ) : (
                     <div className="models-empty-state">
@@ -1215,26 +1082,12 @@ export default function ModelSelector({
           </DialogPanel>
         </div>
       </Dialog>
+      <CustomProviderModal
+        isOpen={isCustomModalOpen}
+        onClose={() => setIsCustomModalOpen(false)}
+        onRefreshModels={onRefreshModels}
+      />
 
-      {/* Full Dedicated Modals */}
-      <ProviderConnectModal
-        isOpen={isFullOAuthModalOpen}
-        onClose={() => setIsFullOAuthModalOpen(false)}
-        providers={providers}
-        onRefreshModels={onRefreshModels}
-        variant="full"
-      />
-      <ApiKeyConfigModal
-        isOpen={isFullApiKeyModalOpen}
-        onClose={() => setIsFullApiKeyModalOpen(false)}
-        providers={providers}
-        onRefreshModels={onRefreshModels}
-      />
-      <OmniRouteModal
-        isOpen={isOmniRouteModalOpen}
-        onClose={() => setIsOmniRouteModalOpen(false)}
-        onRefreshModels={onRefreshModels}
-      />
     </>
   );
 }

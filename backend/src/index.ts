@@ -84,6 +84,11 @@ interface WsData {
 
 const activeSockets = new Set<(msg: Record<string, unknown>) => void>();
 const activeBridges = new Map<string, SessionBridge>();
+const liveSessionBridges = new Set<SessionBridge>();
+
+async function notifyBridgesOfProviderChange(providerId: string): Promise<void> {
+  await Promise.allSettled([...liveSessionBridges].map((b) => b.refreshProviderIfActive(providerId)));
+}
 const projectCleanupTimers = new Map<string, Timer>();
 
 // Broadcast OAuth session state changes in real-time to all connected frontend clients
@@ -294,6 +299,7 @@ const _server = Bun.serve<WsData>({
           baseUrl,
           apiKey: body.api_key || body.apiKey,
         });
+        await notifyBridgesOfProviderChange(result.provider);
 
         return Response.json(result, { headers: CORS_HEADERS });
       } catch (err) {
@@ -308,6 +314,177 @@ const _server = Bun.serve<WsData>({
       const provider = decodeURIComponent(url.pathname.replace("/api/auth/gateway/", ""));
       try {
         await modelsService.removeGatewayProvider(provider);
+        await notifyBridgesOfProviderChange(provider);
+        return Response.json({ success: true, provider }, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+    // Models: Refresh local engines (Ollama, llama.cpp, LM Studio, vLLM, Apple)
+    if (url.pathname === "/api/models/local/refresh" && req.method === "POST") {
+      try {
+        await modelsService.refreshLocalEngines(true);
+        const hw = detectHardware();
+        const catalog = await modelsService.getModelCatalog(hw);
+        return Response.json(
+          {
+            ok: true,
+            hardware: hw,
+            providers: catalog.providers,
+            models: catalog.models,
+            active_model: catalog.active_model,
+            total_models: catalog.total_models,
+            ollama_running: catalog.ollama_running,
+          },
+          { headers: CORS_HEADERS },
+        );
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Models: List custom & self-hosted providers from models.yml
+    if (url.pathname === "/api/models/custom-providers" && req.method === "GET") {
+      try {
+        const result = await modelsService.listCustomProviders();
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Models: Probe a custom/self-hosted provider endpoint (discovery or 1-token test) without saving
+    if (url.pathname === "/api/models/custom-providers/probe" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as {
+          baseUrl?: string;
+          base_url?: string;
+          format?: "openai" | "anthropic" | "openai-responses";
+          api?: "openai-completions" | "openai-responses" | "anthropic-messages";
+          apiKey?: string;
+          api_key?: string;
+          discoveryType?: "openai-models-list" | "ollama" | "llama.cpp" | "lm-studio" | "proxy" | "litellm" | "none";
+          injectV1?: boolean;
+          headers?: Record<string, string>;
+          modelId?: string;
+          testInference?: boolean;
+          models?: Array<{
+            id: string;
+            name?: string;
+            contextWindow?: number;
+            maxTokens?: number;
+            reasoning?: boolean;
+            supportsVision?: boolean;
+          }>;
+        };
+        const baseUrl = body.baseUrl || body.base_url;
+        if (!baseUrl) {
+          return Response.json(
+            { detail: "Base URL is required" },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+        const probe = await modelsService.probeCustomProvider({
+          baseUrl,
+          format: body.format,
+          api: body.api,
+          apiKey: body.apiKey ?? body.api_key,
+          discoveryType: body.discoveryType,
+          injectV1: body.injectV1,
+          headers: body.headers,
+          modelId: body.modelId,
+          models: body.models,
+          testInference: body.testInference,
+        });
+        return Response.json(probe, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Models: Save custom/self-hosted provider into models.yml
+    if (url.pathname === "/api/models/custom-providers" && req.method === "POST") {
+      try {
+        const body = (await req.json()) as {
+          provider?: string;
+          name?: string;
+          baseUrl?: string;
+          base_url?: string;
+          format?: "openai" | "anthropic" | "openai-responses";
+          api?: "openai-completions" | "openai-responses" | "anthropic-messages";
+          auth?: "none" | "apiKey";
+          apiKey?: string;
+          api_key?: string;
+          discoveryType?: "openai-models-list" | "ollama" | "llama.cpp" | "lm-studio" | "proxy" | "litellm" | "none";
+          injectV1?: boolean;
+          disableStrictTools?: boolean;
+          headers?: Record<string, string>;
+          compat?: Record<string, unknown>;
+          modelId?: string;
+          models?: Array<{
+            id: string;
+            name?: string;
+            contextWindow?: number;
+            maxTokens?: number;
+            reasoning?: boolean;
+            supportsVision?: boolean;
+          }>;
+          allowOverride?: boolean;
+          isEdit?: boolean;
+        };
+        const baseUrl = body.baseUrl || body.base_url;
+        if (!baseUrl) {
+          return Response.json(
+            { detail: "Base URL is required" },
+            { status: 400, headers: CORS_HEADERS },
+          );
+        }
+        const result = await modelsService.saveCustomProvider({
+          provider: body.provider,
+          name: body.name,
+          baseUrl,
+          format: body.format,
+          api: body.api,
+          auth: body.auth,
+          apiKey: body.apiKey ?? body.api_key,
+          discoveryType: body.discoveryType,
+          injectV1: body.injectV1,
+          disableStrictTools: body.disableStrictTools,
+          headers: body.headers,
+          compat: body.compat,
+          modelId: body.modelId,
+          models: body.models,
+          allowOverride: body.allowOverride,
+          isEdit: body.isEdit,
+        });
+        await notifyBridgesOfProviderChange(result.provider);
+        return Response.json(result, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 400, headers: CORS_HEADERS },
+        );
+      }
+    }
+
+    // Models: Delete custom/self-hosted provider from models.yml
+    if (url.pathname.startsWith("/api/models/custom-providers/") && req.method === "DELETE") {
+      const provider = decodeURIComponent(url.pathname.replace("/api/models/custom-providers/", ""));
+      try {
+        await modelsService.removeCustomProvider(provider);
+        await notifyBridgesOfProviderChange(provider);
         return Response.json({ success: true, provider }, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -1651,6 +1828,7 @@ const _server = Bun.serve<WsData>({
       activeSockets.add(send);
       const bridge = new SessionBridge(send, modelsService, devServerManager);
       ws.data.bridge = bridge;
+      liveSessionBridges.add(bridge);
 
       // Forward dev server events to frontend only for this connection's project
       const unsubscribe = devServerManager.onEvent(event => {
@@ -2265,6 +2443,9 @@ const _server = Bun.serve<WsData>({
           }, 4000);
           projectCleanupTimers.set(closingProject, timer);
         }
+      }
+      if (ws.data.bridge) {
+        liveSessionBridges.delete(ws.data.bridge);
       }
       ws.data.bridge?.dispose().catch(() => {});
     },
