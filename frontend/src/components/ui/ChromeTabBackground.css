@@ -1,0 +1,24 @@
+/* =========================================================
+   ChromeTabBackground — Pure Borderless Outward Flares
+   ========================================================= */
+
+.chrome-tab-flare {
+  position: absolute;
+  bottom: 0;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.chrome-tab-flare--left {
+  left: -10px;
+}
+
+.chrome-tab-flare--right {
+  right: -10px;
+}
+
+.chrome-tab-flare__path {
+  fill: var(--chrome-tab-fill, rgba(255, 255, 255, 0.055));
+}

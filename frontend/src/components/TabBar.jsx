@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config';
 import './TabBar.css';
+import ChromeTabBackground from './ui/ChromeTabBackground';
 
 const DownloadIcon = () => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -212,6 +213,7 @@ export default function TabBar({
           title="Projects / Welcome Screen"
           aria-label="Home"
         >
+          {isHomeActive && <ChromeTabBackground />}
           <span className="tab-bar__tab-inner">
             <div className="tab-bar__tab-icon">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -229,7 +231,6 @@ export default function TabBar({
             const isActive = !isHomeActive && tab.id === activeTabId;
             const isGenerating = tab.agentStatus === 'generating' || tab.agentStatus === 'retrying';
             const isAwaiting = tab.agentStatus === 'awaiting_human';
-
             return (
               <div
                 key={tab.id}
@@ -237,6 +238,7 @@ export default function TabBar({
                 onClick={() => onSelectTab(tab.id)}
                 title={tab.projectName || 'Project'}
               >
+                {isActive && <ChromeTabBackground />}
                 <span className="tab-bar__tab-inner">
                   <div className="tab-bar__tab-icon">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -291,6 +293,7 @@ export default function TabBar({
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
                 </button>
+
               </div>
             );
           })}

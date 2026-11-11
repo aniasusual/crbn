@@ -240,7 +240,7 @@ export default function InteractiveListPreview({
             return (
               <div
                 key={itemKey}
-                className={`flex cursor-pointer items-center justify-between border-b border-white/10 p-3 transition-colors hover:bg-white/5 ${item.selected ? "ilp-row--selected" : ""}`}
+                className={`ilp-mobile-card flex cursor-pointer items-center justify-between rounded-[10px] p-3 transition-colors hover:bg-white/5 ${item.selected ? "ilp-row--selected" : ""}`}
                 onClick={() => onItemClick?.(item, index)}
               >
                 <div className="flex flex-col gap-1 min-w-0 flex-1">

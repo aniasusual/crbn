@@ -14,6 +14,7 @@ import { SilkAurora } from '@/components/ui/silk-aurora';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL, APP_VERSION } from '../config';
 import './WelcomeView.css';
+import ChromeTabBackground from './ui/ChromeTabBackground';
 
 const GitHubIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -83,6 +84,35 @@ const LayersIcon = ({ size = 12 }) => (
     <polyline points="2 12 12 17 22 12" />
   </svg>
 );
+
+const SmartphoneIcon = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <line x1="12" y1="18" x2="12.01" y2="18" />
+  </svg>
+);
+
+const WorkflowIcon = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="6" height="6" rx="1.5" />
+    <rect x="15" y="15" width="6" height="6" rx="1.5" />
+    <path d="M9 6h4a2 2 0 0 1 2 2v7" />
+  </svg>
+);
+
+function renderTemplateTabIcon(tpl) {
+  const iconKey = tpl?.icon || tpl?.category || '';
+  if (iconKey === 'smartphone' || iconKey === 'mobile' || tpl?.id === 'mobile_expo') {
+    return <SmartphoneIcon size={13} />;
+  }
+  if (iconKey === 'joystick' || iconKey === 'game' || tpl?.id?.startsWith('game_')) {
+    return <GamepadIcon size={13} />;
+  }
+  if (iconKey === 'workflow' || tpl?.id === 'python_workflow') {
+    return <WorkflowIcon size={13} />;
+  }
+  return <LayersIcon size={13} />;
+}
 
 export default function WelcomeView({
   onSubmit,
@@ -911,6 +941,7 @@ export default function WelcomeView({
                 }}
               />
               {/* Segmented Template Selector (when not building on an existing GitHub repo) */}
+              {/* Attached Folder-Tab Template Selector (flush on top of composer) */}
               {!selectedRepo && (
                 <div className="degrees-template-selection-container">
                   <div className="degrees-template-segments-bar">
@@ -936,6 +967,8 @@ export default function WelcomeView({
                             aria-checked={isSelected}
                             title={tpl.description}
                           >
+                            {isSelected && <ChromeTabBackground />}
+                            <span className="degrees-template-seg-icon">{renderTemplateTabIcon(tpl)}</span>
                             <span className="degrees-template-seg-name">{tpl.name}</span>
                             {tpl.comingSoon && (
                               <span className="degrees-template-seg-tag">Soon</span>
@@ -948,49 +981,6 @@ export default function WelcomeView({
                       <span className="degrees-template-notice-pill">{templateNotice}</span>
                     )}
                   </div>
-
-                  {(selectedTemplate === 'game_3d' || selectedTemplate?.startsWith('game_')) && (
-                    <div className="degrees-template-subsegments-bar">
-                      <span className="degrees-template-subsegments-label">Engine:</span>
-                      <div className="degrees-template-subsegments" role="radiogroup" aria-label="Game Engine">
-                        <button
-                          type="button"
-                          className="degrees-template-subseg-btn degrees-template-subseg-btn--active"
-                          onClick={() => setSelectedTemplate('game_3d')}
-                          title="Interactive 3D Web game using React Three Fiber and Rapier physics"
-                        >
-                          <CubeIcon size={12} />
-                          <span className="degrees-template-subseg-name">3D Web (Instant)</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
-                          onClick={() => {
-                            setTemplateNotice('Godot 4 WebAssembly export coming soon');
-                            setTimeout(() => setTemplateNotice(null), 2500);
-                          }}
-                          title="Godot 4 WebAssembly export for indie 2D & 3D games"
-                        >
-                          <GamepadIcon size={12} />
-                          <span className="degrees-template-subseg-name">Godot Engine</span>
-                          <span className="degrees-template-subseg-tag">Soon</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
-                          onClick={() => {
-                            setTemplateNotice('Unreal Engine 5 cloud streaming coming soon');
-                            setTimeout(() => setTemplateNotice(null), 2500);
-                          }}
-                          title="Unreal Engine 5 project skeleton with C++ and Blueprints"
-                        >
-                          <LayersIcon size={12} />
-                          <span className="degrees-template-subseg-name">Unreal Engine</span>
-                          <span className="degrees-template-subseg-tag">Soon</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -999,6 +989,49 @@ export default function WelcomeView({
                   isDragging ? 'degrees-composer--dragging' : ''
                 } ${selectedRepo ? 'degrees-composer--has-target' : ''}`}
               >
+                {/* Game Engine Sub-selector inside composer top ribbon */}
+                {!selectedRepo && (selectedTemplate === 'game_3d' || selectedTemplate?.startsWith('game_')) && (
+                  <div className="degrees-composer__engine-ribbon">
+                    <span className="degrees-template-subsegments-label">Engine</span>
+                    <div className="degrees-template-subsegments" role="radiogroup" aria-label="Game Engine">
+                      <button
+                        type="button"
+                        className="degrees-template-subseg-btn degrees-template-subseg-btn--active"
+                        onClick={() => setSelectedTemplate('game_3d')}
+                        title="Interactive 3D Web game using React Three Fiber and Rapier physics"
+                      >
+                        <CubeIcon size={12} />
+                        <span className="degrees-template-subseg-name">3D Web (Instant)</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                        onClick={() => {
+                          setTemplateNotice('Godot 4 WebAssembly export coming soon');
+                          setTimeout(() => setTemplateNotice(null), 2500);
+                        }}
+                        title="Godot 4 WebAssembly export for indie 2D & 3D games"
+                      >
+                        <GamepadIcon size={12} />
+                        <span className="degrees-template-subseg-name">Godot Engine</span>
+                        <span className="degrees-template-subseg-tag">Soon</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                        onClick={() => {
+                          setTemplateNotice('Unreal Engine 5 cloud streaming coming soon');
+                          setTimeout(() => setTemplateNotice(null), 2500);
+                        }}
+                        title="Unreal Engine 5 project skeleton with C++ and Blueprints"
+                      >
+                        <LayersIcon size={12} />
+                        <span className="degrees-template-subseg-name">Unreal Engine</span>
+                        <span className="degrees-template-subseg-tag">Soon</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Selected GitHub Repo Target Ribbon */}
                 {selectedRepo && (
                   <div className="degrees-composer__target-ribbon">

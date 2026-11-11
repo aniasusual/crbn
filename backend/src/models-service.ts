@@ -2,7 +2,11 @@ import * as os from "node:os";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as yaml from "yaml";
-import MODELS from "../../pi-harness/packages/catalog/src/models.json";
+import {
+  getBundledModels,
+  getBundledProviders,
+  isGeneratedProvider,
+} from "../../pi-harness/packages/catalog/src/models";
 import { providerEntries, providerEntry } from "../../pi-harness/packages/catalog/src/compat/providers";
 import { getEnvApiKeyName } from "../../pi-harness/packages/ai/src/env-api-key";
 import {
@@ -549,7 +553,7 @@ export class ModelsService {
     const modelList: ModelCatalogEntry[] = [];
     const { providers: ymlProviders } = await this.readModelsYml();
 
-    const jsonProviders = Object.keys(MODELS) as string[];
+    const jsonProviders = [...getBundledProviders()];
     const registryModels = registry.getAll();
     const registryProviders = Array.from(new Set(registryModels.map((m) => m.provider)));
     const oauthProviders = this.oauthManager.getOAuthProviders();
@@ -681,18 +685,7 @@ export class ModelsService {
           hasKeylessLogin ||
           hasImplicitLocalAuth ||
           (isCustomGateway && registry.hasConcreteAuth(pid)));
-      const rawJsonModels =
-        ((MODELS as Record<string, unknown>)[pid] as Record<
-          string,
-          {
-            id: string;
-            name?: string;
-            input?: string[];
-            contextWindow?: number;
-            reasoning?: boolean;
-            cost?: { input?: number; output?: number };
-          }
-        >) || {};
+      const bundledModels = isGeneratedProvider(pid) ? getBundledModels(pid) : [];
 
       let providerModelCount = 0;
       const providerMeta: ProviderMetadata = {
@@ -716,8 +709,9 @@ export class ModelsService {
       providerList.push(providerMeta);
 
       // A. Static catalog models
-      for (const mId in rawJsonModels) {
-        const m = rawJsonModels[mId];
+      for (const m of bundledModels) {
+        if (!m?.id) continue;
+        if (m.kind && m.kind !== "chat") continue;
         if (pid === "google-antigravity" && DEAD_ANTIGRAVITY_MODELS[m.id]) continue;
         const canonicalId = `${pid}/${m.id}`;
         if (seenModelCanonicalIds.has(canonicalId)) continue;
@@ -763,6 +757,7 @@ export class ModelsService {
 
       // B. Models in ModelRegistry (covers built-in discovery, local engines, and models.yml custom/discovered models)
       for (const rm of regModelsForP) {
+        if (!rm?.id) continue;
         if (pid === "google-antigravity" && DEAD_ANTIGRAVITY_MODELS[rm.id]) continue;
         const canonicalId = `${pid}/${rm.id}`;
         if (seenModelCanonicalIds.has(canonicalId)) continue;
@@ -884,7 +879,7 @@ export class ModelsService {
   }>> {
     const authStorage = await this.getAuthStorage();
     const registry = await this.getRegistry();
-    const rawProviders = Object.keys(MODELS) as string[];
+    const rawProviders = [...getBundledProviders()];
     const storedProviders = Array.from(new Set(authStorage.credentials.list().map((c) => c.provider)));
     const allProviders = Array.from(new Set([...rawProviders, ...storedProviders]));
     const summary: Record<string, {
@@ -1217,7 +1212,7 @@ export class ModelsService {
         throw new Error("Invalid provider ID. Use letters, numbers, '.', '_' or '-'.");
       }
       const isBuiltInCloud =
-        Boolean((MODELS as Record<string, unknown>)[rawProvider] || providerEntry(rawProvider)) &&
+        Boolean(isGeneratedProvider(rawProvider) || providerEntry(rawProvider)) &&
         !SELF_HOSTED_PROVIDER_ALLOWLIST[rawProvider];
       if (isBuiltInCloud && !input.allowOverride && !input.isEdit) {
         const safeSlug = `custom-${slugifyProviderSegment(rawProvider) || "endpoint"}`;

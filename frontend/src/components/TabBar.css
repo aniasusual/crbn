@@ -6,43 +6,53 @@
 
 .tab-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   background: #000000;
   border: none;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   height: 44px;
   min-height: 44px;
   user-select: none;
-  overflow: hidden;
   flex-shrink: 0;
-  padding: 6px 16px;
+  padding: 0 16px;
   margin: 0;
   position: relative;
   z-index: 20;
+  box-sizing: border-box;
+  --chrome-tab-fill: rgba(255, 255, 255, 0.055);
 }
 
 .tab-bar__left {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  overflow: hidden;
+  align-items: flex-end;
+  gap: 4px;
+  height: 100%;
   flex: 1;
   min-width: 0;
+  overflow: visible;
+}
+
+.tab-bar__left {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
   height: 100%;
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
 }
 
 
 /* Scrollable container for project tabs */
 .tab-bar__tabs-scroll {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
   height: 100%;
   scrollbar-width: none;
-  padding: 2px 4px;
+  padding: 0 4px;
   margin: 0;
   flex: 1;
   min-width: 0;
@@ -54,53 +64,56 @@
 
 /* Individual Tab */
 .tab-bar__tab {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 6px 0 10px;
-  height: 30px;
+  gap: 7px;
+  padding: 0 14px;
+  height: 36px;
   margin: 0;
-  background: transparent;
+  margin-bottom: -1px;
+  background: rgba(14, 14, 18, 0.28);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: none;
-  border-radius: 6px;
+  border-radius: 10px 10px 0 0;
   color: rgba(255, 255, 255, 0.55);
   font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
   font-size: 12px;
-  font-weight: 450;
+  font-weight: 500;
   letter-spacing: -0.01em;
   cursor: pointer;
-  transition: color 0.14s ease, opacity 0.14s ease, background 0.14s ease;
-  max-width: 190px;
-  min-width: 70px;
+  transition: color 0.15s ease, background 0.15s ease;
+  max-width: 200px;
+  min-width: 76px;
   flex-shrink: 0;
   position: relative;
-  overflow: hidden;
   box-sizing: border-box;
+  white-space: nowrap;
+  outline: none;
 }
 
 .tab-bar__tab:hover {
   background: rgba(255, 255, 255, 0.04);
-  border: none;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .tab-bar__tab--active {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.055) !important;
+  backdrop-filter: blur(36px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(190%) !important;
   border: none !important;
+  border-radius: 10px 10px 0 0 !important;
   box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
   color: #ffffff !important;
-  font-weight: 550;
+  font-weight: 600 !important;
   transform: none !important;
   animation: none !important;
-  z-index: 2;
+  z-index: 5;
 }
 
 .tab-bar__tab--active:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
-  transform: none !important;
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.055) !important;
+  color: #ffffff !important;
 }
 
 .tab-bar__tab-inner {
@@ -116,15 +129,14 @@
 /* Home / Projects Pinned Tab */
 .tab-bar__tab--home {
   min-width: auto;
-  padding: 0 10px;
+  padding: 0 14px;
   margin: 0;
-  background: transparent;
-  border: none;
+  margin-bottom: -1px;
+  border-radius: 10px 10px 0 0;
 }
 
 .tab-bar__tab--home:hover {
   background: rgba(255, 255, 255, 0.04);
-  border: none;
   color: #ffffff;
 }
 
@@ -323,7 +335,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 7px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
   border: none;
   box-shadow: none;
@@ -333,6 +345,8 @@
   transition: all 0.14s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
   margin: 0;
+  margin-bottom: 4px;
+  margin-left: 6px;
 }
 
 .tab-bar__new-btn:hover {
@@ -354,6 +368,7 @@
   gap: 8px;
   margin-left: auto;
   padding-right: 4px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 

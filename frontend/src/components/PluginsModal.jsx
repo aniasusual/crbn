@@ -1186,8 +1186,9 @@ export default function PluginsModal({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            padding: '0.5rem 0',
-                            borderBottom: '1px solid rgba(255,255,255,0.06)',
+                            padding: '0.55rem 0.75rem',
+                            borderRadius: '10px',
+                            background: 'rgba(255, 255, 255, 0.03)',
                           }}
                         >
                           <div>

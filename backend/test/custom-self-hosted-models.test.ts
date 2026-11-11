@@ -584,4 +584,30 @@ describe("Self-hosted and custom models integration", () => {
     expect(parsed.beforeUrl).toBe("http://127.0.0.1:19001/v1");
     expect(parsed.afterUrl).toBe("http://127.0.0.1:19002/v1");
   });
+
+  it("never exposes encoded models.json metadata keys or unnamed models in the catalog", async () => {
+    const res = await fetch(`http://127.0.0.1:${backendPort}/api/system/models-and-hardware`);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      providers: Array<{ id: string; label: string; model_count: number }>;
+      models: Array<{ id?: string; name?: string; canonical_id?: string; provider?: string }>;
+    };
+
+    const forbiddenKeys = new Set(["version", "keys", "booleanShapes", "nodes", "compat", "providers"]);
+    const leakedProviders = data.providers.filter((p) => forbiddenKeys.has(p.id));
+    expect(leakedProviders).toEqual([]);
+
+    const malformedModels = data.models.filter(
+      (m) =>
+        !m.id ||
+        m.id === "undefined" ||
+        !m.name ||
+        m.name === "undefined" ||
+        !m.canonical_id ||
+        m.canonical_id.endsWith("/undefined") ||
+        forbiddenKeys.has(m.provider || ""),
+    );
+    expect(malformedModels).toEqual([]);
+    expect(data.models.length).toBeGreaterThan(100);
+  });
 });

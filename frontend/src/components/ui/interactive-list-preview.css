@@ -17,8 +17,8 @@
   right: 0;
   top: 0;
   z-index: 10;
-  background-color: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.065);
+  border-radius: 10px;
 }
 
 .ilp-table-wrap {
@@ -36,20 +36,17 @@
 
 .ilp-row {
   cursor: pointer;
-  transition: background-color 0.05s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.ilp-row:last-child {
+  transition: background-color 0.08s ease;
   border-bottom: none;
 }
+
 .ilp-row--selected {
-  background: rgba(56, 189, 248, 0.08);
-  border-bottom-color: rgba(56, 189, 248, 0.22);
+  background: rgba(255, 255, 255, 0.11);
+  border-radius: 10px;
 }
 
 .ilp-row--selected:hover {
-  background: rgba(56, 189, 248, 0.12);
+  background: rgba(255, 255, 255, 0.13);
 }
 
 .ilp-cell {
@@ -104,29 +101,25 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  border: none;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.7);
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background 0.12s ease, color 0.12s ease;
   pointer-events: auto;
   position: relative;
   z-index: 40;
 }
 
 .ilp-action-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
-  transform: scale(1.08);
 }
 
-
 .ilp-action-btn--delete:hover {
-  border-color: rgba(239, 68, 68, 0.45);
   background: rgba(239, 68, 68, 0.2);
-  color: #ef4444;
+  color: #fca5a5;
 }
 
 /* Coarse pointer (mobile/touch) split layout */
@@ -139,8 +132,9 @@
 .ilp-mobile-card {
   display: flex;
   cursor: pointer;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  transition: background-color 0.15s ease;
+  border-bottom: none;
+  border-radius: 10px;
+  transition: background-color 0.12s ease;
 }
 
 .ilp-mobile-card:hover {
