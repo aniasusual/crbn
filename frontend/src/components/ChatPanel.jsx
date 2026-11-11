@@ -5,6 +5,8 @@ import GitHubSyncModal from './GitHubSyncModal';
 import ChatMessage from './ChatMessage';
 import CommandApproval from './CommandApproval';
 import AskQuestionCard from './AskQuestionCard';
+import TodoCard from './TodoCard';
+import QueuedMessagesCard from './QueuedMessagesCard';
 import ModelSelector from './ModelSelector';
 import McpConnectModal from './McpConnectModal';
 import PluginsModal from './PluginsModal';
@@ -193,15 +195,44 @@ const parseTodoText = (text) => {
   return phases;
 };
 
-const getTodoStats = (phases = []) => {
-  const tasks = phases.flatMap((p) => p.tasks || []);
-  const completed = tasks.filter((t) => t.status === 'completed').length;
-  const total = tasks.length;
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const activeTask = tasks.find((t) => t.status === 'in_progress');
-  return { completed, total, percent, activeTask };
+const isHiddenTodoMessage = (msg) => {
+  if (!msg) return false;
+  const isTodo =
+    msg.type === 'todo' ||
+    msg.type === 'todo_update' ||
+    ((msg.type === 'tool_call' || msg.type === 'tool_result') && msg.name === 'todo');
+  if (!isTodo) return false;
+  return !msg.is_error && !msg.result?.isError;
 };
 
+const extractPhasesFromMessage = (msg) => {
+  if (!msg) return null;
+  if (Array.isArray(msg.phases) && msg.phases.length > 0) {
+    return { phases: msg.phases, op: msg.op || 'view' };
+  }
+  const rawArgs = msg.arguments || msg.data;
+  if (rawArgs && Array.isArray(rawArgs.phases) && rawArgs.phases.length > 0) {
+    return { phases: rawArgs.phases, op: rawArgs.op || 'view' };
+  }
+  const detailsPhases = msg.result?.details?.phases;
+  if (Array.isArray(detailsPhases) && detailsPhases.length > 0) {
+    return { phases: detailsPhases, op: msg.result?.details?.op || rawArgs?.op || 'view' };
+  }
+  if (msg.name === 'todo') {
+    if (typeof msg.result === 'string') {
+      const parsed = parseTodoText(msg.result);
+      if (parsed.length > 0) return { phases: parsed, op: 'view' };
+    }
+    const textBlock = Array.isArray(msg.result?.content)
+      ? msg.result.content.find((c) => c && c.type === 'text' && typeof c.text === 'string')?.text
+      : null;
+    if (textBlock) {
+      const parsed = parseTodoText(textBlock);
+      if (parsed.length > 0) return { phases: parsed, op: 'view' };
+    }
+  }
+  return null;
+};
 
 export default function ChatPanel({
   messages,
@@ -266,7 +297,6 @@ export default function ChatPanel({
   const undoToastTimerRef = useRef(null);
   const input = controlledInput !== undefined ? controlledInput : localInput;
   const setInput = onInputChange || setLocalInput;
-  const [isQueueExpanded, setIsQueueExpanded] = useState(false);
   const queuedItems = useMemo(() => {
     if (!queuedMessages) return [];
     const items = [];
@@ -287,18 +317,23 @@ export default function ChatPanel({
   const [activeMatchIndex, setActiveMatchIndex] = useState(0);
   const searchInputRef = useRef(null);
 
+  const displayMessages = useMemo(
+    () => (messages || []).filter((msg) => !isHiddenTodoMessage(msg)),
+    [messages]
+  );
+
   const matches = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q || !Array.isArray(messages)) return [];
+    if (!q) return [];
     const results = [];
-    messages.forEach((msg, idx) => {
+    displayMessages.forEach((msg, idx) => {
       const text = extractSearchableText(msg);
       if (text.includes(q)) {
         results.push({ messageIndex: idx, id: `chat-msg-${idx}` });
       }
     });
     return results;
-  }, [messages, searchQuery]);
+  }, [displayMessages, searchQuery]);
 
   const matchingIndices = useMemo(() => {
     return new Set(matches.map((m) => m.messageIndex));
@@ -371,7 +406,6 @@ export default function ChatPanel({
     addFiles,
   } = useMediaAttachments(projectName || _projectName);
   const [selectedSubagentMsg, setSelectedSubagentMsg] = useState(null);
-  const [isTodoExpanded, setIsTodoExpanded] = useState(false);
   const [isTreeModalOpen, setIsTreeModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
@@ -386,7 +420,7 @@ export default function ChatPanel({
   const prevScrollHeightRef = useRef(0);
   const isExpandingRef = useRef(false);
 
-  const allMessages = messages || [];
+  const allMessages = displayMessages;
   const totalMessagesCount = allMessages.length;
   const effectiveVisibleCount = isSearchOpen ? totalMessagesCount : visibleCount;
   const startIndex = Math.max(0, totalMessagesCount - effectiveVisibleCount);
@@ -407,32 +441,18 @@ export default function ChatPanel({
   };
 
   // Derive active todo state from todoState prop or latest todo message
-  const activeTodos = (() => {
-    if (todoState && Array.isArray(todoState.phases) && todoState.phases.length > 0) {
+  const activeTodos = useMemo(() => {
+    if (todoState && Array.isArray(todoState.phases)) {
       return todoState;
     }
     if (Array.isArray(messages)) {
       for (let i = messages.length - 1; i >= 0; i--) {
-        const msg = messages[i];
-        if (!msg) continue;
-        if (Array.isArray(msg.phases) && msg.phases.length > 0) {
-          return { phases: msg.phases, op: msg.op || 'view' };
-        }
-        const rawArgs = msg.arguments || msg.data;
-        if (rawArgs && Array.isArray(rawArgs.phases) && rawArgs.phases.length > 0) {
-          return { phases: rawArgs.phases, op: rawArgs.op || 'view' };
-        }
-        if (msg.name === 'todo' && msg.result && typeof msg.result === 'string') {
-          const parsed = parseTodoText(msg.result);
-          if (parsed && parsed.length > 0) {
-            return { phases: parsed, op: 'view' };
-          }
-        }
+        const extracted = extractPhasesFromMessage(messages[i]);
+        if (extracted) return extracted;
       }
     }
     return null;
-  })();
-  const todoStats = activeTodos?.phases ? getTodoStats(activeTodos.phases) : null;
+  }, [todoState, messages]);
 
   // Keep active subagent data reactive to incoming live websocket events
   const activeSubagentData = selectedSubagentMsg && isSubagentTool(selectedSubagentMsg.name)
@@ -613,10 +633,10 @@ export default function ChatPanel({
 
   // Determine whether the agent has started streaming any content (tokens, thinking, tool calls)
   // for the current user request.
-  const lastUserIndex = messages && messages.length > 0
-    ? messages.map((m) => m.role === 'user' || m.type === 'user').lastIndexOf(true)
+  const lastUserIndex = displayMessages.length > 0
+    ? displayMessages.map((m) => m.role === 'user' || m.type === 'user').lastIndexOf(true)
     : -1;
-  const messagesAfterUser = lastUserIndex >= 0 ? messages.slice(lastUserIndex + 1) : messages || [];
+  const messagesAfterUser = lastUserIndex >= 0 ? displayMessages.slice(lastUserIndex + 1) : displayMessages;
   const hasStreamingStarted = messagesAfterUser.some(
     (m) => m.type === 'token' || m.type === 'thinking' || m.type === 'tool_call' || m.type === 'tool_result' || m.role === 'assistant'
   );
@@ -954,6 +974,12 @@ export default function ChatPanel({
       )}
 
 
+      <TodoCard
+        key={activeSessionId || 'default'}
+        phases={activeTodos?.phases || []}
+        hasOverlay={Boolean(pendingApproval || pendingPlanProposal || pendingAsk)}
+      />
+
       <CommandApproval
         request={pendingApproval}
         onApprove={onApproveCommand}
@@ -971,87 +997,12 @@ export default function ChatPanel({
         onSubmit={(id, payload) => onToolResponse?.(id, payload)}
         onChatInstead={(id) => onToolResponse?.(id, { kind: 'chat' })}
       />
-      {/* Collapsible Todo Progress Sheet docked right above the input box */}
-      {/* {activeTodos && activeTodos.phases && activeTodos.phases.length > 0 && todoStats && (
-        <div className={`chat-panel__todo-sheet ${isTodoExpanded ? 'chat-panel__todo-sheet--expanded' : ''}`}>
-          <div
-            className="chat-panel__todo-ribbon"
-            onClick={() => setIsTodoExpanded((prev) => !prev)}
-            title="Toggle task checklist"
-          >
-            <div className="chat-panel__todo-ribbon-left">
-              <span className="chat-panel__todo-title">
-                Tasks · {todoStats.completed} of {todoStats.total}
-              </span>
-              {todoStats.activeTask && (
-                <span className="chat-panel__todo-active-chip" title={todoStats.activeTask.content}>
-                  {todoStats.activeTask.content}
-                </span>
-              )}
-            </div>
-            <div className="chat-panel__todo-ribbon-right">
-              <span className="chat-panel__todo-toggle-label">{isTodoExpanded ? 'Hide' : 'Show'}</span>
-              <svg
-                className={`chat-panel__todo-chevron ${isTodoExpanded ? 'chat-panel__todo-chevron--up' : ''}`}
-                width="11"
-                height="11"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </div>
-          </div>
-
-          {isTodoExpanded && (
-            <div className="chat-panel__todo-content">
-              {activeTodos.phases.map((phase, pIdx) => {
-                const pCompleted = (phase.tasks || []).filter((t) => t.status === 'completed').length;
-                const pTotal = (phase.tasks || []).length;
-                return (
-                  <div key={pIdx} className="chat-panel__todo-phase">
-                    <div className="chat-panel__todo-phase-head">
-                      <span className="chat-panel__todo-phase-title">{phase.name}</span>
-                      <span className="chat-panel__todo-phase-count">{pCompleted}/{pTotal}</span>
-                    </div>
-                    <div className="chat-panel__todo-task-list">
-                      {(phase.tasks || []).map((task, tIdx) => {
-                        const isDone = task.status === 'completed';
-                        const isRunning = task.status === 'in_progress';
-                        const isBlocked = task.status === 'blocked';
-                        const isDropped = task.status === 'abandoned';
-
-                        return (
-                          <div
-                            key={tIdx}
-                            className={`chat-panel__todo-task-item ${isDone ? 'chat-panel__todo-task-item--done' : ''}`}
-                          >
-                            <span className="chat-panel__todo-checkbox">
-                              {isDone ? '✓' : ''}
-                            </span>
-                            <span className={`chat-panel__todo-item-text ${isDone || isDropped ? 'chat-panel__todo-item-text--done' : ''} ${isRunning ? 'chat-panel__todo-item-text--active' : ''}`}>
-                              {task.content}
-                              {isRunning && <span className="chat-panel__todo-status-note">in progress</span>}
-                              {isBlocked && (
-                                <span className="chat-panel__todo-status-note">
-                                  {task.blocker ? `blocked: ${task.blocker}` : 'blocked'}
-                                </span>
-                              )}
-                              {isDropped && <span className="chat-panel__todo-status-note">dropped</span>}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )} */}
+      <QueuedMessagesCard
+        items={queuedItems}
+        liveSteered={queuedMessages?.liveSteered || 0}
+        onRemove={onRemoveQueuedMessage}
+        hasOverlay={Boolean(pendingApproval || pendingPlanProposal || pendingAsk)}
+      />
       {undoToast && (
         <div className="chat-panel__undo-toast">
           <span>Context reset. Previous messages dropped from model memory.</span>
@@ -1120,81 +1071,6 @@ export default function ChatPanel({
           </div>
         )}
 
-        {/* Collapsible Queued Messages List docked above the input box */}
-        {queuedItems.length > 0 && (
-          <div className={`chat-panel__queue-sheet ${isQueueExpanded ? 'chat-panel__queue-sheet--expanded' : ''}`}>
-            <div
-              className="chat-panel__queue-ribbon"
-              onClick={() => setIsQueueExpanded((prev) => !prev)}
-              title="Toggle queued messages"
-            >
-              <div className="chat-panel__queue-ribbon-left">
-                <svg className="chat-panel__queue-ribbon-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-                <span className="chat-panel__queue-title">
-                  Queued · {queuedItems.length}
-                </span>
-                <span className="chat-panel__queue-preview" title={queuedItems[0].text}>
-                  &ldquo;{queuedItems[0].text.length > 36 ? `${queuedItems[0].text.slice(0, 36)}…` : queuedItems[0].text}&rdquo;
-                </span>
-              </div>
-              <div className="chat-panel__queue-ribbon-right">
-                <span className="chat-panel__queue-toggle-label">{isQueueExpanded ? 'Hide' : 'Show'}</span>
-                <svg
-                  className={`chat-panel__queue-chevron ${isQueueExpanded ? 'chat-panel__queue-chevron--up' : ''}`}
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </div>
-            </div>
-
-            {isQueueExpanded && (
-              <div className="chat-panel__queue-body">
-                {queuedItems.map((item, idx) => (
-                  <div key={idx} className="chat-panel__queue-item">
-                    <div className="chat-panel__queue-item-left">
-                      <span className="chat-panel__queue-item-index">#{idx + 1}</span>
-                      <span className="chat-panel__queue-item-text" title={item.text}>{item.text}</span>
-                    </div>
-                    <div className="chat-panel__queue-item-actions">
-                      <span className="chat-panel__queue-item-badge">
-                        {item.type === 'steering' ? 'Steer' : 'Next Turn'}
-                      </span>
-                      {onRemoveQueuedMessage && (
-                        <button
-                          type="button"
-                          className="chat-panel__queue-item-remove"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onRemoveQueuedMessage(item.text, item.type);
-                          }}
-                          title="Remove from queue"
-                          aria-label="Remove from queue"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
 
         {/* Status Strip above input box (Online, Offline, Generating, Awaiting, Done) */}
         <div

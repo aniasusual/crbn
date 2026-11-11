@@ -276,7 +276,7 @@ export default function App() {
             return;
           }
 
-          if (data.type === 'todo_update' && data.phases) {
+          if (data.type === 'todo_update' && Array.isArray(data.phases)) {
             updateTab(tabId, {
               todoState: {
                 op: data.op || 'view',
@@ -508,15 +508,17 @@ export default function App() {
               activeSessionId: data.session?.id || t.activeSessionId,
               messages: [],
               agentStatus: null,
+              todoState: { op: 'clear', phases: [], timestamp: Date.now() },
             }));
             return;
           }
 
           if (data.type === 'session_switched') {
-            updateTab(tabId, (t) => ({
+            updateTab(tabId, {
               activeSessionId: data.sessionId,
               agentStatus: null,
-            }));
+              todoState: null,
+            });
             return;
           }
 
@@ -525,6 +527,7 @@ export default function App() {
               sessions: (t.sessions || []).filter((s) => s.id !== data.deletedSessionId),
               activeSessionId: data.nextActiveSessionId || t.activeSessionId,
               agentStatus: null,
+              todoState: null,
             }));
             return;
           }

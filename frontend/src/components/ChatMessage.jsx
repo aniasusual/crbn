@@ -669,8 +669,19 @@ export default function ChatMessage({
       );
     }
 
-    // Tool call (exclude todo, which renders via dedicated checklist card)
-    if (message.type === 'tool_call' && message.name !== 'todo') {
+    // Non-error todo updates live in the persistent TodoCard above chat input, not inline in chat
+    if (
+      (message.type === 'todo' ||
+        message.type === 'todo_update' ||
+        ((message.type === 'tool_call' || message.type === 'tool_result') && message.name === 'todo')) &&
+      !message.is_error &&
+      !message.result?.isError
+    ) {
+      return null;
+    }
+
+    // Tool call
+    if (message.type === 'tool_call') {
       const isSubagent = isSubagentTool(message.name);
       if (!isSubagent) {
         const argsStr = message.arguments
@@ -921,7 +932,7 @@ export default function ChatMessage({
     }
 
     // Tool result
-    if (message.type === 'tool_result' && message.name !== 'todo') {
+    if (message.type === 'tool_result') {
       const isSubagent = isSubagentTool(message.name);
       if (!isSubagent) {
         const resultStr = typeof message.result === 'string' ? message.result : JSON.stringify(message.result, null, 2);
@@ -1140,53 +1151,6 @@ export default function ChatMessage({
       );
     }
 
-    // Todo tool call / result compact history pill (interactive checklist lives in the docked sheet above chat input)
-    if (
-      message.type === 'todo' ||
-      message.type === 'todo_update' ||
-      (message.type === 'tool_call' && message.name === 'todo') ||
-      (message.type === 'tool_result' && message.name === 'todo')
-    ) {
-      const rawArgs = message.arguments || message.data || {};
-      const op = rawArgs.op || message.op || 'update';
-      const taskName = rawArgs.task || (rawArgs.items ? `${rawArgs.items.length} tasks` : '');
-      const copyText = typeof message.result === 'string' ? message.result : JSON.stringify(rawArgs, null, 2);
-
-      return (
-        <div className="chat-msg chat-msg--tool_result chat-msg--todo-pill">
-          <div className="chat-msg__assistant-row">
-            <div className="chat-msg__assistant-icon">
-              <CheckIcon />
-            </div>
-            <div className="chat-msg__content" style={{ flex: 1, minWidth: 0 }}>
-              <div className="chat-msg__box" onClick={toggleExpand} style={{ cursor: 'pointer' }}>
-                <div className="chat-msg__header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 500 }}>Tasks ({op})</span>
-                    {taskName && (
-                      <span className="chat-msg__file-badge">{taskName}</span>
-                    )}
-                  </div>
-                  <ChevronIcon expanded={isExpanded} />
-                </div>
-                {isExpanded && (
-                  <pre className="chat-msg__details">{copyText}</pre>
-                )}
-              </div>
-            </div>
-          </div>
-          <MessageFooter
-            timestamp={message.timestamp}
-            contentToCopy={copyText}
-            debug={message.debug}
-            onOpenDebug={openDebug}
-            stepId={message.step_id}
-            onRewindToStep={onRewindToStep}
-            onBranchFromStep={onBranchFromStep}
-          />
-        </div>
-      );
-    }
 
     // Error message
     if (message.type === 'error') {

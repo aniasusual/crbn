@@ -59,6 +59,21 @@ export interface PromptAttachments {
   videos?: PromptVideoAttachment[];
   files?: PromptFileAttachment[];
 }
+function hasNestedTodo(details: unknown): boolean {
+  if (!details || typeof details !== "object") return false;
+  const rec = details as Record<string, unknown>;
+  return (
+    Array.isArray(rec.statusEvents) &&
+    rec.statusEvents.some(
+      (ev) =>
+        ev &&
+        typeof ev === "object" &&
+        (ev as Record<string, unknown>).op === "todo" &&
+        (ev as Record<string, unknown>).committed === true,
+    )
+  );
+}
+
 export class SessionBridge {
   private session: AgentSession | null = null;
   private unsubscribe: (() => void) | null = null;
@@ -901,6 +916,7 @@ export class SessionBridge {
 
         console.log(`[SessionBridge] Initialized AgentSession for ${projectPath} with model ${session.model?.id}`);
         this.emitContextTelemetry();
+        this.emitTodoState("sync");
         this.send({
           type: "mcp_status",
           ...this.getMcpStatus(),
@@ -1270,6 +1286,7 @@ export class SessionBridge {
       content: `Context reset — ${droppedCount} ${messageNoun} dropped; session continues.`,
     });
     this.emitContextTelemetry();
+    this.emitTodoState("sync");
   }
 
   async undoClear(): Promise<void> {
@@ -1290,6 +1307,7 @@ export class SessionBridge {
         content: "Context reset undone. Prior messages restored to AI memory.",
       });
       this.emitContextTelemetry();
+      this.emitTodoState("sync");
     }
   }
   async rewindToStep(
@@ -1350,6 +1368,7 @@ export class SessionBridge {
         messages: prunedEvents,
         timestamp: new Date().toISOString(),
       });
+      this.emitTodoState("sync");
 
       if (rollbackCode) {
         this.send({
@@ -1411,6 +1430,7 @@ export class SessionBridge {
       file: "*",
       timestamp: Date.now(),
     });
+    this.emitTodoState("sync");
     return true;
   }
 
@@ -1456,6 +1476,7 @@ export class SessionBridge {
       file: "*",
       timestamp: Date.now(),
     });
+    this.emitTodoState("sync");
     return true;
   }
 
@@ -1687,16 +1708,6 @@ export class SessionBridge {
         this.send(toolCallMsg);
 
 
-        // Special handling for todo tool
-        if (event.toolName === "todo") {
-          this.send({
-            type: "todo_update",
-            op: toolArgs.op ?? "view",
-            phases: Array.isArray(toolArgs.list) ? toolArgs.list : [],
-            timestamp,
-          });
-        }
-
         // Special handling for task subagent tool
         if (event.toolName === "task") {
           this.send({
@@ -1734,6 +1745,25 @@ export class SessionBridge {
         }
 
         this.send(toolResultMsg);
+
+        if (event.toolName === "todo" && !event.isError) {
+          const details = event.result?.details as { op?: string; phases?: unknown } | undefined;
+          if (details?.op !== "view") {
+            const phases = this.session
+              ? this.session.getTodoPhases()
+              : Array.isArray(details?.phases)
+              ? details.phases
+              : [];
+            this.send({
+              type: "todo_update",
+              op: details?.op ?? (cachedCall?.args?.op as string | undefined) ?? "update",
+              phases,
+              timestamp,
+            });
+          }
+        } else if (event.toolName === "eval" && !event.isError && hasNestedTodo(event.result?.details)) {
+          this.emitTodoState("eval");
+        }
 
         // Notify file modification for live reload
         if (event.toolName === "write" || event.toolName === "edit") {
@@ -1806,6 +1836,7 @@ export class SessionBridge {
           });
         }
         this.emitContextTelemetry();
+        this.emitTodoState("sync");
         break;
       }
 
@@ -2177,6 +2208,16 @@ export class SessionBridge {
     });
   }
 
+  public emitTodoState(op = "view"): void {
+    const phases = this.session ? this.session.getTodoPhases() : [];
+    this.send({
+      type: "todo_update",
+      op,
+      phases,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   async listSessions(): Promise<SessionInfo[]> {
     if (!this.activeProjectPath) return [];
     const list = await SessionManager.list(this.activeProjectPath);
@@ -2266,6 +2307,7 @@ export class SessionBridge {
       sessionId: this.activeSessionId,
       messages: [],
     });
+    this.emitTodoState("clear");
     await this.broadcastSessionsList();
     return { session: sessionInfo };
   }
@@ -2324,6 +2366,7 @@ export class SessionBridge {
       messages: this.activeTurns,
     });
     this.emitContextTelemetry();
+    this.emitTodoState("sync");
     await this.broadcastSessionsList();
   }
 
