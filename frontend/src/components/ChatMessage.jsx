@@ -219,172 +219,67 @@ const extractTargetFiles = (message, resultStr = '') => {
   return [];
 };
 
-const AskHumanQuestionItem = ({ questionData, onSelectOption }) => {
-  const [submittedChoice, setSubmittedChoice] = useState(questionData.selectedAnswer || null);
-  const [selectedMulti, setSelectedMulti] = useState([]);
-  const [customText, setCustomText] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const isMulti = Boolean(questionData.multi);
+const AskAnsweredSummaryCard = ({ result, fallbackQuestions }) => {
+  const details = result?.details;
+  let items = [];
 
-  const rawOptions = Array.isArray(questionData.options) ? questionData.options : [];
-  // Ensure options is always a clean array of { label, description } objects
-  const options = rawOptions
-    .map((opt) => {
-      if (typeof opt === 'string') {
-        const trimmed = opt.trim();
-        return trimmed ? { label: trimmed, description: '' } : null;
-      }
-      if (typeof opt === 'object' && opt !== null) {
-        const label = String(opt.label || opt.name || opt.choice || opt.value || opt.text || '').trim();
-        const description = String(opt.description || opt.desc || '').trim();
-        return label ? { label, description } : null;
-      }
-      return null;
-    })
-    .filter(Boolean);
+  if (details && Array.isArray(details.results) && details.results.length > 0) {
+    items = details.results.map((r) => ({
+      question: r.question,
+      answers: [
+        ...(Array.isArray(r.selectedOptions) ? r.selectedOptions : []),
+        ...(r.customInput ? [r.customInput] : []),
+      ].filter(Boolean),
+    }));
+  } else if (details && (details.question || details.selectedOptions || details.customInput)) {
+    items = [
+      {
+        question: details.question || 'Clarification',
+        answers: [
+          ...(Array.isArray(details.selectedOptions) ? details.selectedOptions : []),
+          ...(details.customInput ? [details.customInput] : []),
+        ].filter(Boolean),
+      },
+    ];
+  } else if (details?.chatRedirect) {
+    items = [
+      {
+        question: Array.isArray(details.questions) ? details.questions.join(' · ') : 'Clarification',
+        answers: ['Chose to chat instead'],
+      },
+    ];
+  } else if (Array.isArray(fallbackQuestions) && fallbackQuestions.length > 0) {
+    const fallbackText =
+      typeof result?.content?.[0]?.text === 'string' ? result.content[0].text : '';
+    items = fallbackQuestions.map((q) => ({
+      question: q.question || 'Clarification',
+      answers: q.selectedAnswer ? [q.selectedAnswer] : fallbackText ? [fallbackText] : ['Answered'],
+    }));
+  }
 
-  // Recommended index: if explicitly given as number, use it; otherwise default to index 0 if options exist
-  const recIndex =
-    typeof questionData.recommended === 'number' && questionData.recommended >= 0
-      ? questionData.recommended
-      : options.length > 0
-      ? 0
-      : null;
-
-  const handleSingleClick = (label) => {
-    if (submittedChoice) return;
-    setSubmittedChoice(label);
-    if (onSelectOption) {
-      onSelectOption(label);
-    }
-  };
-
-  const handleMultiToggle = (label) => {
-    if (submittedChoice) return;
-    setSelectedMulti((prev) =>
-      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
-    );
-  };
-
-  const handleMultiSubmit = () => {
-    if (submittedChoice || selectedMulti.length === 0) return;
-    const answer = selectedMulti.join(', ');
-    setSubmittedChoice(answer);
-    if (onSelectOption) {
-      onSelectOption(answer);
-    }
-  };
-
-  const handleCustomSubmit = (e) => {
-    e?.preventDefault?.();
-    if (submittedChoice || !customText.trim()) return;
-    const answer = customText.trim();
-    setSubmittedChoice(answer);
-    if (onSelectOption) {
-      onSelectOption(answer);
-      setCustomText('');
-      setShowCustomInput(false);
-    }
-  };
+  if (items.length === 0) return null;
 
   return (
-    <div className="ask-human__item">
-      <div className="ask-human__header-row">
-        {questionData.header && (
-          <span className="ask-human__chip">{questionData.header}</span>
-        )}
-        <div className="ask-human__question-title">{questionData.question}</div>
-      </div>
-
-      {options.length > 0 && (
-        <div className="ask-human__options-grid">
-          {options.map((opt, optIdx) => {
-            const isRec = recIndex === optIdx;
-            const isChecked = selectedMulti.includes(opt.label);
-            return (
-              <button
-                key={optIdx}
-                type="button"
-                className={`ask-human__option-card ${isRec ? 'ask-human__option-card--recommended' : ''} ${submittedChoice === opt.label ? 'ask-human__option-card--selected' : ''}`}
-                disabled={Boolean(submittedChoice)}
-                onClick={() => (isMulti ? handleMultiToggle(opt.label) : handleSingleClick(opt.label))}
-              >
-                <div className="ask-human__option-top">
-                  <span className="ask-human__option-label">
-                    {isMulti && (
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}}
-                        style={{ marginRight: '8px', pointerEvents: 'none' }}
-                      />
-                    )}
-                    {opt.label}
-                  </span>
-                  {isRec && <span className="ask-human__badge-recommended">Recommended</span>}
+    <div className="chat-msg chat-msg--ask_human">
+      <div className="chat-msg__assistant-row">
+        <div className="chat-msg__assistant-icon">
+          <AgentIcon />
+        </div>
+        <div className="chat-msg__content" style={{ flex: 1, minWidth: 0 }}>
+          <div className="chat-msg__box chat-msg__box--ask_human" style={{ padding: '10px 14px' }}>
+            {items.map((item, idx) => (
+              <div key={idx} className="ask-human__item" style={{ gap: '4px' }}>
+                <div className="ask-human__question-title" style={{ fontSize: '12.5px', opacity: 0.78 }}>
+                  {item.question}
                 </div>
-                {opt.description ? (
-                  <div className="ask-human__option-desc">{opt.description}</div>
-                ) : null}
-              </button>
-            );
-          })}
+                <div style={{ color: '#86efac', fontSize: '12.5px', fontWeight: 500 }}>
+                  {item.answers.length > 0 ? item.answers.join(', ') : 'No selection'}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      )}
-
-      {isMulti && options.length > 0 && (
-        <button
-          type="button"
-          className="ask-human__submit-btn"
-          disabled={selectedMulti.length === 0}
-          onClick={handleMultiSubmit}
-        >
-          Submit Selection ({selectedMulti.length})
-        </button>
-      )}
-
-      {submittedChoice && (
-        <div style={{ color: '#4ade80', fontSize: '12px', marginTop: '6px', fontWeight: 500 }}>
-          ✓ Choice submitted: {submittedChoice}
-        </div>
-      )}
-
-      {/* Direct custom text reply option */}
-      {!submittedChoice && (
-        !showCustomInput ? (
-          <button
-            type="button"
-            className="ask-human__other-btn"
-            onClick={() => setShowCustomInput(true)}
-          >
-            <span>Other (type your own answer)...</span>
-          </button>
-        ) : (
-          <form className="ask-human__custom-form" onSubmit={handleCustomSubmit}>
-            <input
-              className="ask-human__custom-input"
-              value={customText}
-              onChange={(e) => setCustomText(e.target.value)}
-              placeholder="Type your custom answer..."
-              autoFocus
-            />
-            <button
-              type="submit"
-              className="ask-human__submit-btn"
-              disabled={!customText.trim()}
-            >
-              Send
-            </button>
-            <button
-              type="button"
-              className="ask-human__cancel-btn"
-              onClick={() => setShowCustomInput(false)}
-            >
-              Cancel
-            </button>
-          </form>
-        )
-      )}
+      </div>
     </div>
   );
 };
@@ -618,8 +513,8 @@ export default function ChatMessage({
   isSearchActive = false,
   isSearchMatch = false,
   isOutOfContext = false,
-  onSelectOption,
-  onToolResponse,
+  _onSelectOption,
+  _onToolResponse,
   onRewindToStep,
   onBranchFromStep,
 }) {
@@ -763,8 +658,19 @@ export default function ChatMessage({
       return <div className="chat-msg chat-msg--status">{message.content}</div>;
     }
 
-    // Tool call (exclude ask_human, which renders as interactive question card below)
-    if (message.type === 'tool_call' && message.name !== 'ask_human' && message.name !== 'todo') {
+    // Ask tool calls: hide while pending (docked AskQuestionCard handles input); show clean read-only Q&A summary once answered
+    if (message.type === 'tool_call' && (message.name === 'ask' || message.name === 'ask_human')) {
+      if (!message.result) return null;
+      return (
+        <AskAnsweredSummaryCard
+          result={message.result}
+          fallbackQuestions={message.arguments?.questions}
+        />
+      );
+    }
+
+    // Tool call (exclude todo, which renders via dedicated checklist card)
+    if (message.type === 'tool_call' && message.name !== 'todo') {
       const isSubagent = isSubagentTool(message.name);
       if (!isSubagent) {
         const argsStr = message.arguments
@@ -1004,8 +910,18 @@ export default function ChatMessage({
       );
     }
 
-    // Tool result (exclude ask_human result to avoid duplicate completed pill)
-    if (message.type === 'tool_result' && message.name !== 'ask_human' && message.name !== 'todo') {
+    // Ask tool results: render clean Q&A summary if standalone
+    if (message.type === 'tool_result' && (message.name === 'ask' || message.name === 'ask_human')) {
+      return (
+        <AskAnsweredSummaryCard
+          result={message.result}
+          fallbackQuestions={message.arguments?.questions}
+        />
+      );
+    }
+
+    // Tool result
+    if (message.type === 'tool_result' && message.name !== 'todo') {
       const isSubagent = isSubagentTool(message.name);
       if (!isSubagent) {
         const resultStr = typeof message.result === 'string' ? message.result : JSON.stringify(message.result, null, 2);
@@ -1208,115 +1124,19 @@ export default function ChatMessage({
         </div>
       );
     }
-    // Ask human interactive question card (matches direct event OR tool_call)
-    if (
-      message.type === 'ask_human' ||
-      (message.type === 'tool_call' && message.name === 'ask_human')
-    ) {
-      const rawArgs = message.arguments || message.data || {};
-      let questionsList = [];
-
-      if (Array.isArray(message.questions) && message.questions.length > 0) {
-        questionsList = message.questions;
-      } else if (Array.isArray(rawArgs.questions) && rawArgs.questions.length > 0) {
-        questionsList = rawArgs.questions;
-      } else {
-        const questionText =
-          message.question ||
-          rawArgs.question ||
-          message.prompt ||
-          rawArgs.prompt ||
-          message.query ||
-          rawArgs.query ||
-          message.content ||
-          '';
-
-        const rawOpts =
-          message.options ||
-          rawArgs.options ||
-          message.choices ||
-          rawArgs.choices ||
-          message.flat_options ||
-          rawArgs.flat_options ||
-          [];
-
-        const optionsArray = Array.isArray(rawOpts)
-          ? rawOpts
-          : typeof rawOpts === 'string'
-          ? [rawOpts]
-          : [];
-
-        const recVal = message.recommended ?? rawArgs.recommended;
-        const isMulti = Boolean(message.multi ?? rawArgs.multi);
-        const headerVal = message.header || rawArgs.header;
-
-        if (questionText || optionsArray.length > 0) {
-          questionsList = [
-            {
-              id: 'q1',
-              question: questionText || 'Please select an option to proceed:',
-              header: headerVal,
-              options: optionsArray,
-              recommended: recVal,
-              multi: isMulti,
-            },
-          ];
-        }
-      }
-
-      if (questionsList.length === 0) {
-        // Absolute fallback so the box is NEVER empty
-        questionsList = [
-          {
-            id: 'q1',
-            question: message.content || 'Please provide your input to proceed:',
-            options: ['Yes', 'No'],
-            recommended: 0,
-            multi: false,
-          },
-        ];
-      }
-
-      const copyText =
-        message.question ||
-        rawArgs.question ||
-        questionsList.map((q) => q.question).join('\n') ||
-        'Ask Human Question';
-
+    // Legacy persisted ask_human messages render as read-only summary in history
+    if (message.type === 'ask_human') {
       return (
-        <div className="chat-msg chat-msg--ask_human">
-          <div className="chat-msg__assistant-row">
-            <div className="chat-msg__assistant-icon">
-              <AgentIcon />
-            </div>
-            <div className="chat-msg__content" style={{ flex: 1, minWidth: 0 }}>
-              <div className="chat-msg__box chat-msg__box--ask_human">
-                {questionsList.map((q, qIdx) => (
-                  <AskHumanQuestionItem
-                    key={q.id || qIdx}
-                    questionData={q}
-                    onSelectOption={(answer) => {
-                      if (onToolResponse) {
-                        onToolResponse(message.id || q.id, answer);
-                      } else if (onSelectOption) {
-                        onSelectOption(answer);
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-          <MessageFooter
-            timestamp={message.timestamp}
-            contentToCopy={copyText}
-            debug={message.debug}
-            onOpenDebug={openDebug}
-            stepId={message.step_id}
-            onRewindToStep={onRewindToStep}
-            onBranchFromStep={onBranchFromStep}
-          />
-        </div>
+        <AskAnsweredSummaryCard
+          result={message.result}
+          fallbackQuestions={
+            Array.isArray(message.questions)
+              ? message.questions
+              : message.question
+              ? [{ question: message.question }]
+              : []
+          }
+        />
       );
     }
 

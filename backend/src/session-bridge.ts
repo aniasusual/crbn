@@ -73,6 +73,7 @@ export class SessionBridge {
   private activeToolCalls = new Map<string, { name: string; args: Record<string, unknown> }>();
   private activeTurns: Record<string, unknown>[] = [];
   private pendingUiRequests = new Map<string, { resolve: (val: unknown) => void; reject: (err: unknown) => void }>();
+  private pendingAskRequest: Record<string, unknown> | null = null;
   private devServerUnsubscribe: (() => void) | null = null;
   private currentPreviewUrl: string | null = null;
   private lastPromptText: string = "";
@@ -504,6 +505,11 @@ export class SessionBridge {
 
       this.activeProjectPath = projectPath;
       this.activeToolCalls.clear();
+      this.pendingAskRequest = null;
+      for (const [, pendingReq] of this.pendingUiRequests.entries()) {
+        pendingReq.reject(new Error("Project session reopened"));
+      }
+      this.pendingUiRequests.clear();
 
       // Resolve sessionManager for specified targetSessionId, or continue recent session
       let sessionManager: SessionManager;
@@ -627,7 +633,12 @@ export class SessionBridge {
           timeoutStartsOnPresentation: true,
           select: async (title: string, options: ExtensionUISelectItem[], dialogOptions?: ExtensionUIDialogOptions) => {
             const id = `sel_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-            const optionLabels = options.map((opt) => (typeof opt === "string" ? opt : opt.label));
+            const normalizedOptions = options.map((opt) =>
+              typeof opt === "string"
+                ? { label: opt }
+                : { label: opt.label, ...(opt.description ? { description: opt.description } : {}) }
+            );
+            const optionLabels = normalizedOptions.map((o) => o.label);
             const isApproval = optionLabels.includes("Approve") && optionLabels.includes("Deny");
             const timestamp = new Date().toISOString();
 
@@ -641,21 +652,27 @@ export class SessionBridge {
                 timestamp,
               });
             } else {
-              this.send({
+              const askPayload = {
                 type: "ask_human",
                 id,
                 question: title,
-                options: optionLabels,
-                questions: [{ id: "q1", question: title, options: optionLabels }],
+                options: normalizedOptions,
+                questions: [{ id: "q1", question: title, options: normalizedOptions, multi: false }],
                 timestamp,
-              });
+              };
+              this.pendingAskRequest = askPayload;
+              this.send(askPayload);
             }
             const { promise, resolve, reject } = Promise.withResolvers<string | undefined>();
+            const signal = dialogOptions?.signal;
             const cleanup = () => {
               this.pendingUiRequests.delete(id);
               signal?.removeEventListener("abort", onAbort);
+              if (!isApproval && this.pendingAskRequest?.id === id) {
+                this.pendingAskRequest = null;
+                this.send({ type: "ask_resolved", id });
+              }
             };
-            const signal = dialogOptions?.signal;
             const onAbort = () => {
               cleanup();
               reject(new Error("Operation cancelled"));
@@ -665,11 +682,35 @@ export class SessionBridge {
             this.pendingUiRequests.set(id, {
               resolve: (val: unknown) => {
                 cleanup();
-                const selected = typeof val === "string"
-                  ? val
-                  : (val && typeof val === "object" && "label" in val && typeof (val as { label: unknown }).label === "string"
-                      ? (val as { label: string }).label
-                      : String(val ?? ""));
+                if (val === null || val === undefined) {
+                  resolve(undefined);
+                  return;
+                }
+                if (typeof val === "object") {
+                  const kindVal = "kind" in val && typeof val.kind === "string" ? val.kind : undefined;
+                  if (kindVal === "cancel" || kindVal === "chat") {
+                    resolve(undefined);
+                    return;
+                  }
+                  if ("answers" in val && val.answers && typeof val.answers === "object" && "q1" in val.answers) {
+                    const q1 = val.answers.q1;
+                    if (q1 && typeof q1 === "object") {
+                      const firstOpt =
+                        "selectedOptions" in q1 && Array.isArray(q1.selectedOptions) && typeof q1.selectedOptions[0] === "string"
+                          ? q1.selectedOptions[0]
+                          : undefined;
+                      const customVal =
+                        "customInput" in q1 && typeof q1.customInput === "string" ? q1.customInput : undefined;
+                      resolve(firstOpt || customVal || undefined);
+                      return;
+                    }
+                  }
+                  if ("label" in val && typeof val.label === "string") {
+                    resolve(val.label || undefined);
+                    return;
+                  }
+                }
+                const selected = typeof val === "string" ? val : String(val ?? "");
                 resolve(selected || undefined);
               },
               reject: (err: unknown) => {
@@ -704,38 +745,113 @@ export class SessionBridge {
             });
             return promise;
           },
-          askDialog: async (questions: ExtensionAskDialogQuestion[], _dialogOptions?: ExtensionUIDialogOptions) => {
+          askDialog: async (questions: ExtensionAskDialogQuestion[], dialogOptions?: ExtensionUIDialogOptions) => {
             const id = `ask_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
             const timestamp = new Date().toISOString();
             const primaryQ = questions[0];
+            const serializedQuestions = questions.map((q) => ({
+              id: q.id,
+              question: q.question,
+              ...(q.header ? { header: q.header } : {}),
+              options: q.options.map((o) => ({
+                label: o.label,
+                ...(o.description ? { description: o.description } : {}),
+                ...(o.preview ? { preview: o.preview } : {}),
+              })),
+              multi: Boolean(q.multi),
+              ...(q.recommended !== undefined ? { recommended: q.recommended } : {}),
+            }));
 
-            this.send({
+            const askPayload = {
               type: "ask_human",
               id,
               question: primaryQ?.question ?? "Please clarify:",
-              options: primaryQ?.options?.map((o) => o.label) ?? [],
-              questions: questions.map((q) => ({
-                id: q.id,
-                question: q.question,
-                header: q.header,
-                options: q.options.map((o) => o.label),
-                multi: Boolean(q.multi),
-                recommended: q.recommended,
-              })),
+              options: serializedQuestions[0]?.options ?? [],
+              questions: serializedQuestions,
               timestamp,
-            });
+            };
+            this.pendingAskRequest = askPayload;
+            this.send(askPayload);
+
             const { promise, resolve, reject } = Promise.withResolvers<ExtensionAskDialogResult | undefined>();
+            const signal = dialogOptions?.signal;
+            const cleanup = () => {
+              this.pendingUiRequests.delete(id);
+              signal?.removeEventListener("abort", onAbort);
+              if (this.pendingAskRequest?.id === id) {
+                this.pendingAskRequest = null;
+                this.send({ type: "ask_resolved", id });
+              }
+            };
+            const onAbort = () => {
+              cleanup();
+              reject(new Error("Ask input was cancelled"));
+            };
+            if (signal?.aborted) {
+              onAbort();
+              return promise;
+            }
+            signal?.addEventListener("abort", onAbort, { once: true });
+
             this.pendingUiRequests.set(id, {
               resolve: (val: unknown) => {
-                this.pendingUiRequests.delete(id);
+                cleanup();
+                if (val === null || val === undefined) {
+                  resolve(undefined);
+                  return;
+                }
+                if (typeof val === "object" && !Array.isArray(val)) {
+                  const kindVal = "kind" in val && typeof val.kind === "string" ? val.kind : undefined;
+                  if (kindVal === "cancel") {
+                    resolve(undefined);
+                    return;
+                  }
+                  if (kindVal === "chat") {
+                    resolve({ kind: "chat" });
+                    return;
+                  }
+                  if ("answers" in val && val.answers && typeof val.answers === "object") {
+                    const answersMap = val.answers as Record<string, unknown>;
+                    resolve({
+                      kind: "submit",
+                      results: questions.map((q) => {
+                        const rawEntry = Object.hasOwn(answersMap, q.id) ? answersMap[q.id] : undefined;
+                        const entryObj = rawEntry && typeof rawEntry === "object" ? rawEntry : undefined;
+                        const selectedOptions =
+                          entryObj && "selectedOptions" in entryObj && Array.isArray(entryObj.selectedOptions)
+                            ? entryObj.selectedOptions.map(String).filter(Boolean)
+                            : [];
+                        const rawCustom =
+                          entryObj && "customInput" in entryObj && typeof entryObj.customInput === "string"
+                            ? entryObj.customInput.trim()
+                            : "";
+                        const customInput = rawCustom.length > 0 ? rawCustom : undefined;
+                        const fallbackSelected =
+                          selectedOptions.length === 0 && customInput === undefined && !q.multi
+                            ? [q.options[q.recommended ?? 0]?.label ?? ""].filter(Boolean)
+                            : selectedOptions;
+                        return {
+                          id: q.id,
+                          question: q.question,
+                          options: q.options.map((o) => o.label),
+                          multi: q.multi ?? false,
+                          selectedOptions: fallbackSelected,
+                          ...(customInput !== undefined ? { customInput } : {}),
+                          timedOut: false,
+                        };
+                      }),
+                    });
+                    return;
+                  }
+                }
+
                 const answerList: string[] = Array.isArray(val)
                   ? val.map(String)
                   : typeof val === "string"
                   ? [val]
-                  : (val && typeof val === "object" && "label" in val && typeof (val as { label: unknown }).label === "string"
-                      ? [(val as { label: string }).label]
-                      : []);
-
+                  : val && typeof val === "object" && "label" in val && typeof val.label === "string"
+                  ? [val.label]
+                  : [];
                 resolve({
                   kind: "submit",
                   results: questions.map((q) => ({
@@ -743,14 +859,14 @@ export class SessionBridge {
                     question: q.question,
                     options: q.options.map((o) => o.label),
                     multi: q.multi ?? false,
-                    selectedOptions: answerList.length > 0 ? answerList : [q.options[q.recommended ?? 0]?.label ?? ""],
+                    selectedOptions: answerList.length > 0 ? answerList : [q.options[q.recommended ?? 0]?.label ?? ""].filter(Boolean),
                     customInput: typeof val === "string" && !q.options.some((o) => o.label === val) ? val : undefined,
                     timedOut: false,
                   })),
                 });
               },
               reject: (err: unknown) => {
-                this.pendingUiRequests.delete(id);
+                cleanup();
                 reject(err instanceof Error ? err : new Error(String(err)));
               },
             });
@@ -1049,6 +1165,10 @@ export class SessionBridge {
   }
 
   async stop(): Promise<void> {
+    if (this.pendingAskRequest && typeof this.pendingAskRequest.id === "string") {
+      this.send({ type: "ask_resolved", id: this.pendingAskRequest.id });
+      this.pendingAskRequest = null;
+    }
     for (const [, req] of this.pendingUiRequests.entries()) {
       req.reject(new Error("Agent execution stopped by user."));
     }
@@ -1566,18 +1686,6 @@ export class SessionBridge {
 
         this.send(toolCallMsg);
 
-        // Special handling for ask human
-        if (event.toolName === "ask") {
-          const questions = (toolArgs.questions as Array<{ question?: string; options?: Array<{ label: string }> }>) ?? [];
-          const primaryQ = questions[0];
-          this.send({
-            type: "ask_human",
-            question: primaryQ?.question ?? "Please clarify:",
-            options: primaryQ?.options ?? [],
-            id: event.toolCallId,
-            timestamp,
-          });
-        }
 
         // Special handling for todo tool
         if (event.toolName === "todo") {

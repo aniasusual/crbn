@@ -1,0 +1,330 @@
+/* =========================================================
+   AskQuestionCard — Minimalist Borderless Liquid Glass
+   Vercel monochrome clarity + 80degrees translucent capsule
+   ========================================================= */
+
+.ask-card {
+  position: relative;
+  z-index: 10;
+  margin: 0 14px 10px 14px;
+  background: rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(36px) saturate(190%);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  overflow: hidden;
+  animation: askCardSlideUp 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  font-family: var(--font-sans, 'Plus Jakarta Sans', -apple-system, sans-serif);
+}
+
+@keyframes askCardSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ask-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 6px 18px;
+  border: none;
+  flex-shrink: 0;
+}
+
+.ask-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.ask-card__progress {
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.48);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ask-card__progress--ready {
+  background: rgba(34, 197, 94, 0.16);
+  color: #86efac;
+}
+
+.ask-card__body {
+  padding: 6px 18px 10px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.ask-card__body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ask-card__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ask-card__body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+
+.ask-card__question {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ask-card__question-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ask-card__qindex {
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.ask-card__question-text {
+  font-size: 13.5px;
+  font-weight: 550;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  line-height: 1.4;
+}
+
+.ask-card__chip {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  padding: 1px 7px;
+  border-radius: 9999px;
+}
+
+.ask-card__options {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ask-card__option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.ask-card__option:hover {
+  background: rgba(255, 255, 255, 0.065);
+}
+
+.ask-card__option--selected {
+  background: rgba(255, 255, 255, 0.11);
+}
+
+.ask-card__option--selected:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.ask-card__indicator {
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #09090b;
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.ask-card__indicator--checkbox {
+  border-radius: 4px;
+}
+
+.ask-card__indicator--radio {
+  border-radius: 9999px;
+}
+
+.ask-card__indicator--checked {
+  background: #ffffff;
+}
+
+.ask-card__radio-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #09090b;
+}
+
+.ask-card__option-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ask-card__option-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ask-card__option-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.94);
+  line-height: 1.35;
+}
+
+.ask-card__badge-rec {
+  font-size: 10.5px;
+  font-weight: 500;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  flex-shrink: 0;
+}
+
+.ask-card__option-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
+  line-height: 1.38;
+}
+
+.ask-card__other-wrap {
+  margin-top: 2px;
+}
+
+.ask-card__other-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.32);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: background 0.14s ease;
+}
+
+.ask-card__other-input:focus {
+  background: rgba(0, 0, 0, 0.48);
+}
+
+.ask-card__other-input::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.ask-card__preview {
+  margin: 2px 0 0 0;
+  padding: 8px 11px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  font-family: var(--font-mono, monospace);
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.72);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.ask-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 18px 14px 18px;
+  border: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.ask-card__btn-secondary {
+  height: 30px;
+  padding: 0 13px;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ask-card__btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.ask-card__btn-submit {
+  height: 30px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 9999px;
+  background: #ffffff;
+  color: #09090b;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.ask-card__btn-submit:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.ask-card__btn-submit:disabled,
+.ask-card__btn-secondary:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}

@@ -4,6 +4,7 @@ import BranchTreeModal from './BranchTreeModal';
 import GitHubSyncModal from './GitHubSyncModal';
 import ChatMessage from './ChatMessage';
 import CommandApproval from './CommandApproval';
+import AskQuestionCard from './AskQuestionCard';
 import ModelSelector from './ModelSelector';
 import McpConnectModal from './McpConnectModal';
 import PluginsModal from './PluginsModal';
@@ -137,6 +138,7 @@ const isUserMessage = (msg) => {
     msg.type === 'tool_call' ||
     msg.type === 'tool_result' ||
     msg.name === 'ask_human' ||
+    msg.name === 'ask' ||
     msg.type === 'ask_human' ||
     (msg.question && msg.role !== 'user') ||
     msg.name === 'todo' ||
@@ -214,6 +216,7 @@ export default function ChatPanel({
   pendingApproval,
   onApproveCommand,
   onDenyCommand,
+  pendingAsk = null,
   models = [],
   providers = [],
   selectedModel,
@@ -962,6 +965,12 @@ export default function ChatPanel({
         onApprove={onApprovePlan}
         onRefine={onRefinePlan}
       />
+      <AskQuestionCard
+        key={pendingAsk?.id || 'none'}
+        request={pendingAsk}
+        onSubmit={(id, payload) => onToolResponse?.(id, payload)}
+        onChatInstead={(id) => onToolResponse?.(id, { kind: 'chat' })}
+      />
       {/* Collapsible Todo Progress Sheet docked right above the input box */}
       {/* {activeTodos && activeTodos.phases && activeTodos.phases.length > 0 && todoStats && (
         <div className={`chat-panel__todo-sheet ${isTodoExpanded ? 'chat-panel__todo-sheet--expanded' : ''}`}>
@@ -1263,7 +1272,7 @@ export default function ChatPanel({
                 : isAgentRunning
                 ? 'Type a message to queue for next turn...'
                 : agentStatus === 'awaiting_human'
-                ? 'Answer the agent...'
+                ? 'Answer in the card above, or type here to chat instead...'
                 : mode === 'plan'
                 ? 'Describe what you want to plan (working tree is read-only)...'
                 : 'Describe a change...'

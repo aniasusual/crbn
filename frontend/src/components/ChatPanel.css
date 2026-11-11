@@ -106,26 +106,25 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  color: #888888;
+  border: none;
+  border-radius: 9999px;
+  color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: background 0.14s ease, color 0.14s ease;
 }
 
 .chat-panel__sidebar-toggle-btn:hover {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .chat-panel__sidebar-toggle-btn--active {
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 /* Fast + New Session Button in Header (Frosted Glass Pill) */

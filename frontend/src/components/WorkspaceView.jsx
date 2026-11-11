@@ -23,6 +23,7 @@ export default function WorkspaceView({
   pendingApproval,
   onApproveCommand,
   onDenyCommand,
+  pendingAsk = null,
   hardwareInfo,
   models = [],
   providers = [],
@@ -133,6 +134,7 @@ export default function WorkspaceView({
             onUndoClear={onUndoClear}
             pendingApproval={pendingApproval}
             onDenyCommand={onDenyCommand}
+            pendingAsk={pendingAsk}
             models={models}
             providers={providers}
             selectedModel={selectedModel}

@@ -1902,7 +1902,12 @@ const _server = Bun.serve<WsData>({
 
       if (action === "tool_response" || action === "ask_response") {
         const requestId = (data.id || data.request_id || data.tool_call_id) as string;
-        const response = data.response ?? data.answer ?? data.value;
+        const response =
+          data.response !== undefined
+            ? data.response
+            : data.answers !== undefined || data.kind !== undefined
+            ? { kind: data.kind ?? "submit", answers: data.answers }
+            : (data.answer ?? data.value);
         if (requestId) {
           bridge.resolveUiRequest(requestId, response);
         }
