@@ -7,7 +7,6 @@ import GitHubConnectModal from './GitHubConnectModal';
 import McpConnectModal from './McpConnectModal';
 import PluginsModal from './PluginsModal';
 import AttachmentRibbon from './AttachmentRibbon';
-import { AsciiEffect } from '@/components/ui/ascii-effect';
 import { GrainGradient } from '@/components/ui/grain-gradient';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
 import { SilkAurora } from '@/components/ui/silk-aurora';
@@ -237,7 +236,6 @@ export default function WelcomeView({
     isGitHubConnectModalOpen ||
     isMcpModalOpen ||
     isPluginsModalOpen;
-
   const fetchGlobalMcp = useCallback(() => {
     fetch(`${API_BASE_URL}/api/projects/_global/mcp`)
       .then((res) => (res.ok ? res.json() : null))
@@ -776,24 +774,6 @@ export default function WelcomeView({
     <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''} ${isNaming ? 'degrees-welcome--naming' : ''}`}>
       {!isNaming ? (
         <>
-          {/* Left 30%: ASCII Art Panel */}
-          <aside className="degrees-welcome__left" aria-label="Visual Art">
-            <div className="degrees-welcome__ascii-frame">
-              <AsciiEffect
-                variant="flow"
-                imageSrc="./images/pisa.jpg"
-                fontSize={7}
-                flowSpeed={0.22}
-                flowStrength={12}
-                mouseRadius={180}
-                mouseStrength={32}
-                mouseWaveSpeed={2.6}
-                mouseEasing={1.0}
-                paused={isAnyModalOpen}
-              />
-            </div>
-          </aside>
-
           {/* Right 55%: Main Welcome Content */}
           <main className="degrees-welcome__right">
             <div className="degrees-welcome__right-bg" aria-hidden="true">
@@ -814,8 +794,15 @@ export default function WelcomeView({
               />
             </div>
             <div className="degrees-welcome__right-inner">
-              {/* Top Bar with GitHub Connect & Model Auth */}
+              {/* Top Bar with Logo at Top-Left & GitHub Connect at Top-Right */}
               <div className="degrees-welcome__top-bar">
+                <div className="degrees-logo-container">
+                  <img
+                    src="./80dark.png"
+                    alt="80degrees"
+                    className="degrees-logo-img"
+                  />
+                </div>
                 {githubStatus?.connected && githubStatus?.user ? (
                   <button
                     type="button"
@@ -843,19 +830,13 @@ export default function WelcomeView({
                   </button>
                 )}
               </div>
-            <header className="degrees-welcome__header">
-              <div className="degrees-logo-container">
-                <img
-                  src="./logo-white.png"
-                  alt="crbn"
-                  className="degrees-logo-img"
-                />
-              </div>
 
-              <p className="degrees-welcome__subtitle">
-                A creative studio for full-stack software. Describe your concept or connect any GitHub repo; we'll compose, build, and run it.
-              </p>
-            </header>
+              <header className="degrees-welcome__header">
+                <h1 className="degrees-welcome__headline">Vibe build your company</h1>
+                <p className="degrees-welcome__subtitle">
+                  You bring the vision. We build the product, ship the code, run marketing, automate operations, acquire users, and close sales. From first spark to full scale—vibe build your company autonomously.
+                </p>
+              </header>
 
             {/* Minimalist Borderless Accounts & Providers Banner */}
             <div
@@ -1526,8 +1507,8 @@ export default function WelcomeView({
             <div className="degrees-naming-card">
             <div className="degrees-logo-container degrees-logo-container--naming">
               <img
-                src="./logo-white.png"
-                alt="crbn"
+                src="./80dark.png"
+                alt="80degrees"
                 className="degrees-logo-img degrees-logo-img--small"
               />
             </div>
