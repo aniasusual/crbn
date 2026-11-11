@@ -816,15 +816,6 @@ export default function WelcomeView({
             <div className="degrees-welcome__right-inner">
               {/* Top Bar with GitHub Connect & Model Auth */}
               <div className="degrees-welcome__top-bar">
-                <button
-                  type="button"
-                  className="degrees-open-folder-btn"
-                  onClick={handleOpenFolder}
-                  title="Open an existing local project folder or cloned repository on your computer"
-                >
-                  <FolderIcon size={13} />
-                  <span>Open Folder</span>
-                </button>
                 {githubStatus?.connected && githubStatus?.user ? (
                   <button
                     type="button"
@@ -1290,6 +1281,15 @@ export default function WelcomeView({
 
                 {/* Search Bar on Right */}
                 <div className="degrees-timelines__header-right">
+                  <button
+                    type="button"
+                    className="degrees-open-folder-btn"
+                    onClick={handleOpenFolder}
+                    title="Open an existing local project folder or cloned repository on your computer"
+                  >
+                    <FolderIcon size={13} />
+                    <span>Open Folder</span>
+                  </button>
                   {activeWelcomeTab === 'timelines' ? (
                     <div className="degrees-timelines__search-box">
                       <svg
