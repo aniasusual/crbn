@@ -1,17 +1,20 @@
 import { useState, useEffect, useId, useMemo, useCallback } from 'react';
 import ModelSelector from './ModelSelector';
 import ProviderConnectModal from './ProviderConnectModal';
+import ApiKeyConfigModal from './ApiKeyConfigModal';
+import CustomProviderModal from './CustomProviderModal';
 import GitHubConnectModal from './GitHubConnectModal';
 import McpConnectModal from './McpConnectModal';
 import PluginsModal from './PluginsModal';
 import AttachmentRibbon from './AttachmentRibbon';
-import { AsciiEffect } from '@/components/ui/ascii-effect';
 import { GrainGradient } from '@/components/ui/grain-gradient';
 import InteractiveListPreview from '@/components/ui/interactive-list-preview';
 import { SilkAurora } from '@/components/ui/silk-aurora';
 import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL, APP_VERSION } from '../config';
 import './WelcomeView.css';
+import ChromeTabBackground from './ui/ChromeTabBackground';
+import { identifyUser, trackUiEvent } from '../lib/analytics';
 
 const GitHubIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -63,16 +66,6 @@ const CubeIcon = ({ size = 12 }) => (
     <line x1="12" y1="22.08" x2="12" y2="12" />
   </svg>
 );
-
-const GamepadIcon = ({ size = 12 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <rect x="2" y="6" width="20" height="12" rx="2" />
-    <line x1="6" y1="12" x2="10" y2="12" />
-    <line x1="8" y1="10" x2="8" y2="14" />
-    <line x1="15" y1="13" x2="15.01" y2="13" />
-    <line x1="18" y1="11" x2="18.01" y2="11" />
-  </svg>
-);
 const BuildingIcon = ({ size = 13 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
@@ -87,6 +80,16 @@ const BuildingIcon = ({ size = 13 }) => (
 );
 
 
+const GamepadIcon = ({ size = 12 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="6" width="20" height="12" rx="2" />
+    <line x1="6" y1="12" x2="10" y2="12" />
+    <line x1="8" y1="10" x2="8" y2="14" />
+    <line x1="15" y1="13" x2="15.01" y2="13" />
+    <line x1="18" y1="11" x2="18.01" y2="11" />
+  </svg>
+);
+
 const LayersIcon = ({ size = 12 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <polygon points="12 2 2 7 12 12 22 7 12 2" />
@@ -94,6 +97,35 @@ const LayersIcon = ({ size = 12 }) => (
     <polyline points="2 12 12 17 22 12" />
   </svg>
 );
+
+const SmartphoneIcon = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="6" y="2" width="12" height="20" rx="2.5" />
+    <line x1="12" y1="18" x2="12.01" y2="18" />
+  </svg>
+);
+
+const WorkflowIcon = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="3" width="6" height="6" rx="1.5" />
+    <rect x="15" y="15" width="6" height="6" rx="1.5" />
+    <path d="M9 6h4a2 2 0 0 1 2 2v7" />
+  </svg>
+);
+
+function renderTemplateTabIcon(tpl) {
+  const iconKey = tpl?.icon || tpl?.category || '';
+  if (iconKey === 'smartphone' || iconKey === 'mobile' || tpl?.id === 'mobile_expo') {
+    return <SmartphoneIcon size={13} />;
+  }
+  if (iconKey === 'joystick' || iconKey === 'game' || tpl?.id?.startsWith('game_')) {
+    return <GamepadIcon size={13} />;
+  }
+  if (iconKey === 'workflow' || tpl?.id === 'python_workflow') {
+    return <WorkflowIcon size={13} />;
+  }
+  return <LayersIcon size={13} />;
+}
 
 export default function WelcomeView({
   onSubmit,
@@ -122,6 +154,9 @@ export default function WelcomeView({
   const [isGeneratingName, setIsGeneratingName] = useState(false);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isCustomProviderModalOpen, setIsCustomProviderModalOpen] = useState(false);
+  const [authHighlight, setAuthHighlight] = useState(false);
   const [isGitHubConnectModalOpen, setIsGitHubConnectModalOpen] = useState(false);
   const [isMcpModalOpen, setIsMcpModalOpen] = useState(false);
   const [mcpCount, setMcpCount] = useState(0);
@@ -191,19 +226,31 @@ export default function WelcomeView({
 
   const [justConnectedProvider, setJustConnectedProvider] = useState(null);
 
-  const hasAnyConfiguredAuth = useMemo(() => {
+  useEffect(() => {
+    if (!justConnectedProvider) return;
+    const timer = setTimeout(() => setJustConnectedProvider(null), 4500);
+    return () => clearTimeout(timer);
+  }, [justConnectedProvider]);
+
+  const hasExplicitAuth = useMemo(() => {
     return (
-      models.some((m) => Boolean(m.has_auth || m.installed)) ||
-      providers.some((p) => Boolean(p.has_auth || p.connected))
+      providers.some((p) => Boolean(p.has_auth || p.connected) && p.id !== 'apple') ||
+      models.some((m) => Boolean(m.has_auth || m.installed) && m.provider !== 'apple')
     );
-  }, [models, providers]);
+  }, [providers, models]);
+  const hasAppleOnDeviceOnly =
+    !hasExplicitAuth &&
+    (providers.some((p) => p.id === 'apple' && p.has_auth) ||
+      models.some((m) => m.provider === 'apple' && Boolean(m.has_auth || m.installed)));
+
   const isAnyModalOpen =
     isModelSelectorOpen ||
     isConnectModalOpen ||
+    isApiKeyModalOpen ||
+    isCustomProviderModalOpen ||
     isGitHubConnectModalOpen ||
     isMcpModalOpen ||
     isPluginsModalOpen;
-
   const fetchGlobalMcp = useCallback(() => {
     fetch(`${API_BASE_URL}/api/projects/_global/mcp`)
       .then((res) => (res.ok ? res.json() : null))
@@ -416,9 +463,12 @@ export default function WelcomeView({
     try {
       const res = await fetch(`${API_BASE_URL}/api/github/status`);
       if (res.ok) {
-        const data = await res.json();
         setGithubStatus(data);
-        if (data.connected) {
+        if (data.connected && data.user) {
+          identifyUser(data.user.email || data.user.login, {
+            github_username: data.user.login,
+            name: data.user.name,
+          });
           fetchGithubRepos();
         }
       }
@@ -500,6 +550,25 @@ export default function WelcomeView({
     });
   }, [companies, companySearch]);
 
+  const companyItems = useMemo(() => {
+    return filteredCompanies.map((c) => {
+      const dateLabel = c.createdAt
+        ? new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+        : 'Recent';
+
+      const agentCount = c.agents?.length || c.templateAgents?.length || 7;
+      const desc = c.tagline ? `${c.tagline} · ${dateLabel}` : `ACTIVE · ${dateLabel}`;
+
+      return {
+        key: c.id || c.projectName,
+        client: c.name || c.projectName,
+        platform: `${agentCount} DEPARTMENTS`,
+        services: desc,
+        data: c,
+      };
+    });
+  }, [filteredCompanies]);
+
   const filteredProjects = useMemo(() => {
     if (!timelineSearch.trim()) return projects;
     const q = timelineSearch.toLowerCase().trim();
@@ -526,25 +595,6 @@ export default function WelcomeView({
       };
     });
   }, [filteredProjects]);
-
-  const companyItems = useMemo(() => {
-    return filteredCompanies.map((c) => {
-      const dateLabel = c.createdAt
-        ? new Date(c.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-        : 'Recent';
-
-      const agentCount = c.agents?.length || c.templateAgents?.length || 5;
-      const desc = c.tagline ? `${c.tagline} · ${dateLabel}` : `ACTIVE · ${dateLabel}`;
-
-      return {
-        key: c.id || c.projectName,
-        client: c.name || c.projectName,
-        platform: `${agentCount} DEPARTMENTS`,
-        services: desc,
-        data: c,
-      };
-    });
-  }, [filteredCompanies]);
 
   // Filtered GitHub Repositories
   const filteredGithubRepos = useMemo(() => {
@@ -667,6 +717,17 @@ export default function WelcomeView({
     }
   };
 
+  const handleOpenInFinder = async (arg1, arg2) => {
+    const e = (arg1 && typeof arg1 === 'object' && 'stopPropagation' in arg1) ? arg1 : ((arg2 && typeof arg2 === 'object' && 'stopPropagation' in arg2) ? arg2 : null);
+    const name = typeof arg1 === 'string' ? arg1 : (typeof arg2 === 'string' ? arg2 : '');
+    if (e) e.stopPropagation();
+    if (!name) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(name)}/open-in-finder`, { method: 'POST' });
+    } catch (err) {
+      console.error('Failed to open project in finder', err);
+    }
+  };
   const handleDeleteCompany = async (nameOrClient, item) => {
     const comp = (item && item.data) ? item.data : (companies.find((c) => c.name === nameOrClient || c.projectName === nameOrClient || c.id === nameOrClient) || null);
     const projectName = comp?.projectName || nameOrClient;
@@ -687,17 +748,6 @@ export default function WelcomeView({
     }
   };
 
-  const handleOpenInFinder = async (arg1, arg2) => {
-    const e = (arg1 && typeof arg1 === 'object' && 'stopPropagation' in arg1) ? arg1 : ((arg2 && typeof arg2 === 'object' && 'stopPropagation' in arg2) ? arg2 : null);
-    const name = typeof arg1 === 'string' ? arg1 : (typeof arg2 === 'string' ? arg2 : '');
-    if (e) e.stopPropagation();
-    if (!name) return;
-    try {
-      await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(name)}/open-in-finder`, { method: 'POST' });
-    } catch (err) {
-      console.error('Failed to open project in finder', err);
-    }
-  };
 
   // Submit Handler: routes to selected repo build or standard project creation
   const handleInitialSubmit = async (e) => {
@@ -708,7 +758,8 @@ export default function WelcomeView({
     // Guard: ensure the user has configured at least one authenticated model
     const hasAnyAuth = models.some((m) => Boolean(m.has_auth || m.installed));
     if (!hasAnyAuth) {
-      setIsModelSelectorOpen(true);
+      setAuthHighlight(true);
+      setTimeout(() => setAuthHighlight(false), 2200);
       return;
     }
     // Case 1: Building on a selected GitHub repository
@@ -810,24 +861,6 @@ export default function WelcomeView({
     <div className={`degrees-welcome ${exiting ? 'degrees-welcome--exiting' : ''} ${isNaming ? 'degrees-welcome--naming' : ''}`}>
       {!isNaming ? (
         <>
-          {/* Left 30%: ASCII Art Panel */}
-          <aside className="degrees-welcome__left" aria-label="Visual Art">
-            <div className="degrees-welcome__ascii-frame">
-              <AsciiEffect
-                variant="flow"
-                imageSrc="./images/pisa.jpg"
-                fontSize={7}
-                flowSpeed={0.22}
-                flowStrength={12}
-                mouseRadius={180}
-                mouseStrength={32}
-                mouseWaveSpeed={2.6}
-                mouseEasing={1.0}
-                paused={isAnyModalOpen}
-              />
-            </div>
-          </aside>
-
           {/* Right 55%: Main Welcome Content */}
           <main className="degrees-welcome__right">
             <div className="degrees-welcome__right-bg" aria-hidden="true">
@@ -848,17 +881,15 @@ export default function WelcomeView({
               />
             </div>
             <div className="degrees-welcome__right-inner">
-              {/* Top Bar with GitHub Connect & Model Auth */}
+              {/* Top Bar with Logo at Top-Left & GitHub Connect at Top-Right */}
               <div className="degrees-welcome__top-bar">
-                <button
-                  type="button"
-                  className="degrees-open-folder-btn"
-                  onClick={handleOpenFolder}
-                  title="Open an existing local project folder or cloned repository on your computer"
-                >
-                  <FolderIcon size={13} />
-                  <span>Open Folder</span>
-                </button>
+                <div className="degrees-logo-container">
+                  <img
+                    src="./80dark.png"
+                    alt="80degrees"
+                    className="degrees-logo-img"
+                  />
+                </div>
                 {githubStatus?.connected && githubStatus?.user ? (
                   <button
                     type="button"
@@ -886,53 +917,68 @@ export default function WelcomeView({
                   </button>
                 )}
               </div>
-            <header className="degrees-welcome__header">
-              <div className="degrees-logo-container">
-                <img
-                  src="./logo-white.png"
-                  alt="crbn"
-                  className="degrees-logo-img"
+
+              <header className="degrees-welcome__header">
+                <h1 className="degrees-welcome__headline">Vibe build your company</h1>
+                <p className="degrees-welcome__subtitle">
+                  You bring the vision. We build the product, ship the code, run marketing, automate operations, acquire users, and close sales. From first spark to full scale—vibe build your company autonomously.
+                </p>
+              </header>
+
+            {/* Minimalist Borderless Accounts & Providers Banner */}
+            <div
+              className={`degrees-auth-banner ${
+                authHighlight ? 'degrees-auth-banner--attention' : ''
+              } ${justConnectedProvider ? 'degrees-auth-banner--just-connected' : ''}`}
+            >
+              <div className="degrees-auth-banner__status">
+                <span
+                  className={`degrees-auth-banner__dot ${
+                    hasExplicitAuth || justConnectedProvider ? 'degrees-auth-banner__dot--ok' : ''
+                  }`}
                 />
-              </div>
-
-              <p className="degrees-welcome__subtitle">
-                A creative studio for full-stack software. Describe your concept or connect any GitHub repo; we'll compose, build, and run it.
-              </p>
-            </header>
-
-            {/* Direction banner for users without an API key OR newly connected status */}
-            {justConnectedProvider ? (
-              <div
-                className="degrees-welcome__oauth-direction degrees-welcome__oauth-direction--connected"
-                title={`Connected to ${justConnectedProvider.name || justConnectedProvider.id}`}
-              >
-                <div className="degrees-welcome__oauth-direction-left">
-                  <span className="degrees-welcome__oauth-connected-dot" />
-                  <span className="degrees-welcome__oauth-text">
-                    Connected to <strong style={{ color: '#ffffff', fontWeight: 600 }}>{justConnectedProvider.name || justConnectedProvider.id}</strong>
-                  </span>
-                </div>
-                <span className="degrees-welcome__oauth-badge-btn degrees-welcome__oauth-badge-btn--connected">
-                  <span>Connected</span>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', marginLeft: 4, verticalAlign: '-1px' }}>
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
+                <span className="degrees-auth-banner__heading">
+                  {justConnectedProvider
+                    ? `Connected to ${justConnectedProvider.name || justConnectedProvider.id}${
+                        justConnectedProvider.account?.email ? ` (${justConnectedProvider.account.email})` : ''
+                      }`
+                    : authHighlight
+                    ? 'Connect an account or local model first'
+                    : hasExplicitAuth
+                    ? 'OAuth, API keys, or custom models'
+                    : hasAppleOnDeviceOnly
+                    ? 'Apple on-device ready — connect cloud or custom models'
+                    : 'Connect OAuth, an API key, or a custom model'}
                 </span>
               </div>
-            ) : !hasAnyConfiguredAuth ? (
-              <div
-                className="degrees-welcome__oauth-direction"
-                onClick={() => setIsConnectModalOpen(true)}
-                title="Connect Claude, ChatGPT, Copilot and more"
-              >
-                <div className="degrees-welcome__oauth-direction-left">
-                  <span className="degrees-welcome__oauth-text">
-                    No API key? No problem — connect Claude, ChatGPT, Copilot and more
-                  </span>
-                </div>
-                <span className="degrees-welcome__oauth-badge-btn">Connect account →</span>
+
+              <div className="degrees-auth-banner__actions">
+                <button
+                  type="button"
+                  className="degrees-auth-btn"
+                  onClick={() => setIsConnectModalOpen(true)}
+                  title="Connect Claude, ChatGPT, Copilot, Antigravity via OAuth"
+                >
+                  OAuth
+                </button>
+                <button
+                  type="button"
+                  className="degrees-auth-btn"
+                  onClick={() => setIsApiKeyModalOpen(true)}
+                  title="Save OpenAI, Anthropic, Gemini, or other provider API keys"
+                >
+                  API Key
+                </button>
+                <button
+                  type="button"
+                  className="degrees-auth-btn"
+                  onClick={() => setIsCustomProviderModalOpen(true)}
+                  title="Add custom OpenAI/Anthropic models or self-hosted endpoints"
+                >
+                  Custom
+                </button>
               </div>
-            ) : null}
+            </div>
 
             {/* Main Creative Input Box (Timeline Composer) */}
             <form
@@ -954,6 +1000,7 @@ export default function WelcomeView({
                 }}
               />
               {/* Segmented Template Selector (when not building on an existing GitHub repo) */}
+              {/* Attached Folder-Tab Template Selector (flush on top of composer) */}
               {!selectedRepo && (
                 <div className="degrees-template-selection-container">
                   <div className="degrees-template-segments-bar">
@@ -974,11 +1021,14 @@ export default function WelcomeView({
                                 return;
                               }
                               setSelectedTemplate(tpl.id);
+                              trackUiEvent('template_tab_selected', { template: tpl.id, name: tpl.name });
                             }}
                             role="radio"
                             aria-checked={isSelected}
                             title={tpl.description}
                           >
+                            {isSelected && <ChromeTabBackground />}
+                            <span className="degrees-template-seg-icon">{renderTemplateTabIcon(tpl)}</span>
                             <span className="degrees-template-seg-name">{tpl.name}</span>
                             {tpl.comingSoon && (
                               <span className="degrees-template-seg-tag">Soon</span>
@@ -991,49 +1041,6 @@ export default function WelcomeView({
                       <span className="degrees-template-notice-pill">{templateNotice}</span>
                     )}
                   </div>
-
-                  {(selectedTemplate === 'game_3d' || selectedTemplate?.startsWith('game_')) && (
-                    <div className="degrees-template-subsegments-bar">
-                      <span className="degrees-template-subsegments-label">Engine:</span>
-                      <div className="degrees-template-subsegments" role="radiogroup" aria-label="Game Engine">
-                        <button
-                          type="button"
-                          className="degrees-template-subseg-btn degrees-template-subseg-btn--active"
-                          onClick={() => setSelectedTemplate('game_3d')}
-                          title="Interactive 3D Web game using React Three Fiber and Rapier physics"
-                        >
-                          <CubeIcon size={12} />
-                          <span className="degrees-template-subseg-name">3D Web (Instant)</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
-                          onClick={() => {
-                            setTemplateNotice('Godot 4 WebAssembly export coming soon');
-                            setTimeout(() => setTemplateNotice(null), 2500);
-                          }}
-                          title="Godot 4 WebAssembly export for indie 2D & 3D games"
-                        >
-                          <GamepadIcon size={12} />
-                          <span className="degrees-template-subseg-name">Godot Engine</span>
-                          <span className="degrees-template-subseg-tag">Soon</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
-                          onClick={() => {
-                            setTemplateNotice('Unreal Engine 5 cloud streaming coming soon');
-                            setTimeout(() => setTemplateNotice(null), 2500);
-                          }}
-                          title="Unreal Engine 5 project skeleton with C++ and Blueprints"
-                        >
-                          <LayersIcon size={12} />
-                          <span className="degrees-template-subseg-name">Unreal Engine</span>
-                          <span className="degrees-template-subseg-tag">Soon</span>
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -1042,6 +1049,49 @@ export default function WelcomeView({
                   isDragging ? 'degrees-composer--dragging' : ''
                 } ${selectedRepo ? 'degrees-composer--has-target' : ''}`}
               >
+                {/* Game Engine Sub-selector inside composer top ribbon */}
+                {!selectedRepo && (selectedTemplate === 'game_3d' || selectedTemplate?.startsWith('game_')) && (
+                  <div className="degrees-composer__engine-ribbon">
+                    <span className="degrees-template-subsegments-label">Engine</span>
+                    <div className="degrees-template-subsegments" role="radiogroup" aria-label="Game Engine">
+                      <button
+                        type="button"
+                        className="degrees-template-subseg-btn degrees-template-subseg-btn--active"
+                        onClick={() => setSelectedTemplate('game_3d')}
+                        title="Interactive 3D Web game using React Three Fiber and Rapier physics"
+                      >
+                        <CubeIcon size={12} />
+                        <span className="degrees-template-subseg-name">3D Web (Instant)</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                        onClick={() => {
+                          setTemplateNotice('Godot 4 WebAssembly export coming soon');
+                          setTimeout(() => setTemplateNotice(null), 2500);
+                        }}
+                        title="Godot 4 WebAssembly export for indie 2D & 3D games"
+                      >
+                        <GamepadIcon size={12} />
+                        <span className="degrees-template-subseg-name">Godot Engine</span>
+                        <span className="degrees-template-subseg-tag">Soon</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="degrees-template-subseg-btn degrees-template-subseg-btn--disabled"
+                        onClick={() => {
+                          setTemplateNotice('Unreal Engine 5 cloud streaming coming soon');
+                          setTimeout(() => setTemplateNotice(null), 2500);
+                        }}
+                        title="Unreal Engine 5 project skeleton with C++ and Blueprints"
+                      >
+                        <LayersIcon size={12} />
+                        <span className="degrees-template-subseg-name">Unreal Engine</span>
+                        <span className="degrees-template-subseg-tag">Soon</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {/* Selected GitHub Repo Target Ribbon */}
                 {selectedRepo && (
                   <div className="degrees-composer__target-ribbon">
@@ -1296,7 +1346,6 @@ export default function WelcomeView({
                       <span className="degrees-welcome-tab-badge">{githubRepos.length}</span>
                     )}
                   </button>
-
                   <button
                     type="button"
                     className={`degrees-welcome-nav-tab ${
@@ -1317,6 +1366,15 @@ export default function WelcomeView({
 
                 {/* Search Bar on Right */}
                 <div className="degrees-timelines__header-right">
+                  <button
+                    type="button"
+                    className="degrees-open-folder-btn"
+                    onClick={handleOpenFolder}
+                    title="Open an existing local project folder or cloned repository on your computer"
+                  >
+                    <FolderIcon size={13} />
+                    <span>Open Folder</span>
+                  </button>
                   {activeWelcomeTab === 'timelines' ? (
                     <div className="degrees-timelines__search-box">
                       <svg
@@ -1480,6 +1538,8 @@ export default function WelcomeView({
                   </div>
                 )
               ) : activeWelcomeTab === 'github' ? (
+                /* TAB 2: GitHub Repositories View */
+                /* TAB 2: GitHub Repositories View */
                 !githubStatus?.connected ? (
                   <div className="degrees-github-connect-cta">
                     <div className="degrees-github-cta-icon">
@@ -1622,8 +1682,8 @@ export default function WelcomeView({
             <div className="degrees-naming-card">
             <div className="degrees-logo-container degrees-logo-container--naming">
               <img
-                src="./logo-white.png"
-                alt="crbn"
+                src="./80dark.png"
+                alt="80degrees"
                 className="degrees-logo-img degrees-logo-img--small"
               />
             </div>
@@ -1718,6 +1778,27 @@ export default function WelcomeView({
         providers={providers}
         onRefreshModels={onRefreshModels}
         variant="welcome"
+        onConnected={(info) => {
+          setJustConnectedProvider(info);
+        }}
+      />
+
+      {/* API Key Config Modal */}
+      <ApiKeyConfigModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        providers={providers}
+        onRefreshModels={onRefreshModels}
+        onConnected={(info) => {
+          setJustConnectedProvider(info);
+        }}
+      />
+
+      {/* Self-Hosted & Custom Providers Modal */}
+      <CustomProviderModal
+        isOpen={isCustomProviderModalOpen}
+        onClose={() => setIsCustomProviderModalOpen(false)}
+        onRefreshModels={onRefreshModels}
         onConnected={(info) => {
           setJustConnectedProvider(info);
         }}
