@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './ApiKeyConfigModal.css';
+import { trackUiEvent } from '../lib/analytics';
 
 export default function ApiKeyConfigModal({
   isOpen,
@@ -21,6 +22,7 @@ export default function ApiKeyConfigModal({
     if (isOpen) {
       setErrorMsg(null);
       setSuccessMsg(null);
+      trackUiEvent('auth_modal_opened', { modal: 'api_key' });
     }
   }, [isOpen]);
 
@@ -60,7 +62,7 @@ export default function ApiKeyConfigModal({
     setSavingState((prev) => ({ ...prev, [providerId]: true }));
     setErrorMsg(null);
     setSuccessMsg(null);
-
+    trackUiEvent('key_validation_attempted', { provider: providerId });
     try {
       const res = await fetch(`${API_BASE_URL}/api/auth/api-key`, {
         method: 'POST',
@@ -82,6 +84,8 @@ export default function ApiKeyConfigModal({
         [providerId]: { has_api_key: true, api_key_preview: preview },
       }));
       setSuccessMsg(`Saved API key for ${providerId}.`);
+      trackUiEvent('key_validation_succeeded', { provider: providerId });
+      trackUiEvent('provider_connected', { provider: providerId, method: 'api_key' });
       setKeyInputs((prev) => ({ ...prev, [providerId]: '' }));
       setEditingProviders((prev) => ({ ...prev, [providerId]: false }));
 
@@ -92,6 +96,7 @@ export default function ApiKeyConfigModal({
       }
     } catch (err) {
       setErrorMsg(err.message);
+      trackUiEvent('key_validation_failed', { provider: providerId, error: err.message });
     } finally {
       setSavingState((prev) => ({ ...prev, [providerId]: false }));
     }
@@ -119,6 +124,7 @@ export default function ApiKeyConfigModal({
         [providerId]: { has_api_key: false, api_key_preview: undefined },
       }));
       setSuccessMsg(`Removed API key for ${providerId}.`);
+      trackUiEvent('provider_disconnected', { provider: providerId, method: 'api_key' });
       setEditingProviders((prev) => ({ ...prev, [providerId]: false }));
       if (onRefreshModels) await onRefreshModels();
     } finally {

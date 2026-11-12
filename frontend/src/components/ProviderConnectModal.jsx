@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@headlessui/react';
 import { API_BASE_URL } from '../config';
 import './ProviderConnectModal.css';
+import { trackUiEvent } from '../lib/analytics';
 
 const DEFAULT_PROVIDERS = [
   { id: 'anthropic', name: 'Anthropic (Claude)', plan: 'Claude Pro / Max', modelsText: 'Claude 3.7 Sonnet, Claude 3.5 Sonnet, Claude 3.5 Haiku' },
@@ -74,6 +75,7 @@ export default function ProviderConnectModal({
   // Fetch full dynamic OAuth providers directory from backend
   useEffect(() => {
     if (!isOpen) return;
+    trackUiEvent('auth_modal_opened', { modal: 'oauth' });
     refreshOAuthProviders();
   }, [isOpen, refreshOAuthProviders]);
 
@@ -154,6 +156,8 @@ export default function ProviderConnectModal({
             setActiveSession(data.session);
             if (data.session.status === 'completed') {
               setSuccessMsg(`Connected ${provider} successfully.`);
+              trackUiEvent('oauth_flow_completed', { provider, success: true });
+              trackUiEvent('provider_connected', { provider, method: 'oauth' });
               setConnectingProvider(null);
               setPasteCodeInput('');
               const latest = await refreshOAuthProviders();
@@ -171,6 +175,7 @@ export default function ProviderConnectModal({
               }
             } else if (data.session.status === 'failed') {
               setErrorMsg(data.session.error || 'Authentication failed');
+              trackUiEvent('oauth_flow_completed', { provider, success: false, error: data.session.error });
               setConnectingProvider(null);
             }
           }
@@ -186,6 +191,7 @@ export default function ProviderConnectModal({
     setErrorMsg(null);
     setSuccessMsg(null);
     setConnectingProvider(providerId);
+    trackUiEvent('oauth_flow_started', { provider: providerId });
     setPasteCodeInput('');
 
     try {
@@ -276,6 +282,7 @@ export default function ProviderConnectModal({
       });
       if (res.ok) {
         setSuccessMsg(`Disconnected ${providerId}`);
+        trackUiEvent('provider_disconnected', { provider: providerId, method: 'oauth' });
         setOauthProviders((prev) =>
           prev.map((p) => (p.id === providerId ? { ...p, connected: false, account: null } : p))
         );

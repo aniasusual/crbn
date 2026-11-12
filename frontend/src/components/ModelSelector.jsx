@@ -3,6 +3,7 @@ import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Description } from '@
 import { API_BASE_URL } from '../config';
 import CustomProviderModal from './CustomProviderModal';
 import './ModelSelector.css';
+import { trackUiEvent } from '../lib/analytics';
 
 const INITIAL_RENDER_COUNT = 60;
 const RENDER_BATCH_SIZE = 60;
@@ -241,6 +242,14 @@ export default function ModelSelector({
 
   const handleSelect = useCallback((model) => {
     const targetId = model.canonical_id || `${model.provider}/${model.id}`;
+    trackUiEvent('model_selected', {
+      model_id: targetId,
+      name: model.name || targetId,
+      provider: model.provider,
+      is_custom: Boolean(model.is_custom),
+      context_tokens: model.context_tokens,
+      supports_thinking: Boolean(model.supports_thinking),
+    });
     onSelectModel(targetId);
     onClose();
   }, [onSelectModel, onClose]);

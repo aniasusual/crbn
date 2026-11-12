@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import * as React from "react";
+import { captureException } from "@/lib/analytics";
 
 interface WebGLErrorBoundaryProps {
   children: React.ReactNode;
@@ -25,6 +26,10 @@ export class WebGLErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.props.onError?.(error, errorInfo);
+    captureException(error, {
+      source: "WebGLErrorBoundary",
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   render() {

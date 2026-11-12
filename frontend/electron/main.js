@@ -303,6 +303,27 @@ function stopBackend() {
   }
 }
 
+function resolveCanonicalDeviceId() {
+  try {
+    const configDir = path.join(os.homedir(), '.80degrees');
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    const idPath = path.join(configDir, 'device_id');
+    if (fs.existsSync(idPath)) {
+      const id = fs.readFileSync(idPath, 'utf8').trim();
+      if (id) return id;
+    }
+    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'desk-' + Math.random().toString(36).slice(2, 10);
+    fs.writeFileSync(idPath, newId, 'utf8');
+    return newId;
+  } catch {
+    return 'anonymous-desktop';
+  }
+}
+
 // Provide desktop connection config to renderer via synchronous IPC
 ipcMain.on('get-desktop-config', (event) => {
   event.returnValue = {
@@ -311,6 +332,7 @@ ipcMain.on('get-desktop-config', (event) => {
     wsBase: `ws://127.0.0.1:${activeBackendPort}/ws`,
     isPackaged: app.isPackaged,
     version: app.getVersion(),
+    deviceId: resolveCanonicalDeviceId(),
   };
 });
 ipcMain.handle('select-directory', async () => {

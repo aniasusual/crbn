@@ -5,8 +5,16 @@ const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.
 
 function getOrCreateDeviceId() {
   try {
+    // 1. Electron bridge priority (matches backend exactly from ~/.80degrees/device_id)
+    if (typeof window !== 'undefined' && window.__80DEGREES_CONFIG__?.deviceId) {
+      const bridgeId = window.__80DEGREES_CONFIG__.deviceId;
+      localStorage.setItem('80degrees_device_id', bridgeId);
+      return bridgeId;
+    }
+    // 2. Cached local storage
     const existing = localStorage.getItem('80degrees_device_id');
     if (existing) return existing;
+    // 3. Browser fallback
     const newId = crypto.randomUUID();
     localStorage.setItem('80degrees_device_id', newId);
     return newId;
@@ -37,10 +45,8 @@ export function initAnalytics() {
       },
       autocapture: true,
       capture_pageview: true,
-      capture_pageleave: true,
-      disable_session_recording: false,
       session_recording: {
-        recordCrossOriginIframes: false,
+        recordCrossOriginIframes: true,
         maskAllInputs: false,
         maskTextSelector: [
           '.apikey-dialog-input',
@@ -96,6 +102,70 @@ export function trackUiEvent(event, properties = {}) {
   } catch {
     // Ignore capture errors
   }
+}
+
+/**
+ * Capture exceptions and unhandled errors into PostHog Error Tracking.
+ */
+export function captureException(error, context = {}) {
+  try {
+    if (posthog && typeof posthog.captureException === 'function') {
+      posthog.captureException(error, context);
+    }
+  } catch {
+    // Ignore capture errors
+  }
+}
+
+/**
+ * Check if a PostHog remote feature flag is enabled.
+ */
+export function isFeatureEnabled(flagKey) {
+  try {
+    return Boolean(posthog?.isFeatureEnabled(flagKey));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Retrieve remote JSON configuration payload associated with a feature flag.
+ */
+export function getFeatureFlagPayload(flagKey) {
+  try {
+    return posthog?.getFeatureFlagPayload(flagKey) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Subscribe to feature flag re-evaluations from PostHog.
+ */
+export function onFeatureFlags(callback) {
+  try {
+    if (posthog && typeof posthog.onFeatureFlags === 'function') {
+      return posthog.onFeatureFlags(callback);
+    }
+  } catch {
+    // Ignore flag subscription error
+  }
+}
+
+// Register global window error and unhandled rejection listeners for automated error tracking
+if (typeof window !== 'undefined') {
+  window.addEventListener('error', (event) => {
+    if (event.error) {
+      captureException(event.error, { source: 'window.onerror' });
+    }
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    captureException(reason instanceof Error ? reason : new Error(String(reason)), {
+      source: 'unhandledrejection',
+    });
+  });
 }
 
 export { posthog };

@@ -95,6 +95,7 @@ export class SessionBridge {
   private mcpManager: MCPManager | null = null;
   private mcpStatusUnsubscribe: (() => void) | null = null;
   private turnHadError: boolean = false;
+  private turnErrorMessage: string | null = null;
   private pluginsService: PluginsService = new PluginsService();
   private attachmentService: AttachmentService = new AttachmentService();
   private currentMode: "build" | "plan" = "build";
@@ -1039,6 +1040,7 @@ export class SessionBridge {
 
     this.wasStoppedByUser = false;
     this.turnHadError = false;
+    this.turnErrorMessage = null;
     this.isGenerating = true;
     this.lastPromptText = promptText;
     // Record user message in UI events with any attached media
@@ -1096,6 +1098,15 @@ export class SessionBridge {
         }
         this.broadcastQueueUpdate();
         const errText = err instanceof Error ? err.message : String(err);
+        this.turnErrorMessage = errText;
+        telemetry.track("$exception", {
+          $exception_message: errText,
+          $exception_type: err instanceof Error ? err.name : "AgentExecutionError",
+          $exception_stack_trace_raw: err instanceof Error ? err.stack : undefined,
+          model: this.activeModel || "default",
+          project_name: this.activeProjectName || undefined,
+          session_id: this.activeSessionId || undefined,
+        });
         let friendlyNotice = errText;
         if (
           errText.includes("No API key found") ||
@@ -1159,16 +1170,40 @@ export class SessionBridge {
       const contextWindow = usage?.contextWindow || 1_000_000;
       const usagePct = usage?.percent !== undefined ? Math.round(usage.percent * 10) / 10 : (contextWindow > 0 ? Math.round((totalTokens / contextWindow) * 100) : 0);
 
+      const durationMs = Date.now() - promptStartTime;
+      const durationSec = durationMs / 1000;
+      const breakdown = this.session?.getContextBreakdown() as Record<string, unknown> | undefined;
+      const promptTokens = Number(breakdown?.messagesTokens ?? 0);
+      const completionTokens = Math.max(0, totalTokens - promptTokens);
+      const activeModel = this.activeModel || this.session?.model?.id || "default";
+      const provider = this.session?.model?.provider || "custom";
+
       telemetry.track("agent_turn_completed", {
-        duration_ms: Date.now() - promptStartTime,
+        duration_ms: durationMs,
         had_error: this.turnHadError,
         was_stopped: this.wasStoppedByUser,
-        model: this.activeModel || "default",
+        model: activeModel,
         project_name: this.activeProjectName || undefined,
         session_id: this.activeSessionId || undefined,
         total_tokens: totalTokens,
         context_window: contextWindow,
         usage_pct: usagePct,
+      });
+
+      telemetry.track("$ai_generation", {
+        $ai_model: activeModel,
+        $ai_provider: provider,
+        $ai_input_tokens: promptTokens,
+        $ai_output_tokens: completionTokens,
+        $ai_total_tokens: totalTokens,
+        $ai_latency: durationSec,
+        $ai_is_error: Boolean(this.turnHadError),
+        $ai_error: this.turnErrorMessage || undefined,
+        $ai_trace_id: this.activeSessionId ? `${this.activeSessionId}_${promptStartTime}` : `turn_${promptStartTime}`,
+        $ai_session_id: this.activeSessionId || this.activeProjectName || "default",
+        project_name: this.activeProjectName || undefined,
+        had_error: this.turnHadError,
+        was_stopped: this.wasStoppedByUser,
       });
     }
   }

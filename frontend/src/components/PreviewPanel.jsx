@@ -445,6 +445,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                 className="preview-sooth__frame preview-sooth__frame--fluid"
                 title="Live Application Preview"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
+                allow="cross-origin-isolated; autoplay"
               />
 ) : (
               <div className="preview-sooth__stage">
@@ -484,6 +485,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                     className="preview-sooth__frame preview-sooth__frame--contained"
                     title="Live Application Preview"
                     sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
+                    allow="cross-origin-isolated; autoplay"
                   />
                 </div>
               </div>
