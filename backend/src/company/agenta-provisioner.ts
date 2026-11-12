@@ -204,7 +204,7 @@ export class AgentaProvisioner {
       let orgId = tenant.orgId;
       let projId: string | undefined;
       let apiKey: string | undefined;
-
+      let providerSlug: string | undefined;
       const projectNameInAgenta = companyName;
       const existingAgentNames = new Set<string>();
 
@@ -381,6 +381,17 @@ export class AgentaProvisioner {
               apiKey = rawKey;
             }
           }
+
+          // 5. Discover active LLM provider key connection slug in user's organization
+          try {
+            const secretRows = await dbCore`SELECT slug FROM secrets 
+              WHERE (availability = 'all_projects' OR organization_id = ${orgId} OR project_id IN (SELECT id FROM projects WHERE organization_id = ${orgId}))
+                AND kind = 'PROVIDER_KEY' 
+              ORDER BY created_at DESC LIMIT 1`;
+            if (secretRows && secretRows.length > 0 && secretRows[0]?.slug) {
+              providerSlug = String(secretRows[0].slug);
+            }
+          } catch {}
         }
 
       } catch (err) {
@@ -433,6 +444,7 @@ export class AgentaProvisioner {
                         llm: {
                           provider: "gemini",
                           model: agent.model || "gemini/gemini-2.5-flash",
+                          ...(providerSlug ? { connection: { mode: "agenta", slug: providerSlug } } : {}),
                         },
                         harness: { kind: "pi_core" },
                         runner: { kind: "sidecar", permissions: { default: "allow" } },
@@ -462,9 +474,69 @@ export class AgentaProvisioner {
                   initial_message: `Hello! I am the ${agent.name} for ${companyName}. How can I assist you today?`,
                 }),
               });
-
               if (tplRes.ok) {
                 loadedViaTemplate = true;
+                const tplData = (await tplRes.json()) as { workflow_id?: string; variant_id?: string };
+                const workflowId = tplData.workflow_id;
+                const variantId = tplData.variant_id;
+
+                // Set human-friendly department name and commit company-specific prompt on top of template
+                if (workflowId && variantId) {
+                  try {
+                    const dbLocal = getCoreDb();
+                    await dbLocal`UPDATE workflow_artifacts SET name = ${agent.name} WHERE id = ${workflowId}`;
+                    await dbLocal.close();
+
+                    const queryRes = await fetch(`${this.apiUrl}/workflows/revisions/query?project_id=${projId}`, {
+                      method: "POST",
+                      headers: userHeaders,
+                      body: JSON.stringify({
+                        workflow_refs: [{ id: workflowId }],
+                        grouping: { by: "artifact", get: "latest" },
+                      }),
+                    });
+                    if (queryRes.ok) {
+                      const qData = (await queryRes.json()) as {
+                        workflow_revisions?: Array<{
+                          data?: {
+                            parameters?: {
+                              agent?: Record<string, unknown>;
+                              [key: string]: unknown;
+                            };
+                            [key: string]: unknown;
+                          };
+                        }>;
+                      };
+                      const latestRev = qData.workflow_revisions?.[0];
+                      if (latestRev?.data?.parameters?.agent) {
+                        const newParams = { ...latestRev.data.parameters };
+                        newParams.agent = {
+                          ...newParams.agent,
+                          instructions: { agents_md: prompt },
+                        };
+                        await fetch(`${this.apiUrl}/workflows/revisions/commit?project_id=${projId}`, {
+                          method: "POST",
+                          headers: userHeaders,
+                          body: JSON.stringify({
+                            workflow_revision: {
+                              workflow_id: workflowId,
+                              workflow_variant_id: variantId,
+                              slug: randSlug(12),
+                              name: "default",
+                              data: {
+                                ...latestRev.data,
+                                parameters: newParams,
+                              },
+                              message: "Configure company instructions",
+                            },
+                          }),
+                        });
+                      }
+                    }
+                  } catch (updateErr) {
+                    console.warn(`[AgentaProvisioner] Could not update prompt on ${agent.name}:`, updateErr);
+                  }
+                }
               }
             } catch (tplErr) {
               console.warn(`[AgentaProvisioner] Template load attempt for ${agent.templateKey}:`, tplErr);
