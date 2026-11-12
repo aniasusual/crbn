@@ -1154,11 +1154,21 @@ export class SessionBridge {
     } finally {
       this.isGenerating = false;
       this.broadcastQueueUpdate();
+      const usage = this.session?.getContextUsage();
+      const totalTokens = usage?.totalTokens ?? 0;
+      const contextWindow = usage?.contextWindow || 1_000_000;
+      const usagePct = usage?.percent !== undefined ? Math.round(usage.percent * 10) / 10 : (contextWindow > 0 ? Math.round((totalTokens / contextWindow) * 100) : 0);
+
       telemetry.track("agent_turn_completed", {
         duration_ms: Date.now() - promptStartTime,
         had_error: this.turnHadError,
         was_stopped: this.wasStoppedByUser,
         model: this.activeModel || "default",
+        project_name: this.activeProjectName || undefined,
+        session_id: this.activeSessionId || undefined,
+        total_tokens: totalTokens,
+        context_window: contextWindow,
+        usage_pct: usagePct,
       });
     }
   }
@@ -1200,6 +1210,8 @@ export class SessionBridge {
       this.broadcastQueueUpdate();
       telemetry.track("agent_stopped_by_user", {
         model: this.activeModel || "default",
+        project_name: this.activeProjectName || undefined,
+        session_id: this.activeSessionId || undefined,
       });
       this.send({
         type: "status",
@@ -2199,12 +2211,6 @@ export class SessionBridge {
         rolled_up: false,
       },
       timestamp: new Date().toISOString(),
-    });
-    telemetry.track("context_telemetry", {
-      total_tokens: totalTokens,
-      context_window: contextWindow,
-      usage_pct: usagePct,
-      status: usagePct >= 80 ? "critical" : usagePct >= 70 ? "warning" : "normal",
     });
   }
 

@@ -14,6 +14,7 @@ import { useMediaAttachments } from '../hooks/useMediaAttachments';
 import { API_BASE_URL, APP_VERSION } from '../config';
 import './WelcomeView.css';
 import ChromeTabBackground from './ui/ChromeTabBackground';
+import { identifyUser, trackUiEvent } from '../lib/analytics';
 
 const GitHubIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
@@ -430,9 +431,12 @@ export default function WelcomeView({
     try {
       const res = await fetch(`${API_BASE_URL}/api/github/status`);
       if (res.ok) {
-        const data = await res.json();
         setGithubStatus(data);
-        if (data.connected) {
+        if (data.connected && data.user) {
+          identifyUser(data.user.email || data.user.login, {
+            github_username: data.user.login,
+            name: data.user.name,
+          });
           fetchGithubRepos();
         }
       }
@@ -934,6 +938,7 @@ export default function WelcomeView({
                                 return;
                               }
                               setSelectedTemplate(tpl.id);
+                              trackUiEvent('template_tab_selected', { template: tpl.id, name: tpl.name });
                             }}
                             role="radio"
                             aria-checked={isSelected}

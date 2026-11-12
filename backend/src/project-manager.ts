@@ -352,7 +352,12 @@ export class ProjectManager {
   async deleteProject(name: string): Promise<void> {
     const validatedName = this.validateName(name);
     const projectDir = path.join(this.root, validatedName);
-    telemetry.track("project_deleted");
+    const meta = await this.getProject(validatedName).catch(() => null);
+    telemetry.track("project_deleted", {
+      name: validatedName,
+      template: meta?.template,
+      model: meta?.model,
+    });
     if (fsSync.existsSync(projectDir)) {
       try {
         const stat = fsSync.lstatSync(projectDir);
