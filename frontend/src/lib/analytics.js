@@ -1,8 +1,14 @@
 import posthog from 'posthog-js';
 
-const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || 'REDACTED_SECRET';
-const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
-
+const RAW_POSTHOG_KEY =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_POSTHOG_KEY) ||
+  (typeof window !== 'undefined' ? window.__80DEGREES_CONFIG__?.posthogKey : undefined) ||
+  '';
+const POSTHOG_KEY =
+  RAW_POSTHOG_KEY && RAW_POSTHOG_KEY !== 'REDACTED_SECRET' ? RAW_POSTHOG_KEY : null;
+const POSTHOG_HOST =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_POSTHOG_HOST) ||
+  'https://us.i.posthog.com';
 function getOrCreateDeviceId() {
   try {
     // 1. Electron bridge priority (matches backend exactly from ~/.80degrees/device_id)
@@ -29,6 +35,9 @@ function getOrCreateDeviceId() {
 export function initAnalytics() {
   if (typeof window === 'undefined') return;
 
+  if (!POSTHOG_KEY) {
+    return;
+  }
   const dnt = navigator.doNotTrack === '1' || window.doNotTrack === '1';
   if (dnt) {
     return;

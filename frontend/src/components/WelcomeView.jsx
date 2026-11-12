@@ -463,6 +463,7 @@ export default function WelcomeView({
     try {
       const res = await fetch(`${API_BASE_URL}/api/github/status`);
       if (res.ok) {
+        const data = await res.json();
         setGithubStatus(data);
         if (data.connected && data.user) {
           identifyUser(data.user.email || data.user.login, {
