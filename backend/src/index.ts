@@ -23,6 +23,7 @@ import { applyAugmentedPath } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
 import { UpdateService } from "./update-service";
 import { telemetry } from "./telemetry-service";
+import { logCompany } from "./company/logger";
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
 const HOST = process.env.BACKEND_HOST || "127.0.0.1";
@@ -1034,6 +1035,84 @@ const _server = Bun.serve<WsData>({
         );
       }
     }
+    // Companies: List all companies
+    if (url.pathname === "/api/companies" && req.method === "GET") {
+      try {
+        const companies = await projectManager.listCompanies();
+        return Response.json(companies, { headers: CORS_HEADERS });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // Projects: Get Company
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/company$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      logCompany("HTTP", `GET /api/projects/${projectName}/company`);
+      try {
+        const company = await projectManager.getCompany(projectName);
+        logCompany("HTTP", `GET /api/projects/${projectName}/company returned:`, company);
+        return Response.json(
+          { exists: Boolean(company), company },
+          { headers: CORS_HEADERS }
+        );
+      } catch (err) {
+        logCompany("HTTP", `GET /api/projects/${projectName}/company error:`, err);
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 404, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // Projects: Create or Update Company
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/company$/) && req.method === "POST") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      try {
+        const body = (await req.json().catch(() => ({}))) as {
+          name?: string;
+          tagline?: string;
+          templateAgents?: string[];
+        };
+        logCompany("HTTP", `POST /api/projects/${projectName}/company payload:`, body);
+        const company = await projectManager.saveCompany(projectName, body);
+        logCompany("HTTP", `POST /api/projects/${projectName}/company result:`, company);
+        return Response.json(
+          { success: true, company },
+          { headers: CORS_HEADERS }
+        );
+      } catch (err) {
+        logCompany("HTTP", `POST /api/projects/${projectName}/company error:`, err);
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
+    // Projects: Delete Company
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/company$/) && req.method === "DELETE") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      logCompany("HTTP", `DELETE /api/projects/${projectName}/company`);
+      try {
+        await projectManager.deleteCompany(projectName);
+        logCompany("HTTP", `DELETE /api/projects/${projectName}/company success`);
+        return Response.json({ success: true }, { headers: CORS_HEADERS });
+      } catch (err) {
+        logCompany("HTTP", `DELETE /api/projects/${projectName}/company error:`, err);
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+
 
     // Projects: Open in Finder
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/open-in-finder$/) && req.method === "POST") {

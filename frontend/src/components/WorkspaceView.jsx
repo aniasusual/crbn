@@ -23,7 +23,6 @@ export default function WorkspaceView({
   pendingApproval,
   onApproveCommand,
   onDenyCommand,
-  pendingAsk = null,
   hardwareInfo,
   models = [],
   providers = [],
@@ -63,6 +62,7 @@ export default function WorkspaceView({
   onSwitchSession = null,
   onDeleteSession = null,
   onRenameSession = null,
+  onOpenCompany = null,
 }) {
   const isDragging = useRef(false);
   const leftPanelRef = useRef(null);
@@ -134,7 +134,6 @@ export default function WorkspaceView({
             onUndoClear={onUndoClear}
             pendingApproval={pendingApproval}
             onDenyCommand={onDenyCommand}
-            pendingAsk={pendingAsk}
             models={models}
             providers={providers}
             selectedModel={selectedModel}
@@ -187,6 +186,7 @@ export default function WorkspaceView({
             onStopPreview={onStopPreview}
             lastChangeTimestamp={lastChangeTimestamp}
             template={template}
+            onOpenCompany={onOpenCompany}
           />
         </div>
       </div>

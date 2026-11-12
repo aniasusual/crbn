@@ -8,6 +8,8 @@ import type { DevServerManager } from "./dev-server";
 import { getAugmentedEnv } from "./runtime-env";
 import { TemplateService } from "./templates/template-service";
 import { telemetry } from "./telemetry-service";
+import { companyService, type CompanyInfo, type CompanyAgentSummary } from "./company/company-service";
+export type { CompanyInfo, CompanyAgentSummary };
 export interface ProjectCreationProgress {
   phase: "scaffolding" | "git" | "dependencies" | "preview" | "ready";
   message: string;
@@ -97,6 +99,7 @@ const MIME_TYPES: Record<string, string> = {
 
 export const META_FILENAME = ".80degrees_meta.json";
 export const CHAT_FILENAME = ".80degrees_chat.json";
+export const COMPANY_FILENAME = ".80degrees_company.json";
 
 export class ProjectManager {
   readonly root: string;
@@ -817,5 +820,40 @@ export class ProjectManager {
     }
     await fs.rm(safePath, { recursive: true, force: true });
     return { success: true, path: relativePath };
+  }
+  async getCompany(projectName: string): Promise<CompanyInfo | null> {
+    const project = await this.getProject(projectName);
+    const companyFilePath = path.join(project.path, COMPANY_FILENAME);
+    try {
+      if (!fsSync.existsSync(companyFilePath)) return null;
+      return await companyService.ensureCompanyProvisioned(project.path, project.name);
+    } catch {
+      return null;
+    }
+  }
+
+  async saveCompany(
+    projectName: string,
+    data: { name?: string; tagline?: string; templateAgents?: string[] } = {}
+  ): Promise<CompanyInfo> {
+    const project = await this.getProject(projectName);
+    return await companyService.initializeCompany(project.path, project.name, data);
+  }
+
+  async deleteCompany(projectName: string): Promise<boolean> {
+    const project = await this.getProject(projectName);
+    return await companyService.deleteCompany(project.path, project.name);
+  }
+
+  async listCompanies(): Promise<CompanyInfo[]> {
+    const projects = await this.listProjects();
+    const companies: CompanyInfo[] = [];
+    for (const project of projects) {
+      const company = await this.getCompany(project.name);
+      if (company) {
+        companies.push(company);
+      }
+    }
+    return companies;
   }
 }

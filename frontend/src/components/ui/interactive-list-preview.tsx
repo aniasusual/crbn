@@ -30,7 +30,8 @@ export interface InteractiveListPreviewProps {
   onItemClick?: (item: InteractiveListItem, index: number) => void;
   /** Optional custom action triggers */
   onOpenFinder?: (projectName: string) => void;
-  onDeleteProject?: (projectName: string) => void;
+  onDeleteProject?: (projectName: string, item?: InteractiveListItem) => void;
+  deleteTitle?: string;
 }
 
 const DEFAULT_SMOOTHNESS = 0.06;
@@ -59,6 +60,7 @@ export default function InteractiveListPreview({
   onItemClick,
   onOpenFinder,
   onDeleteProject,
+  deleteTitle,
 }: InteractiveListPreviewProps) {
   const tableRef = useRef<HTMLDivElement | null>(null);
   const highlightRef = useRef<HTMLDivElement | null>(null);
@@ -203,11 +205,11 @@ export default function InteractiveListPreview({
                                 <button
                                   type="button"
                                   className="ilp-action-btn ilp-action-btn--delete"
-                                  title="Delete project"
+                                  title={deleteTitle || "Delete"}
                                   aria-label={`Delete ${typeof item.client === "string" ? item.client : ""}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onDeleteProject(typeof item.client === "string" ? item.client : "");
+                                    onDeleteProject(typeof item.client === "string" ? item.client : "", item);
                                   }}
                                 >
                                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -240,7 +242,7 @@ export default function InteractiveListPreview({
             return (
               <div
                 key={itemKey}
-                className={`ilp-mobile-card flex cursor-pointer items-center justify-between rounded-[10px] p-3 transition-colors hover:bg-white/5 ${item.selected ? "ilp-row--selected" : ""}`}
+                className={`flex cursor-pointer items-center justify-between border-b border-white/10 p-3 transition-colors hover:bg-white/5 ${item.selected ? "ilp-row--selected" : ""}`}
                 onClick={() => onItemClick?.(item, index)}
               >
                 <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -286,10 +288,10 @@ export default function InteractiveListPreview({
                         <button
                           type="button"
                           className="ilp-action-btn ilp-action-btn--delete"
-                          title="Delete project"
+                          title={deleteTitle || "Delete"}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onDeleteProject(typeof item.client === "string" ? item.client : "");
+                            onDeleteProject(typeof item.client === "string" ? item.client : "", item);
                           }}
                         >
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

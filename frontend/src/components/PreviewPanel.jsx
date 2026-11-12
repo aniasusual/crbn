@@ -12,6 +12,8 @@ import {
   DockIconDeploy,
 } from '@/components/ui/magnetic-dock';
 import './PreviewPanel.css';
+import { API_BASE_URL } from '../config';
+
 
 const CanvasStudioGlyph = () => (
   <svg viewBox="0 0 48 48" width="44" height="44" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round">
@@ -33,7 +35,9 @@ const BASE_PRESETS = [
 
 const IPHONE_PRESET = { id: 'mobile', label: 'iPhone 16 Pro', width: 393, height: 852, canRotate: true };
 
-export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp, template }) {
+export default function PreviewPanel({ projectName, previewData, _onStopPreview, lastChangeTimestamp, template, onOpenCompany }) {
+  const [companyData, setCompanyData] = useState(null);
+  const [isCreatingCompany, setIsCreatingCompany] = useState(false);
   const isMobileApp = template === 'mobile_expo' || template?.includes('mobile');
   const [frameKey, setFrameKey] = useState(0);
   const [isServerReady, setIsServerReady] = useState(false);
@@ -64,6 +68,80 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       setViewportMode('desktop');
     }
   }, [isMobileApp, projectName]);
+
+  // Fetch company status for the current project
+  useEffect(() => {
+    if (!projectName) {
+      setCompanyData(null);
+      return;
+    }
+    let isMounted = true;
+    fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/company`)
+      .then((res) => (res.ok ? res.json() : { exists: false }))
+      .then((data) => {
+        if (isMounted) {
+          console.log('[Company-Dock]', `Company status for project "${projectName}":`, data);
+          setCompanyData(data.exists ? data.company : null);
+        }
+      })
+      .catch((err) => {
+        console.warn('[Company-Dock]', `Failed to fetch company status for "${projectName}":`, err);
+        if (isMounted) setCompanyData(null);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [projectName]);
+
+  const handleStartOrOpenCompany = useCallback(async () => {
+    console.log('[Company-Dock]', 'handleStartOrOpenCompany called', { projectName, companyData, isCreatingCompany });
+    // If company is already active and provisioned in Agenta with a valid project URL, open it directly
+    if (companyData?.status === 'active' && companyData?.agentaProjectId && companyData?.agentaUrl?.includes('/p/')) {
+      console.log('[Company-Dock]', 'Opening active company dashboard directly:', companyData.agentaUrl);
+      onOpenCompany?.(companyData);
+      return;
+    }
+    if (!projectName || isCreatingCompany) return;
+    setIsCreatingCompany(true);
+    try {
+      const formattedName = projectName
+        .split(/[-_]+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+
+      // Immediately transition to the embedded company view with a provisioning state
+      const optimisticCompany = {
+        projectName,
+        name: formattedName,
+        status: 'provisioning',
+        agentaUrl: 'http://localhost/m',
+      };
+      onOpenCompany?.(optimisticCompany);
+      const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/company`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formattedName,
+          tagline: `Autonomous business for ${formattedName}`,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        console.log('[Company-Dock]', 'POST /company response received:', data);
+        if (data.company) {
+          setCompanyData(data.company);
+          onOpenCompany?.(data.company);
+        }
+      } else {
+        const errData = await res.text();
+        console.warn('[Company-Dock]', 'POST /company failed with status', res.status, errData);
+      }
+    } catch (err) {
+      console.error('[Company-Dock]', 'Failed to create company:', err);
+    } finally {
+      setIsCreatingCompany(false);
+    }
+  }, [companyData, projectName, isCreatingCompany, onOpenCompany]);
 
   // Track canvas size for smooth device fitting
   useEffect(() => {
@@ -144,7 +222,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
     return () => {
       isMounted = false;
-      if (timeoutId) clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
     };
   }, [previewData?.url]);
   // Dev Server Backend Health Polling
@@ -160,33 +238,47 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
     const checkBackendHealth = async () => {
       try {
-        const targetUrl = (
-          previewData.backend_url || `http://127.0.0.1:${previewData.backend_port}`
-        ).replace('://localhost:', '://127.0.0.1:');
-        await fetch(targetUrl, { mode: 'no-cors', cache: 'no-store' });
-        if (isMounted) {
-          setIsBackendReady(true);
+        if (projectName) {
+          const res = await fetch(
+            `${API_BASE_URL}/api/dev-server/status?project=${encodeURIComponent(projectName)}`,
+            { cache: 'no-store' }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            if (data.backend?.running) {
+              if (isMounted) {
+                setIsBackendReady(true);
+              }
+              return;
+            }
+          }
+        } else {
+          const targetUrl = (
+            previewData.backend_url || `http://127.0.0.1:${previewData.backend_port}`
+          ).replace('://localhost:', '://127.0.0.1:');
+          await fetch(targetUrl, { mode: 'no-cors', cache: 'no-store' });
+          if (isMounted) {
+            setIsBackendReady(true);
+            return;
+          }
         }
       } catch {
-        if (isMounted) {
-          setIsBackendReady(false);
-          timeoutId = setTimeout(checkBackendHealth, 500);
-        }
+        // Connection error while booting; will retry below
+      }
+
+      if (isMounted) {
+        setIsBackendReady(false);
+        timeoutId = setTimeout(checkBackendHealth, 500);
       }
     };
 
     checkBackendHealth();
 
-    const intervalId = setInterval(() => {
-      if (isMounted) checkBackendHealth();
-    }, 3000);
-
     return () => {
       isMounted = false;
-      if (timeoutId) clearTimeout(timeoutId);
-      clearInterval(intervalId);
+      clearTimeout(timeoutId);
     };
-  }, [previewData?.backend_port, previewData?.backend_url]);
+  }, [previewData?.backend_port, previewData?.backend_url, projectName]);
 
   // Live Auto-Reload when AI agent writes/edits code or tab is refreshed
   useEffect(() => {
@@ -221,22 +313,6 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     setTimeout(() => setIsReloading(false), 450);
   }, []);
 
-  const [deployNotice, setDeployNotice] = useState(false);
-  const deployTimerRef = useRef(null);
-
-  const handleDeployClick = useCallback(() => {
-    setDeployNotice(true);
-    clearTimeout(deployTimerRef.current);
-    deployTimerRef.current = setTimeout(() => {
-      setDeployNotice(false);
-    }, 4500);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      clearTimeout(deployTimerRef.current);
-    };
-  }, []);
 
   // Dimensions & scale calculation (clean fitting without auto-fit toggle)
   const currentConfig = useMemo(() => {
@@ -277,9 +353,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       {
         id: 'view-toggle',
         label: viewMode === 'preview' ? 'Live Preview' : 'Code Inspector',
-        tooltip: viewMode === 'preview'
-          ? 'Live Preview (Click for Code)'
-          : 'Code Inspector (Click for Preview)',
+        tooltip: viewMode === 'preview' ? 'Code Inspector' : 'Live Preview',
         icon: viewMode === 'preview' ? <DockIconEye /> : <DockIconCode />,
         onClick: handleToggleViewMode,
       },
@@ -296,10 +370,10 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
             : 'Desktop (Full)',
         tooltip:
           viewportMode === 'desktop'
-            ? 'Desktop: Full Width (Click for Tablet)'
+            ? 'Desktop View'
             : viewportMode === 'tablet'
-            ? 'Tablet: 768×1024 (Click for Mobile)'
-            : 'Mobile: 393×852 (Click for Desktop Full)',
+            ? 'Tablet View'
+            : 'Mobile View',
         icon:
           viewportMode === 'tablet' ? (
             <DockIconTablet />
@@ -316,7 +390,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       {
         id: 'reload',
         label: 'Reload',
-        tooltip: isReloading ? 'Reloading Preview...' : 'Reload Preview',
+        tooltip: isReloading ? 'Reloading...' : 'Reload Preview',
         icon: <DockIconRefresh spinning={isReloading} />,
         onClick: handleManualReload,
       },
@@ -328,13 +402,12 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         onClick: handleOpenExternal,
       },
       {
-        id: 'deploy',
-        label: 'Deploy',
-        tooltip: 'Deploy Application',
-        hideTooltip: deployNotice,
+        id: 'company',
+        label: (companyData?.status === 'active' && companyData?.agentaProjectId) ? 'Company' : 'Start a Company',
+        tooltip: (companyData?.status === 'active' && companyData?.agentaProjectId) ? 'Company Dashboard' : 'Start a Company',
         icon: <DockIconDeploy />,
-        onClick: handleDeployClick,
-        isActive: deployNotice,
+        onClick: handleStartOrOpenCompany,
+        isActive: Boolean(companyData?.status === 'active' && companyData?.agentaProjectId),
       }
     );
 
@@ -348,8 +421,8 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
     handleCycleViewport,
     handleManualReload,
     handleOpenExternal,
-    deployNotice,
-    handleDeployClick,
+    companyData,
+    handleStartOrOpenCompany,
   ]);
 
   // Clean empty state with sanctuary card
@@ -405,6 +478,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         </div>
       )}
 
+
       {/* Main Sanctuary: Viewport / Code Inspector */}
       <div className="preview-sooth__viewport">
         {viewMode === 'code' ? (
@@ -438,13 +512,13 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                   Connecting dev runtime on port <code>:{previewData.port}</code>
                 </div>
               </div>
-) : !isMobileApp && viewportMode === 'desktop' ? (
+            ) : !isMobileApp && viewportMode === 'desktop' ? (
               <iframe
                 key={frameKey}
                 src={previewData.url}
                 className="preview-sooth__frame preview-sooth__frame--fluid"
                 title="Live Application Preview"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock allow-presentation allow-downloads"
                 allow="cross-origin-isolated; autoplay"
               />
 ) : (
@@ -484,7 +558,7 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
                     src={previewData.url}
                     className="preview-sooth__frame preview-sooth__frame--contained"
                     title="Live Application Preview"
-                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock"
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock allow-presentation allow-downloads"
                     allow="cross-origin-isolated; autoplay"
                   />
                 </div>
@@ -496,22 +570,6 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
 
       {/* Action Items Dock Positioned at Bottom Center */}
       <div className="preview-sooth__dock-bottom-center">
-        {deployNotice && (
-          <div className="preview-deploy-notice" role="status" aria-live="polite">
-            <span className="preview-deploy-notice__icon">
-              <DockIconDeploy className="w-3.5 h-3.5" />
-            </span>
-            <span className="preview-deploy-notice__text">Deployments coming soon, stay tuned!</span>
-            <button
-              type="button"
-              className="preview-deploy-notice__close"
-              onClick={() => setDeployNotice(false)}
-              aria-label="Dismiss notice"
-            >
-              ✕
-            </button>
-          </div>
-        )}
         <MagneticDock
           items={dockItems}
           iconSize={42}

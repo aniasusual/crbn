@@ -3,6 +3,7 @@ import WelcomeView from './components/WelcomeView';
 import WorkspaceView from './components/WorkspaceView';
 import TabBar from './components/TabBar';
 import WorkspacePreparationView from './components/WorkspacePreparationView';
+import AgentaEmbeddedView from './components/AgentaEmbeddedView';
 import { normalizeSubagentName, isSubagentTool } from './components/subagentUtils';
 import { API_BASE_URL, WS_BASE_URL } from './config';
 import './index.css';
@@ -44,6 +45,8 @@ export default function App() {
     return localStorage.getItem('80degrees_selected_model') || null;
   });
   const [welcomePrompt, setWelcomePrompt] = useState('');
+  const [activeCompany, setActiveCompany] = useState(null);
+  const [companyReturnView, setCompanyReturnView] = useState('welcome');
 
   // Map of tabId -> WebSocket connection
   const socketsRef = useRef(new Map());
@@ -120,7 +123,7 @@ export default function App() {
                 if (!t.model || !isTabModelAuth) {
                   const socket = socketsRef.current.get(t.id);
                   if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({ action: 'set_model', model: effectiveModel }));
+                    socket.send(JSON.stringify({ type: 'set_model', model: effectiveModel }));
                   }
                   return { ...t, model: effectiveModel };
                 }
@@ -276,7 +279,7 @@ export default function App() {
             return;
           }
 
-          if (data.type === 'todo_update' && Array.isArray(data.phases)) {
+          if (data.type === 'todo_update' && data.phases) {
             updateTab(tabId, {
               todoState: {
                 op: data.op || 'view',
@@ -508,17 +511,15 @@ export default function App() {
               activeSessionId: data.session?.id || t.activeSessionId,
               messages: [],
               agentStatus: null,
-              todoState: { op: 'clear', phases: [], timestamp: Date.now() },
             }));
             return;
           }
 
           if (data.type === 'session_switched') {
-            updateTab(tabId, {
+            updateTab(tabId, (t) => ({
               activeSessionId: data.sessionId,
               agentStatus: null,
-              todoState: null,
-            });
+            }));
             return;
           }
 
@@ -527,7 +528,6 @@ export default function App() {
               sessions: (t.sessions || []).filter((s) => s.id !== data.deletedSessionId),
               activeSessionId: data.nextActiveSessionId || t.activeSessionId,
               agentStatus: null,
-              todoState: null,
             }));
             return;
           }
@@ -590,10 +590,9 @@ export default function App() {
                 agentStatus:
                   t.agentStatus === 'generating' && !data.is_rewind
                     ? 'generating'
-                    : lastWasAsk && t.pendingAsk
+                    : lastWasAsk
                     ? 'awaiting_human'
                     : null,
-                pendingAsk: t.agentStatus === 'generating' ? t.pendingAsk : null,
                 messages: inFlight.length > 0 ? [...mappedLoaded, ...inFlight] : mappedLoaded,
               };
             });
@@ -601,16 +600,9 @@ export default function App() {
           }
 
           if (data.type === 'ask_human') {
-            updateTab(tabId, {
-              agentStatus: 'awaiting_human',
-              pendingAsk: data,
-            });
-            return;
-          }
-
-          if (data.type === 'ask_resolved') {
             updateTab(tabId, (t) => ({
-              pendingAsk: !data.id || t.pendingAsk?.id === data.id ? null : t.pendingAsk,
+              agentStatus: 'awaiting_human',
+              messages: [...t.messages, { ...data, timestamp }],
             }));
             return;
           }
@@ -834,7 +826,6 @@ export default function App() {
           checkpointTimeline: [],
           pendingApproval: null,
           pendingPlanProposal: t.pendingPlanProposal || null,
-          pendingAsk: null,
           mode: t.mode || 'build',
           lastChangeTimestamp: 0,
           activeBranch: 'main',
@@ -873,10 +864,11 @@ export default function App() {
   // Handle Opening a Project (from Welcome screen or Finder)
   const handleOpenProject = useCallback(
     (projectInfo, initialPrompt, initialAttachments, initialMode = 'build') => {
-      const projectName = projectInfo.name;
-      const projectPath = projectInfo.path;
+      const pObj = typeof projectInfo === 'string' ? { name: projectInfo } : projectInfo;
+      const projectName = pObj.name;
+      const projectPath = pObj.path;
+      const chosenModel = pObj.model || globalDefaultModel;
       const tabId = `tab_${projectName}`;
-      const chosenModel = projectInfo.model || globalDefaultModel;
 
       // If already open, switch to that tab
       const existingTab = tabs.find(
@@ -918,7 +910,6 @@ export default function App() {
         checkpointTimeline: [],
         pendingApproval: null,
         pendingPlanProposal: null,
-        pendingAsk: null,
         mode: initialMode || 'build',
         lastChangeTimestamp: 0,
         activeBranch: 'main',
@@ -1144,6 +1135,18 @@ export default function App() {
 
   // Active Tab Derived State
   const activeTab = tabs.find((t) => t.id === activeTabId) || null;
+  // Handle Opening Agenta Company Dashboard
+  const handleOpenCompany = useCallback((company) => {
+    setCompanyReturnView(currentView === 'workspace' ? 'workspace' : 'welcome');
+    setActiveCompany(company);
+    setCurrentView('company');
+  }, [currentView]);
+
+  const handleBackFromCompany = useCallback(() => {
+    setActiveCompany(null);
+    setCurrentView(companyReturnView || (activeTab ? 'workspace' : 'welcome'));
+  }, [companyReturnView, activeTab]);
+
 
   // Active Tab Action Handlers
   const handleClearContext = useCallback(() => {
@@ -1162,7 +1165,6 @@ export default function App() {
         agentStatus: null,
         messages: hasDivider ? msgs : [...msgs, divider],
         queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
-        pendingAsk: null,
         inputText: '',
         contextTelemetry: t.contextTelemetry ? {
           ...t.contextTelemetry,
@@ -1211,27 +1213,11 @@ export default function App() {
       const videos = attachments?.videos ?? [];
       const files = attachments?.files ?? [];
 
-      // If the agent is paused waiting on a docked Ask card and user types a freeform message in the composer,
-      // dismiss the Ask dialog with kind: 'chat' so the queued follow-up flows immediately instead of stalling.
-      if (tab.pendingAsk?.id && ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            action: 'tool_response',
-            id: tab.pendingAsk.id,
-            response: { kind: 'chat' },
-          })
-        );
-      }
-
-      const isAlreadyGenerating =
-        tab.agentStatus === 'generating' ||
-        tab.agentStatus === 'retrying' ||
-        tab.agentStatus === 'awaiting_human';
+      const isAlreadyGenerating = tab.agentStatus === 'generating' || tab.agentStatus === 'retrying';
 
       if (!isAlreadyGenerating) {
         updateTab(activeTabId, (t) => ({
           agentStatus: 'generating',
-          pendingAsk: null,
           queuedMessages: {
             steering: Array.isArray(t.queuedMessages?.steering) ? t.queuedMessages.steering : [],
             followUp: (t.queuedMessages?.followUp || []).filter(
@@ -1253,8 +1239,6 @@ export default function App() {
         }));
       } else {
         updateTab(activeTabId, (t) => ({
-          agentStatus: 'generating',
-          pendingAsk: null,
           queuedMessages: {
             ...t.queuedMessages,
             followUp: [...(t.queuedMessages?.followUp || []), prompt],
@@ -1316,7 +1300,7 @@ export default function App() {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ action: 'tool_response', id, response }));
       }
-      updateTab(activeTabId, { agentStatus: 'generating', pendingAsk: null });
+      updateTab(activeTabId, { agentStatus: 'generating' });
     },
     [activeTabId, updateTab]
   );
@@ -1351,7 +1335,6 @@ export default function App() {
       queuedMessages: { steering: [], followUp: [], liveSteered: 0 },
       pendingApproval: null,
       pendingPlanProposal: null,
-      pendingAsk: null,
     });
   }, [activeTabId, updateTab]);
 
@@ -1456,7 +1439,6 @@ export default function App() {
         agentStatus: null,
         pendingApproval: null,
         pendingPlanProposal: null,
-        pendingAsk: null,
       });
 
       const oldWs = socketsRef.current.get(targetId);
@@ -1614,8 +1596,12 @@ export default function App() {
         tabs={tabs}
         activeTabId={activeTabId}
         isHomeActive={currentView === 'welcome'}
-        onSelectHome={() => setCurrentView('welcome')}
+        onSelectHome={() => {
+          setActiveCompany(null);
+          setCurrentView('welcome');
+        }}
         onSelectTab={(tabId) => {
+          setActiveCompany(null);
           setActiveTabId(tabId);
           setCurrentView('workspace');
         }}
@@ -1629,6 +1615,7 @@ export default function App() {
           onSubmit={handleCreateProject}
           onConnectAndBuild={handleConnectAndBuild}
           onOpenProject={(proj) => handleOpenProject(proj)}
+          onOpenCompany={handleOpenCompany}
           onImportLocalProject={handleImportLocalProject}
           onDeleteProject={handleDeleteProjectFromTabs}
           isTransitioning={isTransitioning}
@@ -1669,7 +1656,6 @@ export default function App() {
           pendingApproval={activeTab.pendingApproval}
           onApproveCommand={handleApproveCommand}
           onDenyCommand={handleDenyCommand}
-          pendingAsk={activeTab.pendingAsk}
           mode={activeTab.mode || 'build'}
           onToggleMode={handleToggleMode}
           pendingPlanProposal={activeTab.pendingPlanProposal}
@@ -1709,6 +1695,18 @@ export default function App() {
           onSwitchSession={(sessionId) => handleSwitchSession(activeTab.id, sessionId)}
           onDeleteSession={(sessionId) => handleDeleteSession(activeTab.id, sessionId)}
           onRenameSession={(sessionId, title) => handleRenameSession(activeTab.id, sessionId, title)}
+          onOpenCompany={handleOpenCompany}
+        />
+      )}
+
+      {currentView === 'company' && activeCompany && !creationProgress && (
+        <AgentaEmbeddedView
+          company={activeCompany}
+          onBack={handleBackFromCompany}
+          onOpenProject={(proj) => {
+            setActiveCompany(null);
+            handleOpenProject(proj);
+          }}
         />
       )}
     </div>
