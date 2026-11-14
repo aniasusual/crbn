@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, dialog, Menu, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, dialog, Menu, ipcMain, session } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
@@ -353,6 +353,39 @@ ipcMain.handle('restart-app', () => {
   stopBackend();
   app.relaunch();
   app.exit(0);
+});
+ipcMain.handle('get-agenta-session', async () => {
+  try {
+    const agentaUrl = process.env.AGENTA_WEB_URL || 'http://localhost';
+    const cookies = await session.defaultSession.cookies.get({ url: agentaUrl });
+    const accessTokenCookie = cookies.find((c) => c.name === 'sAccessToken');
+    const accessToken = accessTokenCookie?.value || undefined;
+    const frontTokenCookie = cookies.find((c) => c.name === 'sFrontToken');
+    if (frontTokenCookie?.value && frontTokenCookie.value !== 'remove') {
+      const decoded = JSON.parse(Buffer.from(decodeURIComponent(frontTokenCookie.value), 'base64').toString('utf8'));
+      const uid = decoded?.uid || decoded?.up?.sub;
+      const sessionHandle = decoded?.up?.sessionHandle;
+      const expiresAt = typeof decoded?.ate === 'number' ? decoded.ate : null;
+      if (uid && (!expiresAt || expiresAt > Date.now())) {
+        return { authState: 'authenticated', uid, sessionHandle, accessToken };
+      }
+    }
+    if (accessToken) {
+      const parts = accessToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        if (payload?.sub && (!payload.exp || payload.exp * 1000 > Date.now())) {
+          return {
+            authState: 'authenticated',
+            uid: payload.sub,
+            sessionHandle: payload.sessionHandle,
+            accessToken,
+          };
+        }
+      }
+    }
+  } catch {}
+  return { authState: 'logged-out' };
 });
 
 function setupApplicationMenu() {

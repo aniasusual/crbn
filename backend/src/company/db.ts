@@ -9,17 +9,31 @@ const DEFAULT_POSTGRES_TOKENS =
 
 let coreDbInstance: SQL | null = null;
 let tokensDbInstance: SQL | null = null;
+let coreUriCached = "";
+let tokensUriCached = "";
+
+export function isPostgresConfigured(): boolean {
+  const raw = (process.env.POSTGRES_URI_CORE || "").trim().toLowerCase();
+  if (raw === "disabled" || raw === "none" || raw === "false" || raw === "0") {
+    return false;
+  }
+  return true;
+}
 
 export function getCoreDb(): SQL {
-  if (!coreDbInstance) {
-    coreDbInstance = new SQL(DEFAULT_POSTGRES_CORE, { max: 3 });
+  const currentUri = process.env.POSTGRES_URI_CORE || DEFAULT_POSTGRES_CORE;
+  if (!coreDbInstance || coreUriCached !== currentUri) {
+    coreUriCached = currentUri;
+    coreDbInstance = new SQL(currentUri, { max: 3, connectionTimeout: 1.5 });
   }
   return coreDbInstance;
 }
 
 export function getTokensDb(): SQL {
-  if (!tokensDbInstance) {
-    tokensDbInstance = new SQL(DEFAULT_POSTGRES_TOKENS, { max: 3 });
+  const currentUri = process.env.POSTGRES_URI_SUPERTOKENS || DEFAULT_POSTGRES_TOKENS;
+  if (!tokensDbInstance || tokensUriCached !== currentUri) {
+    tokensUriCached = currentUri;
+    tokensDbInstance = new SQL(currentUri, { max: 3, connectionTimeout: 1.5 });
   }
   return tokensDbInstance;
 }

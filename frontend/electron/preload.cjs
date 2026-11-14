@@ -33,10 +33,12 @@ try {
   contextBridge.exposeInMainWorld('crbnDesktop', {
     selectDirectory: () => ipcRenderer.invoke('select-directory'),
     restartApp: () => ipcRenderer.invoke('restart-app'),
+    getAgentaSession: () => ipcRenderer.invoke('get-agenta-session'),
   });
 } catch {
   window.crbnDesktop = {
     selectDirectory: () => ipcRenderer.invoke('select-directory'),
     restartApp: () => ipcRenderer.invoke('restart-app'),
+    getAgentaSession: () => ipcRenderer.invoke('get-agenta-session'),
   };
 }

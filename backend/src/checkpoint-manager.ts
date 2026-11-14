@@ -4,6 +4,7 @@ import * as path from "node:path";
 import { getAugmentedEnv } from "./runtime-env";
 import { detectGit, installGit } from "./git-provisioner";
 import { ChatHistoryManager } from "./chat-history";
+import { companyService } from "./company/company-service";
 export const CHECKPOINTS_FILENAME = ".80degrees_checkpoints.json";
 export const BRANCHES_FILENAME = ".80degrees_branches.json";
 
@@ -198,11 +199,14 @@ export class CheckpointManager {
     const now = new Date().toISOString();
     const stepId = `step_${Date.now()}`;
 
-    const promptSummary = (promptText || "App update")
-      .trim()
+    const bbMatch = (promptText || "").match(/\[Blackboard Task #([0-9a-f-]{36})\]/i);
+    const blackboardTaskId = bbMatch?.[1];
+    const cleanedPrompt = (promptText || "App update")
+      .replace(/\[Blackboard Task #[0-9a-f-]{36}\]\s*/i, "")
+      .trim();
+    const promptSummary = (cleanedPrompt || "App update")
       .slice(0, 70)
       .replace(/[\n\r]+/g, " ");
-
     if (hasChanges) {
       await this.runGit(projectPath, ["add", "-A"]);
       await this.runGit(projectPath, ["commit", "-m", `Turn ${nextStepNumber}: ${promptSummary}`]);
@@ -239,6 +243,16 @@ export class CheckpointManager {
     currentSteps.push(newStep);
     await this.saveCheckpoints(projectPath, currentSteps);
     console.log(`[CheckpointManager] Created checkpoint ${stepId} (commit ${commitHash.slice(0, 8)}) for ${path.basename(projectPath)}`);
+    companyService.scheduleContextSync(projectPath, path.basename(projectPath), undefined, 1000);
+    companyService
+      .recordGitMilestoneOnBlackboard(
+        projectPath,
+        path.basename(projectPath),
+        newStep,
+        blackboardTaskId,
+        cleanedPrompt
+      )
+      .catch(() => {});
     return newStep;
   }
 
@@ -284,6 +298,7 @@ export class CheckpointManager {
     await this.saveCheckpoints(projectPath, remainingSteps);
 
     console.log(`[CheckpointManager] Successfully rolled back to ${targetStepId}`);
+    companyService.scheduleContextSync(projectPath, path.basename(projectPath), undefined, 1000);
     return {
       success: true,
       targetStep,
@@ -504,6 +519,7 @@ export class CheckpointManager {
     await this.saveBranches(projectPath, state);
 
     console.log(`[CheckpointManager] Switched active branch to "${target.name}" (${target.git_branch})`);
+    companyService.scheduleContextSync(projectPath, path.basename(projectPath), undefined, 1000);
     return target;
   }
 

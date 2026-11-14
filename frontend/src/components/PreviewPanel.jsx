@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '../config';
+import { getAgentaSessionHeaders } from '../lib/agenta-session';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import CodeExplorerView from './CodeExplorerView';
 import {
@@ -74,16 +75,20 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
       return;
     }
     let isMounted = true;
-    fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/company`)
-      .then((res) => (res.ok ? res.json() : { exists: false }))
-      .then((data) => {
+    (async () => {
+      try {
+        const sessionHeaders = await getAgentaSessionHeaders();
+        const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/company`, {
+          headers: sessionHeaders,
+        });
+        const data = res.ok ? await res.json() : { exists: false };
         if (isMounted) {
           setCompanyData(data.exists ? data.company : null);
         }
-      })
-      .catch(() => {
+      } catch {
         if (isMounted) setCompanyData(null);
-      });
+      }
+    })();
     return () => {
       isMounted = false;
     };
@@ -106,13 +111,18 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
         projectName,
         name: formattedName,
         status: 'provisioning',
+        isInitialCreate: true,
         agentaUrl: 'http://localhost/m',
       };
       onOpenCompany?.(optimisticCompany);
 
+      const sessionHeaders = await getAgentaSessionHeaders();
       const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/company`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...sessionHeaders,
+        },
         body: JSON.stringify({
           name: formattedName,
           tagline: `Autonomous business for ${formattedName}`,
@@ -124,9 +134,22 @@ export default function PreviewPanel({ projectName, previewData, _onStopPreview,
           setCompanyData(data.company);
           onOpenCompany?.(data.company);
         }
+      } else {
+        onOpenCompany?.({
+          projectName,
+          name: formattedName,
+          status: 'provisioning',
+          agentaUrl: 'http://localhost/m',
+        });
       }
     } catch (err) {
       console.error('[Company-Dock]', 'Failed to create company:', err);
+      onOpenCompany?.({
+        projectName,
+        name: projectName,
+        status: 'provisioning',
+        agentaUrl: 'http://localhost/m',
+      });
     } finally {
       setIsCreatingCompany(false);
     }

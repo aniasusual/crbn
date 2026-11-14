@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-let NATIVE_VERSION = '18.18.0';
+let NATIVE_VERSION = '18.20.0';
 try {
   const pkgPath = path.resolve(__dirname, '../../pi-harness/packages/natives/package.json');
   if (fs.existsSync(pkgPath)) {
@@ -56,6 +56,16 @@ function hasMatchingVersion(filePath, version) {
     return false;
   }
 }
+
+function copyFileAtomicSync(srcPath, destPath) {
+  fs.mkdirSync(path.dirname(destPath), { recursive: true });
+  const tmpPath = `${destPath}.tmp.${process.pid}.${Date.now()}`;
+  fs.copyFileSync(srcPath, tmpPath);
+  try {
+    fs.unlinkSync(destPath);
+  } catch {}
+  fs.renameSync(tmpPath, destPath);
+}
 async function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFile) {
   const url = `https://registry.npmjs.org/@oh-my-pi/pi-natives-${moduleConfig.pkg}/-/pi-natives-${moduleConfig.pkg}-${moduleConfig.version}.tgz`;
   const extractDir = path.dirname(targetFile);
@@ -75,14 +85,13 @@ async function downloadAndExtractNativeModule(moduleConfig, targetFile, sourceFi
 
     const extractedFile = path.join(extractDir, 'package', moduleConfig.file);
     if (fs.existsSync(extractedFile)) {
-      fs.copyFileSync(extractedFile, targetFile);
+      copyFileAtomicSync(extractedFile, targetFile);
       try { fs.rmSync(path.join(extractDir, 'package'), { recursive: true, force: true }); } catch {}
     }
     try { fs.unlinkSync(tmpTgz); } catch {}
     if (sourceFile && fs.existsSync(targetFile)) {
       try {
-        fs.mkdirSync(path.dirname(sourceFile), { recursive: true });
-        fs.copyFileSync(targetFile, sourceFile);
+        copyFileAtomicSync(targetFile, sourceFile);
       } catch {}
     }
     if (!fs.existsSync(targetFile)) {
@@ -124,7 +133,12 @@ export async function ensureNativeModules(options = {}) {
     // Check if target and source exist and carry the matching version stamp
     const hasTarget = hasMatchingVersion(targetFile, moduleConfig.version);
     const hasSource = hasMatchingVersion(sourceFile, moduleConfig.version);
-
+    if (!hasTarget && fs.existsSync(targetFile)) {
+      try { fs.unlinkSync(targetFile); } catch {}
+    }
+    if (!hasSource && fs.existsSync(sourceFile)) {
+      try { fs.unlinkSync(sourceFile); } catch {}
+    }
     // Both already exist and are on the correct version
     if (hasTarget && hasSource) {
       continue;
@@ -132,14 +146,14 @@ export async function ensureNativeModules(options = {}) {
 
     // Target exists but source is missing: copy target -> source
     if (hasTarget && !hasSource) {
-      fs.copyFileSync(targetFile, sourceFile);
+      copyFileAtomicSync(targetFile, sourceFile);
       console.log(`[Natives] Synced ${moduleConfig.file} -> pi-harness/packages/natives/native/`);
       continue;
     }
 
     // Source exists but target is missing: copy source -> target
     if (hasSource && !hasTarget) {
-      fs.copyFileSync(sourceFile, targetFile);
+      copyFileAtomicSync(sourceFile, targetFile);
       console.log(`[Natives] Synced ${moduleConfig.file} -> backend/native/`);
       continue;
     }

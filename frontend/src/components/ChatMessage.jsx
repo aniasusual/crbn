@@ -231,6 +231,11 @@ const AskAnsweredSummaryCard = ({ result, fallbackQuestions }) => {
         ...(r.customInput ? [r.customInput] : []),
       ].filter(Boolean),
     }));
+  } else if (details && Array.isArray(details.answers) && details.answers.length > 0) {
+    items = details.answers.map((a) => ({
+      question: a.question || a.name || 'Clarification',
+      answers: a.answer !== undefined && a.answer !== null && String(a.answer).trim() !== '' ? [String(a.answer)] : [],
+    }));
   } else if (details && (details.question || details.selectedOptions || details.customInput)) {
     items = [
       {

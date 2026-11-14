@@ -24,9 +24,12 @@ import { detectGit, installGit } from "./git-provisioner";
 import { UpdateService } from "./update-service";
 import { telemetry } from "./telemetry-service";
 import { logCompany } from "./company/logger";
+import { companyService } from "./company/company-service";
+import { buildProjectContextBundle } from "./company/project-context";
+import { createAuthGatewayRouter, type AuthGatewayRouter } from "../../pi-harness/packages/ai/src/auth-gateway/index";
 const requestedPort = process.env.BACKEND_PORT || process.env.PORT;
 const PORT = requestedPort !== undefined ? Number(requestedPort) : 8000;
-const HOST = process.env.BACKEND_HOST || "127.0.0.1";
+const HOST = process.env.BACKEND_HOST || "0.0.0.0";
 applyAugmentedPath();
 
 // Automatically verify and provision prerequisites in the background on startup (e.g. factory-reset PCs)
@@ -68,11 +71,75 @@ const modelsService = new ModelsService();
 const githubService = new GithubService(projectManager);
 const pluginsService = new PluginsService();
 const updateService = new UpdateService();
-const CORS_HEADERS = {
+const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Agenta-Auth-State, X-Agenta-Uid, X-Agenta-Session-Handle, X-Agenta-Access-Token, *",
+  "Access-Control-Allow-Private-Network": "true",
 };
+
+let oauthLlmGatewayRouterPromise: Promise<AuthGatewayRouter> | null = null;
+function getOAuthLlmGatewayRouter(): Promise<AuthGatewayRouter> {
+  if (!oauthLlmGatewayRouterPromise) {
+    oauthLlmGatewayRouterPromise = (async () => {
+      const [storage, registry] = await Promise.all([
+        modelsService.getAuthStorage(),
+        modelsService.getRegistry(),
+      ]);
+      return createAuthGatewayRouter({
+        storage,
+        resolveModel: (modelId, options) => {
+          const available = registry.getAvailable();
+          const clean = (modelId || "").trim();
+          const exact = available.find(
+            (m) => `${m.provider}/${m.id}` === clean || m.id === clean
+          );
+          if (exact && (!options?.accepts || options.accepts(exact))) {
+            return exact;
+          }
+          const bareId = clean.includes("/") ? clean.split("/").slice(1).join("/") : clean;
+          const byBare = available.find(
+            (m) => m.id === bareId && (!options?.accepts || options.accepts(m))
+          );
+          if (byBare) return byBare;
+          // Prefer google-antigravity or google-gemini-cli if present when falling back
+          const preferredOAuth = available.find(
+            (m) =>
+              (m.provider === "google-antigravity" ||
+                m.provider === "google-gemini-cli" ||
+                m.provider === "anthropic" ||
+                m.provider === "openai-codex") &&
+              (!options?.accepts || options.accepts(m))
+          );
+          if (preferredOAuth) return preferredOAuth;
+          return available.find((m) => !options?.accepts || options.accepts(m));
+        },
+        listModels: () => registry.getAvailable(),
+      });
+    })();
+  }
+  return oauthLlmGatewayRouterPromise;
+}
+
+function extractAgentaSessionHint(req: Request): {
+  authState?: "authenticated" | "logged-out";
+  uid?: string;
+  sessionHandle?: string;
+  accessToken?: string;
+} | undefined {
+  const authStateRaw = req.headers.get("x-agenta-auth-state")?.trim();
+  const uid = req.headers.get("x-agenta-uid")?.trim() || undefined;
+  const sessionHandle = req.headers.get("x-agenta-session-handle")?.trim() || undefined;
+  const accessToken = req.headers.get("x-agenta-access-token")?.trim() || undefined;
+  const authState =
+    authStateRaw === "authenticated" || authStateRaw === "logged-out"
+      ? authStateRaw
+      : undefined;
+  if (!authState && !uid && !sessionHandle && !accessToken) {
+    return undefined;
+  }
+  return { authState, uid, sessionHandle, accessToken };
+}
 
 interface WsData {
   bridge?: SessionBridge;
@@ -116,7 +183,13 @@ const _server = Bun.serve<WsData>({
 
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
-      return new Response(null, { headers: CORS_HEADERS });
+      const requestHeaders = req.headers.get("access-control-request-headers");
+      return new Response(null, {
+        headers: {
+          ...CORS_HEADERS,
+          "Access-Control-Allow-Headers": requestHeaders || CORS_HEADERS["Access-Control-Allow-Headers"],
+        },
+      });
     }
 
     // Liveness & health check for desktop process handshake
@@ -1038,7 +1111,8 @@ const _server = Bun.serve<WsData>({
     // Companies: List all companies
     if (url.pathname === "/api/companies" && req.method === "GET") {
       try {
-        const companies = await projectManager.listCompanies();
+        const sessionHint = extractAgentaSessionHint(req);
+        const companies = await projectManager.listCompanies(sessionHint);
         return Response.json(companies, { headers: CORS_HEADERS });
       } catch (err) {
         return Response.json(
@@ -1052,9 +1126,10 @@ const _server = Bun.serve<WsData>({
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/company$/) && req.method === "GET") {
       const parts = url.pathname.split("/");
       const projectName = decodeURIComponent(parts[3]);
-      logCompany("HTTP", `GET /api/projects/${projectName}/company`);
+      const sessionHint = extractAgentaSessionHint(req);
+      logCompany("HTTP", `GET /api/projects/${projectName}/company`, sessionHint);
       try {
-        const company = await projectManager.getCompany(projectName);
+        const company = await projectManager.getCompany(projectName, sessionHint);
         logCompany("HTTP", `GET /api/projects/${projectName}/company returned:`, company);
         return Response.json(
           { exists: Boolean(company), company },
@@ -1073,14 +1148,15 @@ const _server = Bun.serve<WsData>({
     if (url.pathname.match(/^\/api\/projects\/[^/]+\/company$/) && req.method === "POST") {
       const parts = url.pathname.split("/");
       const projectName = decodeURIComponent(parts[3]);
+      const sessionHint = extractAgentaSessionHint(req);
       try {
         const body = (await req.json().catch(() => ({}))) as {
           name?: string;
           tagline?: string;
           templateAgents?: string[];
         };
-        logCompany("HTTP", `POST /api/projects/${projectName}/company payload:`, body);
-        const company = await projectManager.saveCompany(projectName, body);
+        logCompany("HTTP", `POST /api/projects/${projectName}/company payload:`, { body, sessionHint });
+        const company = await projectManager.saveCompany(projectName, body, sessionHint);
         logCompany("HTTP", `POST /api/projects/${projectName}/company result:`, company);
         return Response.json(
           { success: true, company },
@@ -1108,6 +1184,101 @@ const _server = Bun.serve<WsData>({
         logCompany("HTTP", `DELETE /api/projects/${projectName}/company error:`, err);
         return Response.json(
           { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+    // Projects: Live Company & Codebase Context Bridge (used by Agenta runner .tools/bin/crbn-project)
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/company\/live-context$/) && req.method === "GET") {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const op = (url.searchParams.get("op") || "summary").toLowerCase();
+      const relPath = url.searchParams.get("path") || "";
+      try {
+        const project = await projectManager.getProject(projectName);
+        if (op === "read") {
+          const cleanedRel = relPath.replace(/^\/+/, "");
+          const baseName = path.basename(cleanedRel);
+          if (!cleanedRel || baseName.startsWith(".env")) {
+            return new Response("Forbidden or missing path\n", { status: 403, headers: CORS_HEADERS });
+          }
+          const resolvedRoot = path.resolve(project.path);
+          const resolvedTarget = path.resolve(project.path, cleanedRel);
+          if (resolvedTarget !== resolvedRoot && !resolvedTarget.startsWith(resolvedRoot + path.sep)) {
+            return new Response("Path traversal denied\n", { status: 403, headers: CORS_HEADERS });
+          }
+          if (!fs.existsSync(resolvedTarget) || !fs.statSync(resolvedTarget).isFile()) {
+            return new Response(`File not found: ${cleanedRel}\n`, { status: 404, headers: CORS_HEADERS });
+          }
+          const content = await fs.promises.readFile(resolvedTarget, "utf-8");
+          return new Response(content, {
+            headers: { ...CORS_HEADERS, "Content-Type": "text/plain; charset=utf-8" },
+          });
+        }
+
+        const bundle = await buildProjectContextBundle(project.path, project.name);
+        const output =
+          op === "tree"
+            ? bundle.codebaseMapMd
+            : op === "log" || op === "diff"
+            ? bundle.gitHistoryMd
+            : bundle.companyMd;
+        return new Response(output, {
+          headers: { ...CORS_HEADERS, "Content-Type": "text/markdown; charset=utf-8" },
+        });
+      } catch (err) {
+        return new Response(
+          `Error reading live context: ${err instanceof Error ? err.message : String(err)}\n`,
+          { status: 404, headers: CORS_HEADERS }
+        );
+      }
+    }
+    // Projects: Multi-Agent Blackboard Proxy (/api/projects/:name/company/blackboard/*)
+    if (url.pathname.match(/^\/api\/projects\/[^/]+\/company\/blackboard(\/.*)?$/)) {
+      const parts = url.pathname.split("/");
+      const projectName = decodeURIComponent(parts[3]);
+      const subPath = "/" + parts.slice(6).join("/") + (url.search || "");
+      const sessionHint = extractAgentaSessionHint(req);
+      try {
+        const project = await projectManager.getProject(projectName);
+        const body =
+          req.method !== "GET" && req.method !== "HEAD"
+            ? await req.json().catch(() => undefined)
+            : undefined;
+        const result = await companyService.proxyBlackboardRequest(
+          project.path,
+          subPath,
+          req.method,
+          body,
+          sessionHint
+        );
+        return Response.json(result.data, {
+          status: result.status,
+          headers: CORS_HEADERS,
+        });
+      } catch (err) {
+        return Response.json(
+          { detail: err instanceof Error ? err.message : String(err) },
+          { status: 500, headers: CORS_HEADERS }
+        );
+      }
+    }
+    // OAuth-to-Agenta LLM Gateway Proxy (/api/llm-proxy/v1/* -> pi-harness AuthGatewayRouter /v1/*)
+    if (url.pathname.startsWith("/api/llm-proxy/v1")) {
+      try {
+        const router = await getOAuthLlmGatewayRouter();
+        const rewrittenPath = url.pathname.slice("/api/llm-proxy".length) || "/v1/models";
+        const rewrittenUrl = new URL(rewrittenPath + (url.search || ""), url.origin);
+        const forwardedReq = new Request(rewrittenUrl.toString(), {
+          method: req.method,
+          headers: req.headers,
+          body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+          signal: req.signal,
+        });
+        return await router.route(forwardedReq, "agenta-runner");
+      } catch (err) {
+        return Response.json(
+          { error: { message: err instanceof Error ? err.message : String(err), type: "server_error" } },
           { status: 500, headers: CORS_HEADERS }
         );
       }

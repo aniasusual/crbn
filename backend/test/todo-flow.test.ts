@@ -141,9 +141,8 @@ describe("Todo live state pipeline over WebSocket + SessionBridge + TodoTool", (
           if (toolCount === 2) {
             return sseResponse(
               toolCallChunk(turnCount, "todo", {
-                op: "block",
+                op: "drop",
                 task: "Build view",
-                reason: "Waiting on schema review",
               }),
             );
           }
@@ -327,7 +326,7 @@ describe("Todo live state pipeline over WebSocket + SessionBridge + TodoTool", (
       .filter((e) => e.type === "tool_result" && e.name === "todo")
       .map((e) => ({ is_error: e.is_error, op: (e.arguments as Record<string, unknown>)?.op, content: (e.result as { content?: Array<{ text?: string }> })?.content?.[0]?.text }));
     expect(todoResults.length).toBe(6);
-    expect(todoUpdates.map((u) => u.op)).toEqual(["init", "done", "block", "done"]);
+    expect(todoUpdates.map((u) => u.op)).toEqual(["init", "done", "drop", "done"]);
 
     // 1. init: canonical phases with normalized in_progress on first task
     const initPhases = todoUpdates[0]?.phases as TodoPhase[];
@@ -354,13 +353,12 @@ describe("Todo live state pipeline over WebSocket + SessionBridge + TodoTool", (
       { content: "Wire API", status: "in_progress" },
     ]);
 
-    // 3. block("Build view"): captures blocker reason
-    const afterBlock = todoUpdates[2]?.phases as TodoPhase[];
-    expect(todoUpdates[2]?.op).toBe("block");
-    expect(afterBlock[1]?.tasks[0]).toEqual({
+    // 3. drop("Build view"): marks task abandoned
+    const afterDrop = todoUpdates[2]?.phases as TodoPhase[];
+    expect(todoUpdates[2]?.op).toBe("drop");
+    expect(afterDrop[1]?.tasks[0]).toEqual({
       content: "Build view",
-      status: "blocked",
-      blocker: "Waiting on schema review",
+      status: "abandoned",
     });
 
     // 4. done("Wire API"): final state
@@ -379,8 +377,7 @@ describe("Todo live state pipeline over WebSocket + SessionBridge + TodoTool", (
         tasks: [
           {
             content: "Build view",
-            status: "blocked",
-            blocker: "Waiting on schema review",
+            status: "abandoned",
           },
         ],
       },

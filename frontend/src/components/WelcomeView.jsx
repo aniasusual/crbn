@@ -16,6 +16,7 @@ import './WelcomeView.css';
 import ChromeTabBackground from './ui/ChromeTabBackground';
 import { identifyUser, trackUiEvent } from '../lib/analytics';
 
+import { getAgentaSessionHeaders } from '../lib/agenta-session';
 const GitHubIcon = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
@@ -289,10 +290,13 @@ export default function WelcomeView({
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [companySearch, setCompanySearch] = useState('');
 
-  const fetchCompanies = useCallback(async () => {
-    setIsLoadingCompanies(true);
+  const fetchCompanies = useCallback(async (silent = false) => {
+    if (!silent) setIsLoadingCompanies(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/companies`);
+      const sessionHeaders = await getAgentaSessionHeaders();
+      const res = await fetch(`${API_BASE_URL}/api/companies`, {
+        headers: sessionHeaders,
+      });
       if (res.ok) {
         const data = await res.json();
         setCompanies(Array.isArray(data) ? data : []);
@@ -300,7 +304,7 @@ export default function WelcomeView({
     } catch (err) {
       console.error('Failed to fetch companies:', err);
     } finally {
-      setIsLoadingCompanies(false);
+      if (!silent) setIsLoadingCompanies(false);
     }
   }, []);
   const [repoSearch, setRepoSearch] = useState('');
@@ -537,8 +541,23 @@ export default function WelcomeView({
   useEffect(() => {
     fetchProjects();
     fetchGithubStatus();
-    fetchCompanies();
+    fetchCompanies(false);
   }, [fetchCompanies]);
+
+  useEffect(() => {
+    if (activeWelcomeTab !== 'companies') return;
+    const interval = setInterval(() => {
+      fetchCompanies(true);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [activeWelcomeTab, fetchCompanies]);
+
+  const totalPendingCompanyApprovals = useMemo(() => {
+    return companies.reduce(
+      (sum, c) => sum + (Number(c?.blackboardMetrics?.pendingApprovals) || 0),
+      0
+    );
+  }, [companies]);
 
   const filteredCompanies = useMemo(() => {
     if (!companySearch.trim()) return companies;
@@ -558,12 +577,52 @@ export default function WelcomeView({
         : 'Recent';
 
       const agentCount = c.agents?.length || c.templateAgents?.length || 7;
+      const m = c.blackboardMetrics || {};
+      const inProgress = Number(m.inProgressTasks) || 0;
+      const pendingApprovals = Number(m.pendingApprovals) || 0;
+      const blocked = Number(m.blockedTasks) || 0;
+      const done = Number(m.doneTasks) || 0;
+      const totalTasks = Number(m.totalTasks) || 0;
+
+      const opParts = [];
+      if (inProgress > 0) {
+        opParts.push(`${inProgress} ACTIVE ${inProgress === 1 ? 'TASK' : 'TASKS'}`);
+      }
+      if (pendingApprovals > 0) {
+        opParts.push(
+          `${pendingApprovals} WAITING ${pendingApprovals === 1 ? 'APPROVAL' : 'APPROVALS'}`
+        );
+      } else if (blocked > 0) {
+        opParts.push(`${blocked} BLOCKED`);
+      } else if (done > 0 && inProgress === 0) {
+        opParts.push(`${done}/${totalTasks} DONE`);
+      }
+      opParts.push(`${agentCount} ${agentCount === 1 ? 'AGENT' : 'AGENTS'}`);
+
+      const platformLabel = opParts.join(' · ');
       const desc = c.tagline ? `${c.tagline} · ${dateLabel}` : `ACTIVE · ${dateLabel}`;
 
       return {
         key: c.id || c.projectName,
-        client: c.name || c.projectName,
-        platform: `${agentCount} DEPARTMENTS`,
+        client: (
+          <div className="degrees-company-row-title">
+            <span>{c.name || c.projectName}</span>
+            {pendingApprovals > 0 ? (
+              <span className="degrees-company-status-pill degrees-company-status-pill--warning">
+                {pendingApprovals} waiting
+              </span>
+            ) : inProgress > 0 ? (
+              <span className="degrees-company-status-pill degrees-company-status-pill--active">
+                {inProgress} active
+              </span>
+            ) : c.status === 'provisioning' ? (
+              <span className="degrees-company-status-pill degrees-company-status-pill--muted">
+                Provisioning
+              </span>
+            ) : null}
+          </div>
+        ),
+        platform: platformLabel,
         services: desc,
         data: c,
       };
@@ -1354,13 +1413,21 @@ export default function WelcomeView({
                     }`}
                     onClick={() => {
                       setActiveWelcomeTab('companies');
-                      fetchCompanies();
+                      fetchCompanies(false);
                     }}
                   >
                     <BuildingIcon size={13} />
                     <span>Companies</span>
                     {companies.length > 0 && (
                       <span className="degrees-welcome-tab-badge">{companies.length}</span>
+                    )}
+                    {totalPendingCompanyApprovals > 0 && (
+                      <span
+                        className="degrees-company-status-pill degrees-company-status-pill--warning"
+                        title={`${totalPendingCompanyApprovals} action(s) waiting for approval`}
+                      >
+                        {totalPendingCompanyApprovals} waiting
+                      </span>
                     )}
                   </button>
                 </div>

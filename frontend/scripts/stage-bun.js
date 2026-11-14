@@ -8,7 +8,7 @@ import { ensureNativeModules } from './ensure-natives.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BUN_VERSION = '1.4.2';
+const BUN_VERSION = '1.4.4';
 
 const TARGET_CONFIGS = {
   'darwin-arm64': {
@@ -117,15 +117,29 @@ async function downloadAndExtractBun(targetKey, targetDir) {
   }
 
   const destinationPath = path.join(targetDir, config.binaryName);
+  const currentHostKey = `${process.platform}-${process.arch === 'x64' ? 'x64' : 'arm64'}`;
   if (fs.existsSync(destinationPath) && fs.statSync(destinationPath).size > 1000000) {
-    return destinationPath;
+    if (currentHostKey === targetKey) {
+      try {
+        const existingVersion = execSync(`"${destinationPath}" --version`, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }).trim();
+        if (existingVersion === BUN_VERSION) {
+          return destinationPath;
+        }
+      } catch {}
+      try { fs.unlinkSync(destinationPath); } catch {}
+    } else {
+      return destinationPath;
+    }
   }
 
   // If running on matching host, copy local Bun if available
-  const currentHostKey = `${process.platform}-${process.arch === 'x64' ? 'x64' : 'arm64'}`;
   const localBun = findLocalBunBinary();
   if (currentHostKey === targetKey && localBun) {
     console.log(`[Stage] Copying host Bun binary (${localBun}) to ${destinationPath}...`);
+    try { fs.unlinkSync(destinationPath); } catch {}
     fs.copyFileSync(localBun, destinationPath);
     if (process.platform !== 'win32') {
       try { fs.chmodSync(destinationPath, 0o755); } catch {}
@@ -151,8 +165,11 @@ async function downloadAndExtractBun(targetKey, targetDir) {
         fs.copyFileSync(nested, destinationPath);
       }
     } else {
-      execSync(`unzip -p "${tmpZipName}" "${config.internalPath}" > "${destinationPath}"`, { cwd: targetDir, stdio: 'inherit' });
-      fs.chmodSync(destinationPath, 0o755);
+      const tmpDest = `${destinationPath}.tmp.${process.pid}`;
+      execSync(`unzip -p "${tmpZipName}" "${config.internalPath}" > "${tmpDest}"`, { cwd: targetDir, stdio: 'inherit' });
+      fs.chmodSync(tmpDest, 0o755);
+      try { fs.unlinkSync(destinationPath); } catch {}
+      fs.renameSync(tmpDest, destinationPath);
     }
     try { fs.unlinkSync(tmpZip); } catch {}
     console.log(`[Stage] Staged ${config.binaryName} successfully at ${destinationPath}`);

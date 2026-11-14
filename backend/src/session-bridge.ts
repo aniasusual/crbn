@@ -15,9 +15,22 @@ import type {
   ExtensionUIContext,
   ExtensionAskDialogQuestion,
   ExtensionAskDialogResult,
+  ExtensionFormDialogResult,
   ExtensionUISelectItem,
   ExtensionUIDialogOptions,
 } from "../../pi-harness/packages/coding-agent/src/extensibility/extensions/types";
+import {
+  parseHtmlForm,
+  spansText,
+  type ChoiceOption,
+  type FormField,
+} from "../../pi-harness/packages/tui/src/html-form/parse";
+import {
+  choiceValue,
+  defaultFormData,
+  fieldQuestions,
+  textValue,
+} from "../../pi-harness/packages/tui/src/html-form/data";
 import { readPlanFile } from "../../pi-harness/packages/coding-agent/src/plan-mode/plan-files";
 import { ensureThemeSync, theme as tuiTheme } from "../../pi-harness/packages/tui/src/theme/theme";
 import { clearCache as clearFsCache } from "../../pi-harness/packages/coding-agent/src/capability/fs";
@@ -89,6 +102,7 @@ export class SessionBridge {
   private activeTurns: Record<string, unknown>[] = [];
   private pendingUiRequests = new Map<string, { resolve: (val: unknown) => void; reject: (err: unknown) => void }>();
   private pendingAskRequest: Record<string, unknown> | null = null;
+  private lastAskFormResults: Array<Record<string, unknown>> | null = null;
   private devServerUnsubscribe: (() => void) | null = null;
   private currentPreviewUrl: string | null = null;
   private lastPromptText: string = "";
@@ -880,6 +894,227 @@ export class SessionBridge {
                     timedOut: false,
                   })),
                 });
+              },
+              reject: (err: unknown) => {
+                cleanup();
+                reject(err instanceof Error ? err : new Error(String(err)));
+              },
+            });
+            return promise;
+          },
+          formDialog: async (html: string, dialogOptions?: ExtensionUIDialogOptions) => {
+            const id = `ask_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const timestamp = new Date().toISOString();
+            const form = parseHtmlForm(html);
+            const questionsMap = fieldQuestions(form);
+            const sectionTitleByField = new Map<FormField, string>();
+            for (const section of form.sections) {
+              const secTitle = section.fieldset ? spansText(section.title).replace(/\s+/g, " ").trim() : "";
+              if (!secTitle) continue;
+              for (const block of section.blocks) {
+                if (block.kind === "field") {
+                  sectionTitleByField.set(block.field, secTitle);
+                }
+              }
+            }
+
+            interface ChoiceOptionDisplay {
+              label: string;
+              fullText: string;
+              value: string;
+              description?: string;
+              preview?: string;
+            }
+            const parseChoiceOptionDisplay = (opt: ChoiceOption): ChoiceOptionDisplay => {
+              const spans = opt.label;
+              let preview: string | undefined;
+              let bodySpans = spans;
+              if (spans.length > 1 && spans[spans.length - 1]?.style === "code") {
+                const leadingText = spansText(spans.slice(0, -1)).trim();
+                if (leadingText.length > 0) {
+                  preview = spans[spans.length - 1]!.text.trim() || undefined;
+                  bodySpans = spans.slice(0, -1);
+                }
+              }
+              const fullText = spansText(bodySpans).replace(/\s+/g, " ").trim() || opt.value;
+              const colonIdx = fullText.indexOf(": ");
+              if (colonIdx > 0) {
+                const label = fullText.slice(0, colonIdx).trim();
+                const description = fullText.slice(colonIdx + 2).trim();
+                return {
+                  label: label || fullText,
+                  fullText,
+                  value: opt.value,
+                  ...(description ? { description } : {}),
+                  ...(preview ? { preview } : {}),
+                };
+              }
+              return {
+                label: fullText,
+                fullText,
+                value: opt.value,
+                ...(preview ? { preview } : {}),
+              };
+            };
+
+            const namedFields = form.fields.filter((f) => Boolean(f.name));
+            const fieldMeta = namedFields.map((field) => {
+              const qText = questionsMap.get(field) ?? field.name;
+              const header = sectionTitleByField.get(field);
+              if (field.kind === "choice") {
+                const enabled = field.options.flatMap((opt, index) =>
+                  opt.disabled ? [] : [{ index, opt, display: parseChoiceOptionDisplay(opt) }],
+                );
+                const checkedIdx = enabled.findIndex((e) => e.opt.checked);
+                return {
+                  field,
+                  id: field.name,
+                  question: qText,
+                  ...(header && header !== qText ? { header } : {}),
+                  multi: Boolean(field.multi),
+                  ...(checkedIdx >= 0 ? { recommended: checkedIdx } : {}),
+                  enabled,
+                  options: enabled.map((e) => ({
+                    label: e.display.label,
+                    ...(e.display.description ? { description: e.display.description } : {}),
+                    ...(e.display.preview ? { preview: e.display.preview } : {}),
+                  })),
+                };
+              }
+              return {
+                field,
+                id: field.name,
+                question: qText,
+                ...(header && header !== qText ? { header } : {}),
+                multi: false,
+                enabled: [] as Array<{ index: number; opt: ChoiceOption; display: ChoiceOptionDisplay }>,
+                options: [] as Array<{ label: string; description?: string; preview?: string }>,
+              };
+            });
+
+            const serializedQuestions = fieldMeta.map((m) => ({
+              id: m.id,
+              question: m.question,
+              ...(m.header ? { header: m.header } : {}),
+              options: m.options,
+              multi: m.multi,
+              ...(m.recommended !== undefined ? { recommended: m.recommended } : {}),
+            }));
+
+            const primaryQ = serializedQuestions[0];
+            const askPayload = {
+              type: "ask_human",
+              id,
+              question: primaryQ?.question ?? "Please clarify:",
+              options: primaryQ?.options ?? [],
+              questions: serializedQuestions,
+              timestamp,
+            };
+            this.pendingAskRequest = askPayload;
+            this.send(askPayload);
+
+            const { promise, resolve, reject } = Promise.withResolvers<ExtensionFormDialogResult | undefined>();
+            const signal = dialogOptions?.signal;
+            const cleanup = () => {
+              this.pendingUiRequests.delete(id);
+              signal?.removeEventListener("abort", onAbort);
+              if (this.pendingAskRequest?.id === id) {
+                this.pendingAskRequest = null;
+                this.send({ type: "ask_resolved", id });
+              }
+            };
+            const onAbort = () => {
+              cleanup();
+              reject(new Error("Ask input was cancelled"));
+            };
+            if (signal?.aborted) {
+              onAbort();
+              return promise;
+            }
+            signal?.addEventListener("abort", onAbort, { once: true });
+
+            this.pendingUiRequests.set(id, {
+              resolve: (val: unknown) => {
+                cleanup();
+                if (val === null || val === undefined) {
+                  resolve(undefined);
+                  return;
+                }
+                if (typeof val === "object" && !Array.isArray(val)) {
+                  const kindVal = "kind" in val && typeof val.kind === "string" ? val.kind : undefined;
+                  if (kindVal === "cancel" || kindVal === "chat") {
+                    resolve(undefined);
+                    return;
+                  }
+                  if ("answers" in val && val.answers && typeof val.answers === "object") {
+                    const answersMap = val.answers as Record<string, unknown>;
+                    const data = defaultFormData(form);
+                    const results: Array<Record<string, unknown>> = [];
+
+                    for (const meta of fieldMeta) {
+                      const rawEntry = Object.hasOwn(answersMap, meta.id) ? answersMap[meta.id] : undefined;
+                      const entryObj = rawEntry && typeof rawEntry === "object" ? rawEntry : undefined;
+                      const selectedOptions =
+                        entryObj && "selectedOptions" in entryObj && Array.isArray(entryObj.selectedOptions)
+                          ? entryObj.selectedOptions.map(String).filter(Boolean)
+                          : [];
+                      const rawCustom =
+                        entryObj && "customInput" in entryObj && typeof entryObj.customInput === "string"
+                          ? entryObj.customInput.trim()
+                          : "";
+                      const customInput = rawCustom.length > 0 ? rawCustom : undefined;
+
+                      if (meta.field.kind === "choice") {
+                        const fallbackSelected =
+                          selectedOptions.length === 0 && customInput === undefined && !meta.multi
+                            ? [meta.options[meta.recommended ?? 0]?.label ?? ""].filter(Boolean)
+                            : selectedOptions;
+                        const checked = new Set<number>();
+                        for (const sel of fallbackSelected) {
+                          const matched = meta.enabled.find(
+                            (e) =>
+                              e.display.label === sel ||
+                              e.display.fullText === sel ||
+                              e.display.value === sel,
+                          );
+                          if (matched) checked.add(matched.index);
+                        }
+                        const cVal = choiceValue(meta.field, checked, customInput);
+                        if (cVal === undefined) delete data[meta.id];
+                        else data[meta.id] = cVal;
+
+                        results.push({
+                          id: meta.id,
+                          question: meta.question,
+                          options: meta.options.map((o) => o.label),
+                          multi: meta.multi,
+                          selectedOptions: fallbackSelected,
+                          ...(customInput !== undefined ? { customInput } : {}),
+                          timedOut: false,
+                        });
+                      } else {
+                        const textAns = customInput ?? selectedOptions[0] ?? meta.field.value;
+                        data[meta.id] = textValue(meta.field, textAns);
+                        results.push({
+                          id: meta.id,
+                          question: meta.question,
+                          options: [],
+                          multi: false,
+                          selectedOptions: [],
+                          ...(textAns ? { customInput: textAns } : {}),
+                          timedOut: false,
+                        });
+                      }
+                    }
+
+                    this.lastAskFormResults = results;
+                    resolve({ data, timedOut: false });
+                    return;
+                  }
+                }
+
+                const data = defaultFormData(form);
+                resolve({ data, timedOut: false });
               },
               reject: (err: unknown) => {
                 cleanup();
@@ -1771,9 +2006,21 @@ export class SessionBridge {
 
       case "tool_execution_end": {
         const cachedCall = this.activeToolCalls.get(event.toolCallId);
+        let resultDetails = event.result?.details ?? undefined;
+        if (event.toolName === "ask" && this.lastAskFormResults) {
+          const baseDetails =
+            resultDetails && typeof resultDetails === "object"
+              ? (resultDetails as Record<string, unknown>)
+              : {};
+          resultDetails = {
+            ...baseDetails,
+            results: baseDetails.results ?? this.lastAskFormResults,
+          };
+          this.lastAskFormResults = null;
+        }
         const structuredResult = {
           content: event.result?.content ?? [{ type: "text", text: String(event.result ?? "") }],
-          details: event.result?.details ?? undefined,
+          details: resultDetails,
           isError: Boolean(event.isError),
         };
 

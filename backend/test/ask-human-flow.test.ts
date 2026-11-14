@@ -78,40 +78,26 @@ describe("Ask human multi-question flow over WebSocket + SessionBridge + AskTool
           // First LLM response calls `ask` with 3 questions
           if (turnCount === 1 || turnCount === 3) {
             const toolArgs = JSON.stringify({
-              questions: [
-                {
-                  id: "db",
-                  header: "Storage",
-                  question: "Which database should we use?",
-                  options: [
-                    { label: "SQLite", description: "Embedded zero-config file DB", preview: "db.sqlite" },
-                    { label: "Postgres", description: "Hosted relational database", preview: "postgres://..." },
-                  ],
-                  multi: false,
-                  recommended: 0,
-                },
-                {
-                  id: "features",
-                  header: "Modules",
-                  question: "Which integrations do you want?",
-                  options: [
-                    { label: "Auth", description: "Session authentication" },
-                    { label: "Stripe", description: "Billing & checkout" },
-                    { label: "Email", description: "Transactional email" },
-                  ],
-                  multi: true,
-                },
-                {
-                  id: "hosting",
-                  header: "Deploy",
-                  question: "Where will you host it?",
-                  options: [
-                    { label: "Vercel", description: "Edge serverless" },
-                    { label: "Docker", description: "Self-hosted container" },
-                  ],
-                  multi: false,
-                },
-              ],
+              html: [
+                "<form>",
+                "  <fieldset><legend>Storage</legend>",
+                "    <p>Which database should we use?</p>",
+                '    <label><input type="radio" name="db" value="SQLite" checked> SQLite: Embedded zero-config file DB <code>db.sqlite</code></label>',
+                '    <label><input type="radio" name="db" value="Postgres"> Postgres: Hosted relational database <code>postgres://...</code></label>',
+                "  </fieldset>",
+                "  <fieldset><legend>Modules</legend>",
+                "    <p>Which integrations do you want?</p>",
+                '    <label><input type="checkbox" name="features" value="Auth"> Auth: Session authentication</label>',
+                '    <label><input type="checkbox" name="features" value="Stripe"> Stripe: Billing &amp; checkout</label>',
+                '    <label><input type="checkbox" name="features" value="Email"> Email: Transactional email</label>',
+                "  </fieldset>",
+                "  <fieldset><legend>Deploy</legend>",
+                "    <p>Where will you host it?</p>",
+                '    <label><input type="radio" name="hosting" value="Vercel"> Vercel: Edge serverless</label>',
+                '    <label><input type="radio" name="hosting" value="Docker"> Docker: Self-hosted container</label>',
+                "  </fieldset>",
+                "</form>",
+              ].join("\n"),
             });
             return sseResponse([
               {

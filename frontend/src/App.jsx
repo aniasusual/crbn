@@ -1159,6 +1159,30 @@ export default function App() {
     setCurrentView(companyReturnView || (activeTab ? 'workspace' : 'welcome'));
   }, [companyReturnView, activeTab]);
 
+  const handleSendTaskToEngineering = useCallback(
+    (projectName, task) => {
+      if (!projectName || !task) return;
+      if (task.id) {
+        fetch(
+          `${API_BASE_URL}/api/projects/${encodeURIComponent(projectName)}/company/blackboard/tasks/${encodeURIComponent(task.id)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'in_progress' }),
+          }
+        ).catch(() => {});
+      }
+      const header = task.id
+        ? `[Blackboard Task #${task.id}] ${task.title || 'Implement task'}`
+        : task.title || 'Implement task';
+      const promptText = task.description
+        ? `${header}\n\n${task.description}`
+        : header;
+      setActiveCompany(null);
+      handleOpenProject({ name: projectName }, promptText, undefined, 'build');
+    },
+    [handleOpenProject]
+  );
 
   // Active Tab Action Handlers
   const handleClearContext = useCallback(() => {
@@ -1740,6 +1764,7 @@ export default function App() {
             setActiveCompany(null);
             handleOpenProject(proj);
           }}
+          onSendTaskToEngineering={handleSendTaskToEngineering}
         />
       )}
     </div>

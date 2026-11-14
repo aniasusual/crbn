@@ -893,6 +893,8 @@
   justify-content: space-between;
   margin-bottom: 12px;
   padding: 0 2px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .degrees-timelines__title-group {
@@ -1647,6 +1649,7 @@
 /* Welcome Nav Tabs Switcher */
 .degrees-welcome-nav-tabs {
   display: inline-flex;
+  align-items: center;
   background: rgba(255, 255, 255, 0.045);
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
@@ -1654,6 +1657,8 @@
   padding: 3px;
   border-radius: 9999px;
   gap: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .degrees-welcome-nav-tab {
@@ -1669,6 +1674,12 @@
   border-radius: 9999px;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.degrees-welcome-nav-tab span {
+  white-space: nowrap;
 }
 
 .degrees-welcome-nav-tab:hover {
@@ -1687,6 +1698,8 @@
   color: rgba(255, 255, 255, 0.85);
   padding: 1px 5px;
   border-radius: 100px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* GitHub Search & Filters */
@@ -2325,4 +2338,43 @@
   background: rgba(234, 88, 12, 0.18);
   color: #fb923c;
   border-color: rgba(234, 88, 12, 0.35);
+}
+
+.degrees-company-row-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.degrees-company-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.degrees-company-status-pill--warning {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.degrees-company-status-pill--active {
+  background: rgba(59, 130, 246, 0.16);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.degrees-company-status-pill--muted {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.14);
 }

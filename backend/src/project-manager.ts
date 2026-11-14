@@ -8,8 +8,8 @@ import type { DevServerManager } from "./dev-server";
 import { getAugmentedEnv } from "./runtime-env";
 import { TemplateService } from "./templates/template-service";
 import { telemetry } from "./telemetry-service";
-import { companyService, type CompanyInfo, type CompanyAgentSummary } from "./company/company-service";
-export type { CompanyInfo, CompanyAgentSummary };
+import { companyService, type CompanyInfo, type CompanyAgentSummary, type AgentaSessionHint } from "./company/company-service";
+export type { CompanyInfo, CompanyAgentSummary, AgentaSessionHint };
 export interface ProjectCreationProgress {
   phase: "scaffolding" | "git" | "dependencies" | "preview" | "ready";
   message: string;
@@ -783,6 +783,7 @@ export class ProjectManager {
     await fs.mkdir(path.dirname(safePath), { recursive: true });
     await fs.writeFile(safePath, content, "utf-8");
     const stat = await fs.stat(safePath);
+    companyService.scheduleContextSync(project.path, project.name, undefined, 2500);
     return {
       success: true,
       path: relativePath,
@@ -819,14 +820,26 @@ export class ProjectManager {
       throw new Error(`Path does not exist: ${relativePath}`);
     }
     await fs.rm(safePath, { recursive: true, force: true });
+    companyService.scheduleContextSync(project.path, project.name, undefined, 2500);
     return { success: true, path: relativePath };
   }
-  async getCompany(projectName: string): Promise<CompanyInfo | null> {
+  async getCompany(projectName: string, sessionHint?: AgentaSessionHint): Promise<CompanyInfo | null> {
     const project = await this.getProject(projectName);
     const companyFilePath = path.join(project.path, COMPANY_FILENAME);
     try {
       if (!fsSync.existsSync(companyFilePath)) return null;
-      return await companyService.ensureCompanyProvisioned(project.path, project.name);
+      const company = await companyService.ensureCompanyProvisioned(
+        project.path,
+        project.name,
+        sessionHint
+      );
+      if (company) {
+        company.blackboardMetrics = await companyService.getCompanyBlackboardMetrics(
+          company,
+          sessionHint
+        );
+      }
+      return company;
     } catch {
       return null;
     }
@@ -834,10 +847,11 @@ export class ProjectManager {
 
   async saveCompany(
     projectName: string,
-    data: { name?: string; tagline?: string; templateAgents?: string[] } = {}
+    data: { name?: string; tagline?: string; templateAgents?: string[] } = {},
+    sessionHint?: AgentaSessionHint
   ): Promise<CompanyInfo> {
     const project = await this.getProject(projectName);
-    return await companyService.initializeCompany(project.path, project.name, data);
+    return await companyService.initializeCompany(project.path, project.name, data, sessionHint);
   }
 
   async deleteCompany(projectName: string): Promise<boolean> {
@@ -845,15 +859,11 @@ export class ProjectManager {
     return await companyService.deleteCompany(project.path, project.name);
   }
 
-  async listCompanies(): Promise<CompanyInfo[]> {
+  async listCompanies(sessionHint?: AgentaSessionHint): Promise<CompanyInfo[]> {
     const projects = await this.listProjects();
-    const companies: CompanyInfo[] = [];
-    for (const project of projects) {
-      const company = await this.getCompany(project.name);
-      if (company) {
-        companies.push(company);
-      }
-    }
-    return companies;
+    const results = await Promise.all(
+      projects.map((project) => this.getCompany(project.name, sessionHint).catch(() => null))
+    );
+    return results.filter((c): c is CompanyInfo => Boolean(c));
   }
 }
